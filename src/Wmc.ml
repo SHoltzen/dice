@@ -1,6 +1,7 @@
 open Core
 open Cudd
 
+(** map from variable index to (low weight, high weight) *)
 type weight = (int, (float*float)) Hashtbl.Poly.t
 
 (** Perform a weighted model count of the BDD `bdd` with weight function `w` *)

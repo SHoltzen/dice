@@ -1,6 +1,7 @@
 open Core
 open Cudd
 open Wmc
+open BddUtil
 
 (** Atomic expression. Expressions that are pure and cannot produce a
     distribution or affect the state of the program. *)
@@ -20,9 +21,10 @@ type aexpr =
 type expr =
     Flip of float
   | Ite of aexpr * expr * expr
-  | Let of String.t * aexpr * expr
+  | Let of String.t * expr * expr
   | FuncCall of fcall
   | Observe of aexpr * expr
+  | AExpr of aexpr
 [@@deriving sexp]
 and fcall = {
   assgn: String.t List.t;
@@ -79,9 +81,23 @@ let rec zip_tree (s1: 'a btree) (s2: 'b btree) =
 type compile_context = {
   man: Man.dt;
   vstate: (String.t, state) Hashtbl.Poly.t; (* map from variable identifiers to BDDs*)
+  name_map: (int, String.t) Hashtbl.Poly.t; (* map from variable identifiers to names, for debugging *)
   weights: weight; (* map from variables to weights *)
   evalind: Bdd.dt; (* special Boolean variable that holds the result of an expression *)
 }
+
+let new_context () =
+  let man = Man.make_d () in
+  let evalind = Bdd.newvar man in
+  let weights = Hashtbl.Poly.create () in
+  let names = Hashtbl.Poly.create () in
+  Hashtbl.Poly.add_exn names (Bdd.topvar evalind) "v";
+  Hashtbl.Poly.add_exn weights (Bdd.topvar evalind) (1.0, 1.0);
+  {man=man;
+   vstate= Hashtbl.Poly.create ();
+   name_map=names;
+   weights= weights;
+   evalind= evalind}
 
 let rec compile_aexpr (ctx: compile_context) e : state =
   match e with
@@ -122,7 +138,8 @@ let rec compile_expr (ctx:compile_context) s : state =
   | Flip(f) ->
     let new_f = Bdd.newvar ctx.man in
     let var_lbl = Bdd.topvar new_f in
-    Hashtbl.Poly.add_exn ctx.weights var_lbl (f, 1.0-.f);
+    Hashtbl.Poly.add_exn ctx.weights var_lbl (1.0-.f, f);
+    Hashtbl.add_exn ctx.name_map var_lbl (Format.sprintf "f%f" f);
     let r = Bdd.eq new_f ctx.evalind in
     Leaf(r)
   | Observe(g, e) ->
@@ -140,7 +157,19 @@ let rec compile_expr (ctx:compile_context) s : state =
         Bdd.dor (Bdd.dand compg thn_bdd) (Bdd.dand (Bdd.dnot compg) els_bdd)
       )
   | Let(s, e1, e2) ->
-    let c = compile_aexpr ctx e1 in
+    let c = compile_expr ctx e1 in
     Hashtbl.add_exn ctx.vstate s c;
     compile_expr ctx e2
+  | AExpr(e) ->
+    let c = compile_aexpr ctx e in
+    map_tree c (fun bdd ->
+        let r = Bdd.eq ctx.evalind bdd in
+        Format.printf "constraining equality\n\n";
+        dump_dot ctx.name_map bdd;
+        Format.printf "\n\nafter:\n";
+        dump_dot ctx.name_map r;
+        Format.printf "\n\n";
+        r
+      )
   | FuncCall(c) -> failwith "not impl"
+
