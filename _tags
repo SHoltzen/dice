@@ -1,0 +1,2 @@
+<src>: include
+<src/*>: package(cudd), package(oUnit), package(core), thread
