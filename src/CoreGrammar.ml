@@ -3,28 +3,27 @@ open Cudd
 open Wmc
 open BddUtil
 
-(** Atomic expression. Expressions that are pure and cannot produce a
-    distribution or affect the state of the program. *)
-type aexpr =
-  | And of aexpr * aexpr
-  | Or of aexpr * aexpr
-  | Not of aexpr
+(** Pure expressions that do not manipulate probabilities *)
+type epure =
+  | And of epure * epure
+  | Or of epure * epure
+  | Not of epure
   | Ident of String.t
-  | Fst of aexpr
-  | Snd of aexpr
-  | Tup of aexpr * aexpr
+  | Fst of epure
+  | Snd of epure
+  | Tup of epure * epure
+  | Ite of epure * epure * epure
   | True
   | False
 [@@deriving sexp]
 
-(** Core expression type *)
+(** Core monadic expression type *)
 type expr =
     Flip of float
-  | Ite of aexpr * expr * expr
-  | Let of String.t * expr * expr
+  | Bind of String.t * expr * expr
   | FuncCall of fcall
-  | Observe of aexpr * expr
-  | AExpr of aexpr
+  | Observe of epure * expr
+  | Return of epure (* lifts a pure expression into a distribution *)
 [@@deriving sexp]
 and fcall = {
   assgn: String.t List.t;
@@ -99,18 +98,18 @@ let new_context () =
    weights= weights;
    evalind= evalind}
 
-let rec compile_aexpr (ctx: compile_context) e : state =
+let rec compile_pure (ctx: compile_context) e : state =
   match e with
   | And(e1, e2) ->
-    let s1 = extract_bdd (compile_aexpr ctx e1) in
-    let s2 = extract_bdd (compile_aexpr ctx e2) in
+    let s1 = extract_bdd (compile_pure ctx e1) in
+    let s2 = extract_bdd (compile_pure ctx e2) in
     Leaf(Bdd.dand s1 s2)
   | Or(e1, e2) ->
-    let s1 = extract_bdd (compile_aexpr ctx e1) in
-    let s2 = extract_bdd (compile_aexpr ctx e2) in
+    let s1 = extract_bdd (compile_pure ctx e1) in
+    let s2 = extract_bdd (compile_pure ctx e2) in
     Leaf(Bdd.dor s1 s2)
   | Not(e) ->
-    let v = Bdd.dnot (extract_bdd (compile_aexpr ctx e)) in
+    let v = Bdd.dnot (extract_bdd (compile_pure ctx e)) in
     Leaf(v)
   | True -> Leaf(Bdd.dtrue ctx.man)
   | False -> Leaf(Bdd.dfalse ctx.man)
@@ -119,16 +118,24 @@ let rec compile_aexpr (ctx: compile_context) e : state =
      | Some(r) -> r
      | _ -> failwith (sprintf "Could not find Boolean variable %s" s))
   | Tup(e1, e2) ->
-    let c1 = compile_aexpr ctx e1 in
-    let c2 = compile_aexpr ctx e2 in
+    let c1 = compile_pure ctx e1 in
+    let c2 = compile_pure ctx e2 in
     Node(c1, c2)
+  | Ite(g, thn, els) ->
+    let compthn = compile_pure ctx thn in
+    let compels = compile_pure ctx els in
+    let compg = extract_bdd (compile_pure ctx g) in
+    let zipped = zip_tree compthn compels in
+    map_tree zipped (fun (thn_bdd, els_bdd) ->
+        Bdd.dor (Bdd.dand compg thn_bdd) (Bdd.dand (Bdd.dnot compg) els_bdd)
+      )
   | Fst(e) ->
-    let c = compile_aexpr ctx e in
+    let c = compile_pure ctx e in
     (match c with
      | Node(l, _) -> l
      | _ -> failwith "calling `fst` on non-tuple")
   | Snd(e) ->
-    let c = compile_aexpr ctx e in
+    let c = compile_pure ctx e in
     (match c with
      | Node(_, r) -> r
      | _ -> failwith "calling `snd` on non-tuple")
@@ -144,32 +151,21 @@ let rec compile_expr (ctx:compile_context) s : state =
     Leaf(r)
   | Observe(g, e) ->
     let v = compile_expr ctx e in
-    let g = extract_bdd (compile_aexpr ctx g) in
+    let g = extract_bdd (compile_pure ctx g) in
     map_tree v (fun bdd ->
         Bdd.dand g bdd
       )
-  | Ite(guard, thn, els) ->
-    let compthn = compile_expr ctx thn in
-    let compels = compile_expr ctx els in
-    let compg = extract_bdd (compile_aexpr ctx guard) in
-    let zipped = zip_tree compthn compels in
-    map_tree zipped (fun (thn_bdd, els_bdd) ->
-        Bdd.dor (Bdd.dand compg thn_bdd) (Bdd.dand (Bdd.dnot compg) els_bdd)
-      )
-  | Let(s, e1, e2) ->
-    let c = compile_expr ctx e1 in
-    Hashtbl.add_exn ctx.vstate s c;
-    compile_expr ctx e2
-  | AExpr(e) ->
-    let c = compile_aexpr ctx e in
-    map_tree c (fun bdd ->
-        let r = Bdd.eq ctx.evalind bdd in
-        Format.printf "constraining equality\n\n";
-        dump_dot ctx.name_map bdd;
-        Format.printf "\n\nafter:\n";
-        dump_dot ctx.name_map r;
-        Format.printf "\n\n";
-        r
-      )
+
+  (* | AExpr(e) ->
+   *   let c = compile_aexpr ctx e in
+   *   map_tree c (fun bdd ->
+   *       let r = Bdd.eq ctx.evalind bdd in
+   *       Format.printf "constraining equality\n\n";
+   *       dump_dot ctx.name_map bdd;
+   *       Format.printf "\n\nafter:\n";
+   *       dump_dot ctx.name_map r;
+   *       Format.printf "\n\n";
+   *       r
+   *     ) *)
   | FuncCall(c) -> failwith "not impl"
 

@@ -1,5 +1,5 @@
 build:
-	ocamlbuild -use-ocamlfind src/Main.native
+	ocamlbuild -use-ocamlfind -use-menhir src/Main.native
 clean:
 	ocamlbuild -clean
 test:

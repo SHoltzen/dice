@@ -1,0 +1,2 @@
+let x = (flip 0.2) && true in
+if true then false else (if false then true else flip 0.5)
