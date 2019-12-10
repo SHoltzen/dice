@@ -3,28 +3,23 @@ open Cudd
 open Wmc
 open BddUtil
 
-(** Pure expressions that do not manipulate probabilities *)
-type epure =
-  | And of epure * epure
-  | Or of epure * epure
-  | Not of epure
+type expr =
+  | And of expr * expr
+  | Or of expr * expr
+  | Not of expr
   | Ident of String.t
-  | Fst of epure
-  | Snd of epure
-  | Tup of epure * epure
-  | Ite of epure * epure * epure
+  | Fst of expr
+  | Snd of expr
+  | Tup of expr * expr
+  | Ite of expr * expr * expr
   | True
   | False
+  | Flip of float
+  | Let of String.t * expr * expr
+  | FuncCall of fcall
+  | Observe of expr
 [@@deriving sexp]
 
-(** Core monadic expression type *)
-type expr =
-    Flip of float
-  | Bind of String.t * expr * expr
-  | FuncCall of fcall
-  | Observe of epure * expr
-  | Return of epure (* lifts a pure expression into a distribution *)
-[@@deriving sexp]
 and fcall = {
   assgn: String.t List.t;
   fname: String.t;
@@ -51,13 +46,31 @@ type program = {
 }
 [@@deriving sexp]
 
+let rec from_external_expr (e: ExternalGrammar.eexpr) : expr =
+  match e with
+  | And(e1, e2) ->
+    let s1 = from_external_expr e1 in
+    let s2 = from_external_expr e2 in And(s1, s2)
+  | Or(e1, e2) ->
+    let s1 = from_external_expr e1 in
+    let s2 = from_external_expr e2 in Or(s1, s2)
+  | Not(e) -> Not(from_external_expr e)
+  | Flip(f) -> Flip(f)
+  | Ident(s) -> Ident(s)
+  | True -> True
+  | False -> False
+  | Observe(e) -> Observe(from_external_expr e)
+  | Let(x, e1, e2) -> Let(x, from_external_expr e1, from_external_expr e2)
+  | Ite(g, thn, els) -> Ite(from_external_expr g, from_external_expr thn, from_external_expr els)
+
 (** A compiled variable. It is a tree to compile tuples. *)
 type 'a btree =
     Leaf of 'a
   | Node of 'a btree * 'a btree
 [@@deriving sexp]
 
-type state = Bdd.dt btree
+(** The result of compiling an expression. A pair (value, normalizing constant) *)
+type state = (Bdd.dt btree * Bdd.dt)
 
 let extract_bdd state =
   match state with
@@ -76,96 +89,94 @@ let rec zip_tree (s1: 'a btree) (s2: 'b btree) =
     Node(zip_tree a_l b_l, zip_tree a_r b_r)
   | _ -> failwith "could not zip trees, incompatible shape"
 
-(* TODO make `weights` a map, to get scoping right*)
 type compile_context = {
   man: Man.dt;
-  vstate: (String.t, state) Hashtbl.Poly.t; (* map from variable identifiers to BDDs*)
   name_map: (int, String.t) Hashtbl.Poly.t; (* map from variable identifiers to names, for debugging *)
   weights: weight; (* map from variables to weights *)
-  evalind: Bdd.dt; (* special Boolean variable that holds the result of an expression *)
 }
+
+type env = (String.t, Bdd.dt btree) Map.Poly.t (* map from variable identifiers to BDDs*)
 
 let new_context () =
   let man = Man.make_d () in
-  let evalind = Bdd.newvar man in
   let weights = Hashtbl.Poly.create () in
   let names = Hashtbl.Poly.create () in
-  Hashtbl.Poly.add_exn names (Bdd.topvar evalind) "v";
-  Hashtbl.Poly.add_exn weights (Bdd.topvar evalind) (1.0, 1.0);
   {man=man;
-   vstate= Hashtbl.Poly.create ();
    name_map=names;
-   weights= weights;
-   evalind= evalind}
+   weights= weights}
 
-let rec compile_pure (ctx: compile_context) e : state =
+let rec compile_expr (ctx: compile_context) (env: env) e : state =
   match e with
   | And(e1, e2) ->
-    let s1 = extract_bdd (compile_pure ctx e1) in
-    let s2 = extract_bdd (compile_pure ctx e2) in
-    Leaf(Bdd.dand s1 s2)
+    let (v1, z1) = compile_expr ctx env e1 in
+    let (v2, z2) = compile_expr ctx env e2 in
+    let v = Leaf(Bdd.dand (extract_bdd v1) (extract_bdd v2)) in
+    let z =Bdd.dand z1 z2 in
+    (v, z)
   | Or(e1, e2) ->
-    let s1 = extract_bdd (compile_pure ctx e1) in
-    let s2 = extract_bdd (compile_pure ctx e2) in
-    Leaf(Bdd.dor s1 s2)
+    let (v1, z1) = compile_expr ctx env e1 in
+    let (v2, z2) = compile_expr ctx env e2 in
+    let v = Leaf(Bdd.dor (extract_bdd v1) (extract_bdd v2)) in
+    let z =Bdd.dand z1 z2 in
+    (v, z)
   | Not(e) ->
-    let v = Bdd.dnot (extract_bdd (compile_pure ctx e)) in
-    Leaf(v)
-  | True -> Leaf(Bdd.dtrue ctx.man)
-  | False -> Leaf(Bdd.dfalse ctx.man)
+    let (v1, z1) = compile_expr ctx env e in
+    let v = Bdd.dnot (extract_bdd v1) in
+    (Leaf(v), z1)
+  | True -> (Leaf(Bdd.dtrue ctx.man), Bdd.dtrue ctx.man)
+  | False -> (Leaf(Bdd.dfalse ctx.man), Bdd.dtrue ctx.man)
   | Ident(s) ->
-    (match Hashtbl.Poly.find ctx.vstate s with
-     | Some(r) -> r
+    (match Map.Poly.find env s with
+     | Some(r) -> (r, Bdd.dtrue ctx.man)
      | _ -> failwith (sprintf "Could not find Boolean variable %s" s))
   | Tup(e1, e2) ->
-    let c1 = compile_pure ctx e1 in
-    let c2 = compile_pure ctx e2 in
-    Node(c1, c2)
+    let (v1, z1) = compile_expr ctx env e1 in
+    let (v2, z2) = compile_expr ctx env e2 in
+    (Node(v1, v2), Bdd.dand z1 z2)
   | Ite(g, thn, els) ->
-    let compthn = compile_pure ctx thn in
-    let compels = compile_pure ctx els in
-    let compg = extract_bdd (compile_pure ctx g) in
-    let zipped = zip_tree compthn compels in
-    map_tree zipped (fun (thn_bdd, els_bdd) ->
-        Bdd.dor (Bdd.dand compg thn_bdd) (Bdd.dand (Bdd.dnot compg) els_bdd)
-      )
+    let (vg, zg) = compile_expr ctx env g in
+    let (vthn, zthn) = compile_expr ctx env thn in
+    let (vels, zels) = compile_expr ctx env els in
+    let gbdd = extract_bdd vg in
+    let zipped = zip_tree vthn vels in
+    let v' = map_tree zipped (fun (thn_bdd, els_bdd) ->
+        Bdd.dor (Bdd.dand gbdd thn_bdd) (Bdd.dand (Bdd.dnot gbdd) els_bdd)
+      ) in
+    let z' = Bdd.dand zg (Bdd.dor (Bdd.dand zthn gbdd)
+                            (Bdd.dand zels (Bdd.dnot gbdd))) in
+    (v', z')
   | Fst(e) ->
-    let c = compile_pure ctx e in
-    (match c with
+    let (v, z) = compile_expr ctx env e in
+    let v' = (match v with
      | Node(l, _) -> l
-     | _ -> failwith "calling `fst` on non-tuple")
+     | _ -> failwith "calling `fst` on non-tuple") in
+    (v', z)
   | Snd(e) ->
-    let c = compile_pure ctx e in
-    (match c with
+    let (v, z) = compile_expr ctx env e in
+    let v' = (match v with
      | Node(_, r) -> r
-     | _ -> failwith "calling `snd` on non-tuple")
-
-let rec compile_expr (ctx:compile_context) s : state =
-  match s with
+     | _ -> failwith "calling `snd` on non-tuple") in
+    (v', z)
   | Flip(f) ->
     let new_f = Bdd.newvar ctx.man in
     let var_lbl = Bdd.topvar new_f in
     Hashtbl.Poly.add_exn ctx.weights var_lbl (1.0-.f, f);
     Hashtbl.add_exn ctx.name_map var_lbl (Format.sprintf "f%f" f);
-    let r = Bdd.eq new_f ctx.evalind in
-    Leaf(r)
-  | Observe(g, e) ->
-    let v = compile_expr ctx e in
-    let g = extract_bdd (compile_pure ctx g) in
-    map_tree v (fun bdd ->
-        Bdd.dand g bdd
-      )
-
-  (* | AExpr(e) ->
-   *   let c = compile_aexpr ctx e in
-   *   map_tree c (fun bdd ->
-   *       let r = Bdd.eq ctx.evalind bdd in
-   *       Format.printf "constraining equality\n\n";
-   *       dump_dot ctx.name_map bdd;
-   *       Format.printf "\n\nafter:\n";
-   *       dump_dot ctx.name_map r;
-   *       Format.printf "\n\n";
-   *       r
-   *     ) *)
+    (Leaf(new_f), Bdd.dtrue ctx.man)
+  | Observe(g) ->
+    let (g, z) = compile_expr ctx env g in
+    (Leaf(Bdd.dtrue ctx.man), Bdd.dand (extract_bdd g) z)
+  | Let(x, e1, e2) ->
+    let (v1, z1) = compile_expr ctx env e1 in
+    let env' = Map.Poly.set env ~key:x ~data:v1 in
+    let (v2, z2) = compile_expr ctx env' e2 in
+    (v2, Bdd.dand z1 z2)
   | FuncCall(c) -> failwith "not impl"
 
+let get_prob e =
+  let ctx = new_context () in
+  let env = Map.Poly.empty in
+  let (v, zbdd) = compile_expr ctx env e in
+  let z = Wmc.wmc zbdd ctx.weights in
+  let prob = Wmc.wmc (extract_bdd v) ctx.weights in
+  prob /. z

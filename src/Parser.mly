@@ -37,6 +37,7 @@ expr:
     | LPAREN expr RPAREN { $2 }
     | TRUE { True }
     | FALSE { False }
+    | ID { Ident($1) }
     | expr AND expr { And($1, $3) }
     | expr OR expr { Or($1, $3) }
     | NOT expr { Not($2) }

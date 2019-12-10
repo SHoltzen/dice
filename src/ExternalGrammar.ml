@@ -12,6 +12,7 @@ type eexpr =
   | Flip of float
   | Let of String.t * eexpr * eexpr
   | Observe of eexpr
+  | Ident of String.t
   | True
   | False
 
@@ -32,3 +33,4 @@ let rec string_of_eexpr e =
   | True -> "true"
   | False -> "false"
   | Flip(f) -> sprintf "flip %f" f
+  | Ident(s) -> s

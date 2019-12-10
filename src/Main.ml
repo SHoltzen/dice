@@ -24,7 +24,10 @@ let parse_with_error lexbuf =
 
 let rec parse_and_print lexbuf =
   let parsed = parse_with_error lexbuf in
-  Format.printf "%s\n" (ExternalGrammar.string_of_eexpr parsed)
+  Format.printf "%s\n" (ExternalGrammar.string_of_eexpr parsed);
+  let ast = CoreGrammar.from_external_expr parsed in
+  let prob = CoreGrammar.get_prob ast in
+  Format.printf "prob: %f\n" prob
 
 let loop filename () =
   let inx = In_channel.create filename in
