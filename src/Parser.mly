@@ -10,7 +10,7 @@
 %token LPAREN RPAREN
 %token IF THEN ELSE TRUE FALSE IN
 %token SEMICOLON COMMA
-%token LET OBSERVE FLIP LBRACE RBRACE 
+%token LET OBSERVE FLIP LBRACE RBRACE FST SND
 
 %token <float>  FLOAT_LIT
 %token <string> MODULE_LIT
@@ -37,6 +37,9 @@ expr:
     | LPAREN expr RPAREN { $2 }
     | TRUE { True }
     | FALSE { False }
+    | LPAREN expr COMMA expr RPAREN { Tup($2, $4) }
+    | FST expr { Fst($2) }
+    | SND expr { Snd($2) }
     | ID { Ident($1) }
     | expr AND expr { And($1, $3) }
     | expr OR expr { Or($1, $3) }

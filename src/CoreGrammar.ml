@@ -62,6 +62,9 @@ let rec from_external_expr (e: ExternalGrammar.eexpr) : expr =
   | Observe(e) -> Observe(from_external_expr e)
   | Let(x, e1, e2) -> Let(x, from_external_expr e1, from_external_expr e2)
   | Ite(g, thn, els) -> Ite(from_external_expr g, from_external_expr thn, from_external_expr els)
+  | Snd(e) -> Snd(from_external_expr e)
+  | Fst(e) -> Fst(from_external_expr e)
+  | Tup(e1, e2) -> Tup(from_external_expr e1, from_external_expr e2)
 
 (** A compiled variable. It is a tree to compile tuples. *)
 type 'a btree =

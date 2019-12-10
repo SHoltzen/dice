@@ -13,8 +13,12 @@ type eexpr =
   | Let of String.t * eexpr * eexpr
   | Observe of eexpr
   | Ident of String.t
+  | Fst of eexpr
+  | Snd of eexpr
+  | Tup of eexpr * eexpr
   | True
   | False
+[@@deriving sexp]
 
 type program = eexpr
 
@@ -34,3 +38,6 @@ let rec string_of_eexpr e =
   | False -> "false"
   | Flip(f) -> sprintf "flip %f" f
   | Ident(s) -> s
+  | Snd(e) -> sprintf "snd %s" (string_of_eexpr e)
+  | Fst(e) -> sprintf "fst %s" (string_of_eexpr e)
+  | Tup(e1, e2) -> sprintf "(%s, %s)" (string_of_eexpr e1) (string_of_eexpr e2)

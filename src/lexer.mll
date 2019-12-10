@@ -49,6 +49,8 @@ rule token =
     | "true"                    { TRUE }
     | "false"                   { FALSE }
     | "let"                     { LET }
+    | "fst"                     { FST }
+    | "snd"                     { SND }
     | "in"                      { IN }
     | "observe"                 { OBSERVE }
     | "flip"                    { FLIP }

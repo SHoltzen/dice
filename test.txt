@@ -1,4 +1,2 @@
-let x = flip 0.1 in
-let y = flip 0.2 in
-let z = observe x || y in
-x
+let x = ((false, flip 0.4), false) in
+snd (fst x)
