@@ -12,10 +12,9 @@
 %token SEMICOLON COMMA
 %token LET OBSERVE FLIP LBRACE RBRACE FST SND
 
+%token <int>    INT_LIT
 %token <float>  FLOAT_LIT
-%token <string> MODULE_LIT
 %token <string> ID
-%token <string> GENERIC
 
 /* associativity rules */
 %left OR

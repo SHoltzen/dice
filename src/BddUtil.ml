@@ -26,10 +26,7 @@ let dump_dot (m: name_map) (b:Bdd.dt) =
         | None -> name in
       (* print node *)
       Format.printf "%s [label = \"%s\" ]\n" name lbl;
-      let (thn, els) = if Bdd.is_complement b then
-          (Bdd.dnot (Bdd.dthen b), Bdd.dnot (Bdd.delse b))
-        else
-          (Bdd.dthen b, Bdd.delse b) in
+      let (thn, els) = (Bdd.dthen b, Bdd.delse b) in
       let s_thn = dump_dot_h m thn seen in
       let s_els = dump_dot_h m els seen in
       (* print edges *)

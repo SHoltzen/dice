@@ -60,6 +60,7 @@ rule token =
     | '}'                       { RBRACE }
     | ';'                       { SEMICOLON }
     | ','                       { COMMA }
+    | int as i                  { INT_LIT(int_of_string i); }
     | float as num              { FLOAT_LIT(float_of_string num); }
     | id as ident               { ID(ident); }
     | eof                       { EOF }

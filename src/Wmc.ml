@@ -14,11 +14,7 @@ let wmc bdd (w: weight) =
       | Some v -> v
       | _ ->
         (* compute weight of children *)
-        let (thn, els) =
-          if Bdd.is_complement bdd then
-            ((Bdd.dnot (Bdd.dthen bdd)), Bdd.dnot (Bdd.delse bdd))
-          else
-            (Bdd.dthen bdd, Bdd.delse bdd) in
+        let (thn, els) = (Bdd.dthen bdd, Bdd.delse bdd) in
         let thnw = wmc_rec thn w cache and
           elsw = wmc_rec els w cache in
         (* compute new weight, add to cache *)

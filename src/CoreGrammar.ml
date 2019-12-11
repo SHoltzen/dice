@@ -12,6 +12,8 @@ type expr =
   | Snd of expr
   | Tup of expr * expr
   | Ite of expr * expr * expr
+  | Discrete of float List.t
+  | Int of int
   | True
   | False
   | Flip of float
@@ -65,6 +67,9 @@ let rec from_external_expr (e: ExternalGrammar.eexpr) : expr =
   | Snd(e) -> Snd(from_external_expr e)
   | Fst(e) -> Fst(from_external_expr e)
   | Tup(e1, e2) -> Tup(from_external_expr e1, from_external_expr e2)
+  | Discrete(l) -> Discrete(l)
+  | Int(i) -> Int(i)
+
 
 (** A compiled variable. It is a tree to compile tuples. *)
 type 'a btree =
@@ -181,5 +186,7 @@ let get_prob e =
   let env = Map.Poly.empty in
   let (v, zbdd) = compile_expr ctx env e in
   let z = Wmc.wmc zbdd ctx.weights in
-  let prob = Wmc.wmc (extract_bdd v) ctx.weights in
+  let prob = Wmc.wmc (Bdd.dand (extract_bdd v) zbdd) ctx.weights in
+  (* BddUtil.dump_dot ctx.name_map (extract_bdd v); *)
+  (* Format.printf "z: %f, prob: %f\n" z prob; *)
   prob /. z

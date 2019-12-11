@@ -3,6 +3,8 @@
 *)
 
 open Core
+open Sexplib.Std
+
 
 type eexpr =
     And of eexpr * eexpr
@@ -13,14 +15,14 @@ type eexpr =
   | Let of String.t * eexpr * eexpr
   | Observe of eexpr
   | Ident of String.t
+  | Discrete of float List.t
+  | Int of int
   | Fst of eexpr
   | Snd of eexpr
   | Tup of eexpr * eexpr
   | True
   | False
 [@@deriving sexp]
-
-type program = eexpr
 
 let rec string_of_eexpr e =
   match e with
@@ -41,3 +43,6 @@ let rec string_of_eexpr e =
   | Snd(e) -> sprintf "snd %s" (string_of_eexpr e)
   | Fst(e) -> sprintf "fst %s" (string_of_eexpr e)
   | Tup(e1, e2) -> sprintf "(%s, %s)" (string_of_eexpr e1) (string_of_eexpr e2)
+  | Discrete(l) ->
+    sprintf "Discrete(%s)" (List.to_string ~f:string_of_float l)
+  | Int(i) -> sprintf "Int(%d)" i
