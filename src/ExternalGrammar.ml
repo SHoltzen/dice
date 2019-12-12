@@ -16,7 +16,9 @@ type eexpr =
   | Observe of eexpr
   | Ident of String.t
   | Discrete of float List.t
-  | Int of int
+  | Int of int * int (* value, size *)
+  | Eq of eexpr * eexpr
+  | Plus of eexpr * eexpr
   | Fst of eexpr
   | Snd of eexpr
   | Tup of eexpr * eexpr
@@ -28,6 +30,8 @@ let rec string_of_eexpr e =
   match e with
   | And(e1, e2) -> sprintf "%s && %s" (string_of_eexpr e1) (string_of_eexpr e2)
   | Or(e1, e2) -> sprintf "%s || %s" (string_of_eexpr e1) (string_of_eexpr e2)
+  | Eq(e1, e2) -> sprintf "%s == %s" (string_of_eexpr e1) (string_of_eexpr e2)
+  | Plus(e1, e2) -> sprintf "%s + %s" (string_of_eexpr e1) (string_of_eexpr e2)
   | Not(e) -> sprintf "! %s" (string_of_eexpr e)
   | Ite(g, thn, els) ->
     sprintf "if %s then %s else %s"
@@ -45,4 +49,4 @@ let rec string_of_eexpr e =
   | Tup(e1, e2) -> sprintf "(%s, %s)" (string_of_eexpr e1) (string_of_eexpr e2)
   | Discrete(l) ->
     sprintf "Discrete(%s)" (List.to_string ~f:string_of_float l)
-  | Int(i) -> sprintf "Int(%d)" i
+  | Int(sz, value) -> sprintf "Int(%d, %d)" sz value

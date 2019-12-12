@@ -35,6 +35,7 @@ rule token =
     | '<'                       { LT }
     | '>'                       { GT }
     | '!'                       { NOT }
+    | "int"                     { INT }
     | "<="                      { LTE }
     | ">="                      { GTE }
     | "=="                      { EQUAL_TO }
@@ -45,6 +46,7 @@ rule token =
     | "//"                      { comment lexbuf; }
     | "if"                      { IF }
     | "else"                    { ELSE }
+    | "discrete"                { DISCRETE }
     | "then"                    { THEN }
     | "true"                    { TRUE }
     | "false"                   { FALSE }
