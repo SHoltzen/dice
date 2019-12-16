@@ -6,6 +6,7 @@ open CoreGrammar
 open AddImpl
 open Lexing
 open Lexer
+open Passes
 open Parser
 
 let print_position outx lexbuf =

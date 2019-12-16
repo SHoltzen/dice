@@ -15,7 +15,7 @@ type expr =
   | Discrete of float List.t
   | Eq of expr * expr
   | Plus of expr * expr
-  | Int of int * int
+  | Int of int * int  (* sz, v *)
   | True
   | False
   | Flip of float
@@ -23,13 +23,38 @@ type expr =
   | FuncCall of fcall
   | Observe of expr
 [@@deriving sexp]
-
 and fcall = {
   assgn: String.t List.t;
   fname: String.t;
   args: expr
 }
 [@@deriving sexp]
+
+
+let rec string_of_expr e =
+  match e with
+  | And(e1, e2) -> sprintf "%s && %s" (string_of_expr e1) (string_of_expr e2)
+  | Or(e1, e2) -> sprintf "%s || %s" (string_of_expr e1) (string_of_expr e2)
+  | Eq(e1, e2) -> sprintf "%s == %s" (string_of_expr e1) (string_of_expr e2)
+  | Plus(e1, e2) -> sprintf "%s + %s" (string_of_expr e1) (string_of_expr e2)
+  | Not(e) -> sprintf "! %s" (string_of_expr e)
+  | Ite(g, thn, els) ->
+    sprintf "if %s then %s else %s"
+      (string_of_expr g) (string_of_expr thn) (string_of_expr els)
+  | Let(id, e1, e2) ->
+    sprintf "let %s = %s in %s"
+      id (string_of_expr e1) (string_of_expr e2)
+  | Observe(e) -> sprintf "observe %s" (string_of_expr e)
+  | True -> "true"
+  | False -> "false"
+  | Flip(f) -> sprintf "flip %f" f
+  | Ident(s) -> s
+  | Snd(e) -> sprintf "snd %s" (string_of_expr e)
+  | Fst(e) -> sprintf "fst %s" (string_of_expr e)
+  | Tup(e1, e2) -> sprintf "(%s, %s)" (string_of_expr e1) (string_of_expr e2)
+  | Discrete(l) ->
+    sprintf "Discrete(%s)" (List.to_string ~f:string_of_float l)
+  | Int(sz, value) -> sprintf "Int(%d, %d)" sz value
 
 type typ =
     Bool
@@ -177,7 +202,9 @@ let rec compile_expr (ctx: compile_context) (env: env) e : state =
         | (BddLeaf(thn_bdd), BddLeaf(els_bdd)) ->
           BddLeaf(Bdd.dor (Bdd.dand gbdd thn_bdd) (Bdd.dand (Bdd.dnot gbdd) els_bdd))
         | (IntLeaf(l1), IntLeaf(l2)) ->
-          let zipped_l = List.zip_exn l1 l2 in
+          let zipped_l = try List.zip_exn l1 l2
+            with _ -> failwith (Format.sprintf "Type error: length mismatch between %s and %s"
+                                  (string_of_expr thn) (string_of_expr els)) in
           let l = List.map zipped_l ~f:(fun (thn_bdd, els_bdd) ->
               Bdd.dor (Bdd.dand gbdd thn_bdd) (Bdd.dand (Bdd.dnot gbdd) els_bdd)
             ) in
@@ -242,7 +269,10 @@ let rec compile_expr (ctx: compile_context) (env: env) e : state =
     let (v1, z1) = compile_expr ctx env e1 in
     let (v2, z2) = compile_expr ctx env e2 in
     let l1 = extract_discrete v1 and l2 = extract_discrete v2 in
-    let bdd = List.fold (List.zip_exn l1 l2) ~init:(Bdd.dtrue ctx.man) ~f:(fun acc (l, r) ->
+    let zipped = try List.zip_exn l1 l2
+            with _ -> failwith (Format.sprintf "Type error: length mismatch between %s and %s"
+                                  (string_of_expr e1) (string_of_expr e2)) in
+    let bdd = List.fold zipped ~init:(Bdd.dtrue ctx.man) ~f:(fun acc (l, r) ->
         Bdd.dand acc (Bdd.eq l r)
       ) in
     (Leaf(BddLeaf(bdd)), Bdd.dand z1 z2)
