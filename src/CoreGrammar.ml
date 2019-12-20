@@ -3,6 +3,7 @@ open Cudd
 open Wmc
 open BddUtil
 
+
 type expr =
   | And of expr * expr
   | Or of expr * expr
@@ -20,66 +21,36 @@ type expr =
   | False
   | Flip of float
   | Let of String.t * expr * expr
-  | FuncCall of fcall
+  | FuncCall of String.t * expr List.t
   | Observe of expr
-[@@deriving sexp]
+[@@deriving sexp_of]
 and fcall = {
-  assgn: String.t List.t;
   fname: String.t;
   args: expr
 }
-[@@deriving sexp]
+[@@deriving sexp_of]
 
 
 let rec string_of_expr e =
-  match e with
-  | And(e1, e2) -> sprintf "%s && %s" (string_of_expr e1) (string_of_expr e2)
-  | Or(e1, e2) -> sprintf "%s || %s" (string_of_expr e1) (string_of_expr e2)
-  | Eq(e1, e2) -> sprintf "%s == %s" (string_of_expr e1) (string_of_expr e2)
-  | Plus(e1, e2) -> sprintf "%s + %s" (string_of_expr e1) (string_of_expr e2)
-  | Not(e) -> sprintf "! %s" (string_of_expr e)
-  | Ite(g, thn, els) ->
-    sprintf "if %s then %s else %s"
-      (string_of_expr g) (string_of_expr thn) (string_of_expr els)
-  | Let(id, e1, e2) ->
-    sprintf "let %s = %s in %s"
-      id (string_of_expr e1) (string_of_expr e2)
-  | Observe(e) -> sprintf "observe %s" (string_of_expr e)
-  | True -> "true"
-  | False -> "false"
-  | Flip(f) -> sprintf "flip %f" f
-  | Ident(s) -> s
-  | Snd(e) -> sprintf "snd %s" (string_of_expr e)
-  | Fst(e) -> sprintf "fst %s" (string_of_expr e)
-  | Tup(e1, e2) -> sprintf "(%s, %s)" (string_of_expr e1) (string_of_expr e2)
-  | Discrete(l) ->
-    sprintf "Discrete(%s)" (List.to_string ~f:string_of_float l)
-  | Int(sz, value) -> sprintf "Int(%d, %d)" sz value
-
-type typ =
-    Bool
-  | Discrete of int (* argument is the size of the discrete domain *)
-  | Tup of typ * typ
-[@@deriving sexp]
+  Sexp.to_string_hum (sexp_of_expr e)
 
 (** Core function grammar *)
 type func = {
   name: String.t;
-  args: String.t List.t;
+  args: ExternalGrammar.arg List.t;
   body: expr;
 }
-[@@deriving sexp]
+[@@deriving sexp_of]
 
-type compiled_func = {
-  args: Bdd.dt List.t;
-  flips: Bdd.dt List.t;
-}
 
 type program = {
   functions: func List.t;
   body: expr;
 }
-[@@deriving sexp]
+[@@deriving sexp_of]
+
+let within_epsilon x y =
+  Float.abs (x -. y) < 0.000001
 
 let rec from_external_expr (e: ExternalGrammar.eexpr) : expr =
   match e with
@@ -108,6 +79,7 @@ let rec from_external_expr (e: ExternalGrammar.eexpr) : expr =
   | Snd(e) -> Snd(from_external_expr e)
   | Fst(e) -> Fst(from_external_expr e)
   | Tup(e1, e2) -> Tup(from_external_expr e1, from_external_expr e2)
+  | FuncCall(id, args) -> FuncCall(id, List.map args ~f:(fun i -> from_external_expr i))
 
 
 (** The result of compiling an expression. A pair (value, normalizing constant) *)
@@ -121,8 +93,6 @@ type 'a btree =
   | Node of 'a btree * 'a btree
 [@@deriving sexp]
 
-(** Holds a compiled var state and the normalizing BDD *)
-type state = (varstate btree * Bdd.dt)
 
 let extract_bdd (state: varstate btree) =
   match state with
@@ -147,10 +117,20 @@ let rec zip_tree (s1: 'a btree) (s2: 'b btree) =
     Node(zip_tree a_l b_l, zip_tree a_r b_r)
   | _ -> failwith "could not zip trees, incompatible shape"
 
+
+(** Result of compiling an expression *)
+type compiled_expr = {state: varstate btree; z: Bdd.dt; flips: Bdd.dt List.t}
+
+type compiled_func = {
+  args: (varstate btree) List.t;
+  body: compiled_expr;
+}
+
 type compile_context = {
   man: Man.dt;
   name_map: (int, String.t) Hashtbl.Poly.t; (* map from variable identifiers to names, for debugging *)
   weights: weight; (* map from variables to weights *)
+  funcs: (String.t, compiled_func) Hashtbl.Poly.t;
 }
 
 type env = (String.t, varstate btree) Map.Poly.t (* map from variable identifiers to BDDs*)
@@ -159,44 +139,52 @@ let new_context () =
   let man = Man.make_d () in
   let weights = Hashtbl.Poly.create () in
   let names = Hashtbl.Poly.create () in
-  {man=man;
-   name_map=names;
-   weights= weights}
+  {man = man;
+   name_map = names;
+   weights = weights;
+   funcs = Hashtbl.Poly.create ()}
 
-let rec compile_expr (ctx: compile_context) (env: env) e : state =
+let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
   match e with
   | And(e1, e2) ->
-    let (v1, z1) = compile_expr ctx env e1 in
-    let (v2, z2) = compile_expr ctx env e2 in
-    let v = Leaf(BddLeaf(Bdd.dand (extract_bdd v1) (extract_bdd v2))) in
-    let z = Bdd.dand z1 z2 in
-    (v, z)
+    let c1 = compile_expr ctx env e1 in
+    let c2 = compile_expr ctx env e2 in
+    let v = Leaf(BddLeaf(Bdd.dand (extract_bdd c1.state) (extract_bdd c2.state))) in
+    let z = Bdd.dand c1.z c2.z in
+    {state=v; z=z; flips=List.append c1.flips c2.flips}
+
   | Or(e1, e2) ->
-    let (v1, z1) = compile_expr ctx env e1 in
-    let (v2, z2) = compile_expr ctx env e2 in
-    let v = Leaf(BddLeaf(Bdd.dor (extract_bdd v1) (extract_bdd v2))) in
-    let z =Bdd.dand z1 z2 in
-    (v, z)
+    let c1 = compile_expr ctx env e1 in
+    let c2 = compile_expr ctx env e2 in
+    let v = Leaf(BddLeaf(Bdd.dor (extract_bdd c1.state) (extract_bdd c2.state))) in
+    let z = Bdd.dand c1.z c2.z in
+    {state=v; z=z; flips=List.append c1.flips c2.flips}
+
   | Not(e) ->
-    let (v1, z1) = compile_expr ctx env e in
-    let v = Bdd.dnot (extract_bdd v1) in
-    (Leaf(BddLeaf(v)), z1)
-  | True -> (Leaf(BddLeaf(Bdd.dtrue ctx.man)), Bdd.dtrue ctx.man)
-  | False -> (Leaf(BddLeaf(Bdd.dfalse ctx.man)), Bdd.dtrue ctx.man)
+    let c = compile_expr ctx env e in
+    let v = Bdd.dnot (extract_bdd c.state) in
+    {state=Leaf(BddLeaf(v)); z=c.z; flips=c.flips}
+
+  | True -> {state=Leaf(BddLeaf(Bdd.dtrue ctx.man)); z=Bdd.dtrue ctx.man; flips=[]}
+
+  | False -> {state=Leaf(BddLeaf(Bdd.dfalse ctx.man)); z=Bdd.dtrue ctx.man; flips=[]}
+
   | Ident(s) ->
     (match Map.Poly.find env s with
-     | Some(r) -> (r, Bdd.dtrue ctx.man)
+     | Some(r) -> {state=r; z=Bdd.dtrue ctx.man; flips=[]}
      | _ -> failwith (sprintf "Could not find Boolean variable %s" s))
+
   | Tup(e1, e2) ->
-    let (v1, z1) = compile_expr ctx env e1 in
-    let (v2, z2) = compile_expr ctx env e2 in
-    (Node(v1, v2), Bdd.dand z1 z2)
+    let c1 = compile_expr ctx env e1 in
+    let c2 = compile_expr ctx env e2 in
+    {state=Node(c1.state, c2.state); z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips}
+
   | Ite(g, thn, els) ->
-    let (vg, zg) = compile_expr ctx env g in
-    let (vthn, zthn) = compile_expr ctx env thn in
-    let (vels, zels) = compile_expr ctx env els in
-    let gbdd = extract_bdd vg in
-    let zipped = zip_tree vthn vels in
+    let cg = compile_expr ctx env g in
+    let cthn = compile_expr ctx env thn in
+    let cels = compile_expr ctx env els in
+    let gbdd = extract_bdd cg.state in
+    let zipped = zip_tree cthn.state cels.state in
     let v' = map_tree zipped (fun (thn_state, els_state) ->
         match (thn_state, els_state) with
         | (BddLeaf(thn_bdd), BddLeaf(els_bdd)) ->
@@ -211,48 +199,58 @@ let rec compile_expr (ctx: compile_context) (env: env) e : state =
           IntLeaf(l)
         | _ -> failwith (sprintf "Type error")
       ) in
-    let z' = Bdd.dand zg (Bdd.dor (Bdd.dand zthn gbdd)
-                            (Bdd.dand zels (Bdd.dnot gbdd))) in
-    (v', z')
+    let z' = Bdd.dand cg.z (Bdd.dor (Bdd.dand cthn.z gbdd)
+                              (Bdd.dand cels.z (Bdd.dnot gbdd))) in
+    {state=v'; z=z'; flips=List.append (List.append cg.flips cthn.flips) cels.flips}
+
   | Fst(e) ->
-    let (v, z) = compile_expr ctx env e in
-    let v' = (match v with
+    let c = compile_expr ctx env e in
+    let v' = (match c.state with
      | Node(l, _) -> l
      | _ -> failwith "calling `fst` on non-tuple") in
-    (v', z)
+    {state=v'; z=c.z; flips=c.flips}
+
   | Snd(e) ->
-    let (v, z) = compile_expr ctx env e in
-    let v' = (match v with
+    let c = compile_expr ctx env e in
+    let v' = (match c.state with
      | Node(_, r) -> r
      | _ -> failwith "calling `snd` on non-tuple") in
-    (v', z)
+    {state=v'; z=c.z; flips=c.flips}
+
   | Flip(f) ->
     let new_f = Bdd.newvar ctx.man in
     let var_lbl = Bdd.topvar new_f in
     Hashtbl.Poly.add_exn ctx.weights var_lbl (1.0-.f, f);
     Hashtbl.add_exn ctx.name_map var_lbl (Format.sprintf "f%f" f);
-    (Leaf(BddLeaf(new_f)), Bdd.dtrue ctx.man)
+    {state=Leaf(BddLeaf(new_f)); z=Bdd.dtrue ctx.man; flips=[new_f]}
+
   | Observe(g) ->
-    let (g, z) = compile_expr ctx env g in
-    (Leaf(BddLeaf(Bdd.dtrue ctx.man)), Bdd.dand (extract_bdd g) z)
+    let c = compile_expr ctx env g in
+    {state=Leaf(BddLeaf(Bdd.dtrue ctx.man)); z=Bdd.dand (extract_bdd c.state) c.z; flips=c.flips}
+
   | Let(x, e1, e2) ->
-    let (v1, z1) = compile_expr ctx env e1 in
-    let env' = Map.Poly.set env ~key:x ~data:v1 in
-    let (v2, z2) = compile_expr ctx env' e2 in
-    (v2, Bdd.dand z1 z2)
+    let c1 = compile_expr ctx env e1 in
+    let env' = Map.Poly.set env ~key:x ~data:c1.state in
+    let c2 = compile_expr ctx env' e2 in
+    {state=c2.state; z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips}
+
   | Discrete(l) ->
     (* first construct a list of all the properly parameterized flips *)
     let (bdd_l, _) = List.fold ~init:([], 1.0) l ~f:(fun (cur_l, cur_z) param ->
         let new_param = param /. cur_z in
-        if not (Float.is_nan new_param)  then
+        (* optimize: remove unnecessary flips if they are constant parameters *)
+        (match new_param with
+         | x when Float.is_nan new_param || within_epsilon new_param 0.0 ->
+           List.append cur_l [Bdd.dfalse ctx.man], cur_z
+         | x when within_epsilon new_param 1.0 ->
+           List.append cur_l [Bdd.dtrue ctx.man], cur_z
+         | _ ->
           let new_f = Bdd.newvar ctx.man in
           let var_lbl = Bdd.topvar new_f in
           let new_z = cur_z -. param in
           Hashtbl.Poly.add_exn ctx.weights var_lbl (1.0-.new_param, new_param);
           Hashtbl.add_exn ctx.name_map var_lbl (Format.sprintf "i%f" param);
-          (List.append cur_l [new_f], new_z)
-        else
-          (List.append cur_l [Bdd.dfalse ctx.man], cur_z)
+          (List.append cur_l [new_f], new_z))
       ) in
     (* convert the flip list into logical formulae *)
     let (l', _) = List.fold bdd_l ~init:([], Bdd.dtrue ctx.man) ~f:(fun (cur_l, cur_guard) flip ->
@@ -260,26 +258,28 @@ let rec compile_expr (ctx: compile_context) (env: env) e : state =
         let cur_bdd = Bdd.dand cur_guard flip in
         (List.append cur_l [cur_bdd], new_guard)
       ) in
-    (Leaf(IntLeaf(l')), Bdd.dtrue ctx.man)
+    {state=Leaf(IntLeaf(l')); z=Bdd.dtrue ctx.man; flips=l'}
+
   | Int(sz, value) ->
     let l = List.init sz (fun i ->
         if i = value then Bdd.dtrue ctx.man else Bdd.dfalse ctx.man) in
-    (Leaf(IntLeaf(l)), Bdd.dtrue ctx.man)
+    {state=Leaf(IntLeaf(l)); z=Bdd.dtrue ctx.man; flips=[]}
   | Eq(e1, e2) ->
-    let (v1, z1) = compile_expr ctx env e1 in
-    let (v2, z2) = compile_expr ctx env e2 in
-    let l1 = extract_discrete v1 and l2 = extract_discrete v2 in
+    let c1 = compile_expr ctx env e1 in
+    let c2 = compile_expr ctx env e2 in
+    let l1 = extract_discrete c1.state and l2 = extract_discrete c2.state in
     let zipped = try List.zip_exn l1 l2
             with _ -> failwith (Format.sprintf "Type error: length mismatch between %s and %s"
                                   (string_of_expr e1) (string_of_expr e2)) in
     let bdd = List.fold zipped ~init:(Bdd.dtrue ctx.man) ~f:(fun acc (l, r) ->
         Bdd.dand acc (Bdd.eq l r)
       ) in
-    (Leaf(BddLeaf(bdd)), Bdd.dand z1 z2)
+    {state=Leaf(BddLeaf(bdd)); z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips}
+
   | Plus(e1, e2) ->
-    let (v1, z1) = compile_expr ctx env e1 in
-    let (v2, z2) = compile_expr ctx env e2 in
-    let l1 = extract_discrete v1 and l2 = extract_discrete v2 in
+    let c1 = compile_expr ctx env e1 in
+    let c2 = compile_expr ctx env e2 in
+    let l1 = extract_discrete c1.state and l2 = extract_discrete c2.state in
     assert (List.length l1 = List.length l2);
     let len = List.length l1 in
     let init_l = Array.init len ~f:(fun _ -> Bdd.dfalse ctx.man) in
@@ -290,26 +290,69 @@ let rec compile_expr (ctx: compile_context) (env: env) e : state =
             Array.set init_l cur_pos (Bdd.dor cur_arrv (Bdd.dand inner_itm outer_itm));
           ) in ()
       ) in
-    (Leaf(IntLeaf(Array.to_list init_l)), Bdd.dtrue ctx.man)
-  | FuncCall(c) -> failwith "not impl"
+    {state=Leaf(IntLeaf(Array.to_list init_l)); z=Bdd.dtrue ctx.man; flips=List.append c1.flips c2.flips}
+
+  | FuncCall(name, args) ->
+    let func = try Hashtbl.Poly.find_exn ctx.funcs name
+      with _ -> failwith (Format.sprintf "Could not find function '%s'." name) in
+    failwith "blah"
+
+
+
+(** generates a symbolic representation for a variable of the given type *)
+let rec gen_sym_type ctx (t:ExternalGrammar.typ) : varstate btree =
+  match t with
+  | ExternalGrammar.TBool ->
+    let bdd = Bdd.newvar ctx.man in Leaf(BddLeaf(bdd))
+  | ExternalGrammar.TInt(sz) ->
+    let lst = List.init sz (fun i -> Bdd.newvar ctx.man) in
+    Leaf(IntLeaf(lst))
+  | ExternalGrammar.TTuple(t1, t2) ->
+    let s1 = gen_sym_type ctx t1 and s2 = gen_sym_type ctx t2 in
+    Node(s1, s2)
+
+let compile_func ctx (f: func) : compiled_func =
+  (* set up the context; need both a list and a map, so build both together *)
+  let (args, env) = List.fold f.args ~init:([], Map.Poly.empty)
+      ~f:(fun (lst, map) (name, typ) ->
+          let arg = gen_sym_type ctx typ in
+          let map' = try Map.Poly.add_exn map ~key:name ~data:arg
+            with _ -> failwith (Format.sprintf "Argument names must be unique: %s found twice" name) in
+          (List.append lst [arg], map')
+        ) in
+  (* now compile the function body with these arguments *)
+  let body = compile_expr ctx env f.body in
+  {args = args; body = body}
+
+let compile_program (p:program) : compiled_expr =
+  (* first compile the functions in topological order *)
+  let ctx = new_context () in
+  List.iter p.functions ~f:(fun func ->
+      let c = compile_func ctx func in
+      try Hashtbl.Poly.add_exn ctx.funcs ~key:func.name ~data:c
+      with _ -> failwith (Format.sprintf "Function names must be unique: %s found twice" func.name)
+    );
+  (* now compile the main body, which is the result of the program *)
+  let env = Map.Poly.empty in
+  compile_expr ctx env p.body
 
 let get_prob e =
   let ctx = new_context () in
   let env = Map.Poly.empty in
-  let (v, zbdd) = compile_expr ctx env e in
-  let z = Wmc.wmc zbdd ctx.weights in
-  let prob = Wmc.wmc (Bdd.dand (extract_bdd v) zbdd) ctx.weights in
+  let c = compile_expr ctx env e in
+  let z = Wmc.wmc c.z ctx.weights in
+  let prob = Wmc.wmc (Bdd.dand (extract_bdd c.state) c.z) ctx.weights in
   (* BddUtil.dump_dot ctx.name_map (extract_bdd v); *)
   prob /. z
 
 let print_discrete e =
   let ctx = new_context () in
   let env = Map.Poly.empty in
-  let (v, zbdd) = compile_expr ctx env e in
-  let discrete = extract_discrete v in
-  let z = Wmc.wmc zbdd ctx.weights in
+  let c = compile_expr ctx env e in
+  let discrete = extract_discrete c.state in
+  let z = Wmc.wmc c.z ctx.weights in
   let _ = List.mapi discrete ~f:(fun i itm ->
-      let prob = Wmc.wmc (Bdd.dand itm zbdd) ctx.weights in
+      let prob = Wmc.wmc (Bdd.dand itm c.z) ctx.weights in
       Format.printf "%d\t%f\n" i (prob /. z);
     ) in ()
   (* BddUtil.dump_dot ctx.name_map (extract_bdd v); *)

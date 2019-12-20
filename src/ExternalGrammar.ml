@@ -5,6 +5,14 @@
 open Core
 open Sexplib.Std
 
+type typ =
+    TBool
+  | TInt of int (* sz *)
+  | TTuple of typ * typ
+[@@deriving sexp_of]
+
+type arg = String.t * typ
+[@@deriving sexp_of]
 
 type eexpr =
     And of eexpr * eexpr
@@ -22,31 +30,19 @@ type eexpr =
   | Fst of eexpr
   | Snd of eexpr
   | Tup of eexpr * eexpr
+  | FuncCall of String.t * eexpr List.t
   | True
   | False
-[@@deriving sexp]
+[@@deriving sexp_of]
+
+type func = { name: String.t; args: arg List.t; body: eexpr}
+[@@deriving sexp_of]
+
+type program = { functions: func List.t; body: eexpr }
+[@@deriving sexp_of]
 
 let rec string_of_eexpr e =
-  match e with
-  | And(e1, e2) -> sprintf "%s && %s" (string_of_eexpr e1) (string_of_eexpr e2)
-  | Or(e1, e2) -> sprintf "%s || %s" (string_of_eexpr e1) (string_of_eexpr e2)
-  | Eq(e1, e2) -> sprintf "%s == %s" (string_of_eexpr e1) (string_of_eexpr e2)
-  | Plus(e1, e2) -> sprintf "%s + %s" (string_of_eexpr e1) (string_of_eexpr e2)
-  | Not(e) -> sprintf "! %s" (string_of_eexpr e)
-  | Ite(g, thn, els) ->
-    sprintf "if %s then %s else %s"
-      (string_of_eexpr g) (string_of_eexpr thn) (string_of_eexpr els)
-  | Let(id, e1, e2) ->
-    sprintf "let %s = %s in %s"
-      id (string_of_eexpr e1) (string_of_eexpr e2)
-  | Observe(e) -> sprintf "observe %s" (string_of_eexpr e)
-  | True -> "true"
-  | False -> "false"
-  | Flip(f) -> sprintf "flip %f" f
-  | Ident(s) -> s
-  | Snd(e) -> sprintf "snd %s" (string_of_eexpr e)
-  | Fst(e) -> sprintf "fst %s" (string_of_eexpr e)
-  | Tup(e1, e2) -> sprintf "(%s, %s)" (string_of_eexpr e1) (string_of_eexpr e2)
-  | Discrete(l) ->
-    sprintf "Discrete(%s)" (List.to_string ~f:string_of_float l)
-  | Int(sz, value) -> sprintf "Int(%d, %d)" sz value
+  Sexp.to_string_hum (sexp_of_eexpr e)
+
+let rec string_of_prog e =
+  Sexp.to_string_hum (sexp_of_program e)

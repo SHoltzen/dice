@@ -9,8 +9,8 @@
 %token AND OR NOT DISCRETE
 %token LPAREN RPAREN
 %token IF THEN ELSE TRUE FALSE IN INT
-%token SEMICOLON COMMA
-%token LET OBSERVE FLIP LBRACE RBRACE FST SND
+%token SEMICOLON COMMA COLON
+%token LET OBSERVE FLIP LBRACE RBRACE FST SND FUN BOOL
 
 %token <int>    INT_LIT
 %token <float>  FLOAT_LIT
@@ -27,22 +27,23 @@
 /* entry point */
 
 %start program
-%type <ExternalGrammar.eexpr> program
+%type <ExternalGrammar.program> program
 
 %%
 
 expr:
-    | LPAREN expr RPAREN { $2 }
+    | delimited(LPAREN, expr, RPAREN) { $1 }
     | TRUE { True }
     | FALSE { False }
-    | INT LPAREN; sz=INT_LIT; COMMA; value=INT_LIT; RPAREN  { Int(sz, value) }
-    | DISCRETE LPAREN; args=separated_list(COMMA, FLOAT_LIT); RPAREN { Discrete(args) }
+    | INT delimited(LPAREN, separated_pair(INT_LIT, COMMA, INT_LIT), RPAREN)  { Int(fst $2, snd $2) }
+    | DISCRETE delimited(LPAREN, separated_list(COMMA, FLOAT_LIT), RPAREN) { Discrete($2) }
     | expr EQUAL_TO expr { Eq($1, $3) }
     | expr PLUS expr { Plus($1, $3) }
-    | LPAREN expr COMMA expr RPAREN { Tup($2, $4) }
+    | delimited(LPAREN, separated_pair(expr, COMMA, expr), RPAREN) { Tup(fst $1, snd $1) }
     | FST expr { Fst($2) }
     | SND expr { Snd($2) }
     | ID { Ident($1) }
+    | ID delimited(LPAREN, separated_list(COMMA, expr), RPAREN) { FuncCall($1, $2) }
     | expr AND expr { And($1, $3) }
     | expr OR expr { Or($1, $3) }
     | NOT expr { Not($2) }
@@ -51,7 +52,16 @@ expr:
     | IF expr THEN expr ELSE expr { Ite($2, $4, $6) }
     | LET ID EQUAL expr IN expr { Let($2, $4, $6) }
 
+typ:
+    | BOOL { TBool }
+    | INT LPAREN; sz=INT_LIT; RPAREN  { TInt(sz) }
+    | LPAREN typ COMMA typ RPAREN { TTuple($2, $4) }
+
+arg: ID COLON typ { ($1, $3) }
+
+func: FUN; name=ID; LPAREN; args=separated_list(COMMA, arg); RPAREN LBRACE; body=expr; RBRACE
+         { { name=name; args=args; body=body } }
 
 program:
-  expr EOF { $1 }
+  funcs=list(func); body=expr; EOF { { functions=funcs; body=body } }
 

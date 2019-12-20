@@ -36,6 +36,7 @@ rule token =
     | '>'                       { GT }
     | '!'                       { NOT }
     | "int"                     { INT }
+    | "bool"                    { BOOL }
     | "<="                      { LTE }
     | ">="                      { GTE }
     | "=="                      { EQUAL_TO }
@@ -56,11 +57,13 @@ rule token =
     | "in"                      { IN }
     | "observe"                 { OBSERVE }
     | "flip"                    { FLIP }
+    | "fun"                     { FUN }
     | '('                       { LPAREN }
     | ')'                       { RPAREN }
     | '{'                       { LBRACE }
     | '}'                       { RBRACE }
     | ';'                       { SEMICOLON }
+    | ':'                       { COLON }
     | ','                       { COMMA }
     | int as i                  { INT_LIT(int_of_string i); }
     | float as num              { FLOAT_LIT(float_of_string num); }

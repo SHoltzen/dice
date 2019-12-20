@@ -28,7 +28,7 @@ let parse_and_prob e =
     fprintf stderr "%a: syntax error\n" print_position buf;
     failwith "" in
   (* Format.printf "%s\n" (ExternalGrammar.string_of_eexpr parsed); *)
-  let prog = CoreGrammar.from_external_expr parsed in
+  let prog = CoreGrammar.from_external_expr parsed.body in
   (* CoreGrammar.print_discrete prog; *)
   CoreGrammar.get_prob prog
 
