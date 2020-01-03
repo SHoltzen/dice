@@ -3,7 +3,6 @@ open Cudd
 open Wmc
 open BddUtil
 
-
 type expr =
   | And of expr * expr
   | Or of expr * expr
@@ -93,7 +92,6 @@ type 'a btree =
   | Node of 'a btree * 'a btree
 [@@deriving sexp]
 
-
 let extract_bdd (state: varstate btree) =
   match state with
   | Leaf(BddLeaf(bdd)) -> bdd
@@ -104,11 +102,19 @@ let extract_discrete(state: varstate btree) =
   | Leaf(IntLeaf(l)) -> l
   | _ -> failwith "invalid bdd extraction"
 
-
+(** applies `f` to each leaf in `s` *)
 let rec map_tree (s:'a btree) (f: 'a -> 'b) : 'b btree =
   match s with
   | Leaf(bdd) -> Leaf(f bdd)
   | Node(l, r) -> Node(map_tree l f, map_tree r f)
+
+(** Applies `f` to each BDD in `s` *)
+let rec map_bddtree (s:varstate btree) (f: Bdd.dt -> Bdd.dt) : varstate btree =
+  match s with
+  | Leaf(BddLeaf(bdd)) -> Leaf(BddLeaf(f bdd))
+  | Leaf(IntLeaf(l)) -> Leaf(IntLeaf(List.map l ~f:f))
+  | Node(l, r) -> Node(map_bddtree l f, map_bddtree r f)
+
 
 let rec zip_tree (s1: 'a btree) (s2: 'b btree) =
   match (s1, s2) with
@@ -119,7 +125,7 @@ let rec zip_tree (s1: 'a btree) (s2: 'b btree) =
 
 
 (** Result of compiling an expression *)
-type compiled_expr = {state: varstate btree; z: Bdd.dt; flips: Bdd.dt List.t}
+type compiled_expr = {state: varstate btree; z: Bdd.dt;}
 
 type compiled_func = {
   args: (varstate btree) List.t;
@@ -151,33 +157,33 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
     let c2 = compile_expr ctx env e2 in
     let v = Leaf(BddLeaf(Bdd.dand (extract_bdd c1.state) (extract_bdd c2.state))) in
     let z = Bdd.dand c1.z c2.z in
-    {state=v; z=z; flips=List.append c1.flips c2.flips}
+    {state=v; z=z;}
 
   | Or(e1, e2) ->
     let c1 = compile_expr ctx env e1 in
     let c2 = compile_expr ctx env e2 in
     let v = Leaf(BddLeaf(Bdd.dor (extract_bdd c1.state) (extract_bdd c2.state))) in
     let z = Bdd.dand c1.z c2.z in
-    {state=v; z=z; flips=List.append c1.flips c2.flips}
+    {state=v; z=z}
 
   | Not(e) ->
     let c = compile_expr ctx env e in
     let v = Bdd.dnot (extract_bdd c.state) in
-    {state=Leaf(BddLeaf(v)); z=c.z; flips=c.flips}
+    {state=Leaf(BddLeaf(v)); z=c.z}
 
-  | True -> {state=Leaf(BddLeaf(Bdd.dtrue ctx.man)); z=Bdd.dtrue ctx.man; flips=[]}
+  | True -> {state=Leaf(BddLeaf(Bdd.dtrue ctx.man)); z=Bdd.dtrue ctx.man}
 
-  | False -> {state=Leaf(BddLeaf(Bdd.dfalse ctx.man)); z=Bdd.dtrue ctx.man; flips=[]}
+  | False -> {state=Leaf(BddLeaf(Bdd.dfalse ctx.man)); z=Bdd.dtrue ctx.man}
 
   | Ident(s) ->
     (match Map.Poly.find env s with
-     | Some(r) -> {state=r; z=Bdd.dtrue ctx.man; flips=[]}
+     | Some(r) -> {state=r; z=Bdd.dtrue ctx.man}
      | _ -> failwith (sprintf "Could not find Boolean variable %s" s))
 
   | Tup(e1, e2) ->
     let c1 = compile_expr ctx env e1 in
     let c2 = compile_expr ctx env e2 in
-    {state=Node(c1.state, c2.state); z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips}
+    {state=Node(c1.state, c2.state); z=Bdd.dand c1.z c2.z}
 
   | Ite(g, thn, els) ->
     let cg = compile_expr ctx env g in
@@ -201,38 +207,38 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
       ) in
     let z' = Bdd.dand cg.z (Bdd.dor (Bdd.dand cthn.z gbdd)
                               (Bdd.dand cels.z (Bdd.dnot gbdd))) in
-    {state=v'; z=z'; flips=List.append (List.append cg.flips cthn.flips) cels.flips}
+    {state=v'; z=z'}
 
   | Fst(e) ->
     let c = compile_expr ctx env e in
     let v' = (match c.state with
      | Node(l, _) -> l
      | _ -> failwith "calling `fst` on non-tuple") in
-    {state=v'; z=c.z; flips=c.flips}
+    {state=v'; z=c.z}
 
   | Snd(e) ->
     let c = compile_expr ctx env e in
     let v' = (match c.state with
      | Node(_, r) -> r
      | _ -> failwith "calling `snd` on non-tuple") in
-    {state=v'; z=c.z; flips=c.flips}
+    {state=v'; z=c.z}
 
   | Flip(f) ->
     let new_f = Bdd.newvar ctx.man in
     let var_lbl = Bdd.topvar new_f in
     Hashtbl.Poly.add_exn ctx.weights var_lbl (1.0-.f, f);
     Hashtbl.add_exn ctx.name_map var_lbl (Format.sprintf "f%f" f);
-    {state=Leaf(BddLeaf(new_f)); z=Bdd.dtrue ctx.man; flips=[new_f]}
+    {state=Leaf(BddLeaf(new_f)); z=Bdd.dtrue ctx.man}
 
   | Observe(g) ->
     let c = compile_expr ctx env g in
-    {state=Leaf(BddLeaf(Bdd.dtrue ctx.man)); z=Bdd.dand (extract_bdd c.state) c.z; flips=c.flips}
+    {state=Leaf(BddLeaf(Bdd.dtrue ctx.man)); z=Bdd.dand (extract_bdd c.state) c.z}
 
   | Let(x, e1, e2) ->
     let c1 = compile_expr ctx env e1 in
     let env' = Map.Poly.set env ~key:x ~data:c1.state in
     let c2 = compile_expr ctx env' e2 in
-    {state=c2.state; z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips}
+    {state=c2.state; z=Bdd.dand c1.z c2.z}
 
   | Discrete(l) ->
     (* first construct a list of all the properly parameterized flips *)
@@ -258,12 +264,12 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
         let cur_bdd = Bdd.dand cur_guard flip in
         (List.append cur_l [cur_bdd], new_guard)
       ) in
-    {state=Leaf(IntLeaf(l')); z=Bdd.dtrue ctx.man; flips=l'}
+    {state=Leaf(IntLeaf(l')); z=Bdd.dtrue ctx.man}
 
   | Int(sz, value) ->
     let l = List.init sz (fun i ->
         if i = value then Bdd.dtrue ctx.man else Bdd.dfalse ctx.man) in
-    {state=Leaf(IntLeaf(l)); z=Bdd.dtrue ctx.man; flips=[]}
+    {state=Leaf(IntLeaf(l)); z=Bdd.dtrue ctx.man}
   | Eq(e1, e2) ->
     let c1 = compile_expr ctx env e1 in
     let c2 = compile_expr ctx env e2 in
@@ -274,7 +280,7 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
     let bdd = List.fold zipped ~init:(Bdd.dtrue ctx.man) ~f:(fun acc (l, r) ->
         Bdd.dand acc (Bdd.eq l r)
       ) in
-    {state=Leaf(BddLeaf(bdd)); z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips}
+    {state=Leaf(BddLeaf(bdd)); z=Bdd.dand c1.z c2.z}
 
   | Plus(e1, e2) ->
     let c1 = compile_expr ctx env e1 in
@@ -290,13 +296,47 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
             Array.set init_l cur_pos (Bdd.dor cur_arrv (Bdd.dand inner_itm outer_itm));
           ) in ()
       ) in
-    {state=Leaf(IntLeaf(Array.to_list init_l)); z=Bdd.dtrue ctx.man; flips=List.append c1.flips c2.flips}
+    {state=Leaf(IntLeaf(Array.to_list init_l)); z=Bdd.dtrue ctx.man}
 
   | FuncCall(name, args) ->
+    let cargs = List.map args ~f:(compile_expr ctx env) in
     let func = try Hashtbl.Poly.find_exn ctx.funcs name
       with _ -> failwith (Format.sprintf "Could not find function '%s'." name) in
-    failwith "blah"
-
+    (** 1. refresh the flips *)
+    let nvmap = Hashtbl.Poly.create () (* map from old to new variable labels *) in
+    let visitedmap = Hashtbl.Poly.create () (* caches the visited states for traversing the BDD *) in
+    (* helper function: traverses the BDD and generates a copy BDD with all new variables *)
+    (* in the future it would probably make sense to make this method native *)
+    let rec refresh_flips (bdd: Bdd.dt) : Bdd.dt =
+      Hashtbl.Poly.find_or_add visitedmap bdd ~default:(fun () ->
+          (match Bdd.inspect bdd with
+           | Bdd.Bool(true) -> Bdd.dtrue ctx.man
+           | Bdd.Bool(false) -> Bdd.dfalse ctx.man
+           | Bdd.Ite(lvl, thn, els) ->
+             let root = Hashtbl.Poly.find_or_add nvmap lvl ~default:(fun () -> Bdd.newvar ctx.man) in
+             let s1 = refresh_flips thn and s2 = refresh_flips els in
+             Bdd.ite root s1 s2)) in
+    let refreshed_state = ref (map_tree func.body.state (fun itm ->
+        match itm with
+        | BddLeaf(bdd) -> BddLeaf(refresh_flips bdd)
+        | IntLeaf(i) -> IntLeaf(List.map i ~f:refresh_flips))) in
+    let refreshed_z = refresh_flips func.body.z in
+    (** 2. substitute in the arguments *)
+    (* for each compiled argument, update the refreshed state by substituting
+       its argument variables *)
+    let zipped = try List.zip_exn cargs func.args
+      with _ -> failwith (Format.sprintf "Incorrect number of arguments for function call '%s'\n" (string_of_expr e)) in
+    List.iter zipped ~f:(fun (carg, placeholder) ->
+        let _ = map_tree (zip_tree carg.state placeholder) (function
+            | (BddLeaf(a), BddLeaf(p)) ->
+              let subst_p = Hashtbl.Poly.find_exn nvmap (Bdd.topvar p) in
+              refreshed_state := map_bddtree !refreshed_state (fun c -> Bdd.compose (Bdd.topvar subst_p) a c);
+            | (IntLeaf(al), IntLeaf(pl)) -> failwith ""
+            | _ -> failwith (Format.sprintf "Type mismatch in arguments for '%s'\n" (string_of_expr e))
+          ) in ()
+      );
+    let new_z = List.fold cargs ~init:refreshed_z ~f:(fun acc i -> Bdd.dand acc i.z) in
+    {state = !refreshed_state; z=new_z}
 
 
 (** generates a symbolic representation for a variable of the given type *)
