@@ -24,8 +24,7 @@ let parse_with_error lexbuf =
 let rec parse_and_print lexbuf =
   let parsed = parse_with_error lexbuf in
   Format.printf "%s\n" (ExternalGrammar.string_of_prog parsed);
-  let ast = CoreGrammar.from_external_expr parsed.body in
-  let prob = CoreGrammar.get_prob ast in
+  let prob = CoreGrammar.get_prob (CoreGrammar.from_external_prog parsed) in
   Format.printf "prob: %f\n" prob
 
 let loop filename () =

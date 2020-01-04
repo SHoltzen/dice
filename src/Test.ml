@@ -18,7 +18,7 @@ let print_position outx lexbuf =
   fprintf outx "%s:%d:%d" pos.pos_fname
     pos.pos_lnum (pos.pos_cnum - pos.pos_bol + 1)
 
-let parse_and_prob e =
+let parse_and_prob ?debug e =
   let buf = Lexing.from_string e in
   let parsed = try Parser.program Lexer.token buf with
   | SyntaxError msg ->
@@ -27,10 +27,11 @@ let parse_and_prob e =
   | Parser.Error ->
     fprintf stderr "%a: syntax error\n" print_position buf;
     failwith "" in
-  (* Format.printf "%s\n" (ExternalGrammar.string_of_eexpr parsed); *)
-  let prog = CoreGrammar.from_external_expr parsed.body in
-  (* CoreGrammar.print_discrete prog; *)
-  CoreGrammar.get_prob prog
+  (match debug with
+   | Some(true)->
+     Format.printf "Program: %s\n" (ExternalGrammar.string_of_prog parsed);
+   | _ -> ());
+  CoreGrammar.get_prob (from_external_prog parsed)
 
 let test_1 test_ctx =
   let prog = "let x = flip 0.4 in x" in
@@ -109,7 +110,63 @@ let test_add5 _ =
    sum == int(5, 1)" in
   assert_feq 0.1 (parse_and_prob prog)
 
-(* Name the test cases and group them together *)
+let test_fcall1 _ =
+  let prog = "
+    fun foo(test: bool) {
+      (flip 0.5) && test
+    }
+    foo(true) && foo(true)" in
+  assert_feq 0.25 (parse_and_prob prog)
+
+let test_fcall2 _ =
+  let prog = "
+    fun foo(test: bool) {
+      (flip 0.5) && test
+    }
+    foo(true) && foo(false)" in
+  assert_feq 0.0 (parse_and_prob prog)
+
+let test_fcall3 _ =
+  let prog = "
+    fun foo(test: bool) {
+      (flip 0.5) && test
+    }
+    foo(flip 0.5) && foo(flip 0.5)" in
+  assert_feq 0.06250 (parse_and_prob prog)
+
+let test_fcall4 _ =
+  let prog = "
+    fun foo(test: bool) {
+      let tmp = observe test in
+      true
+    }
+    let z = flip 0.5 in
+    let tmp = foo(z) in
+    z" in
+  assert_feq 1.0 (parse_and_prob prog)
+
+let test_fcall5 _ =
+  let prog = "
+    fun foo(test1: bool, test2: bool) {
+      let k = observe test1 || test2 in
+      false
+    }
+    let f1 = flip 0.4 in
+    let f2 = flip 0.1 in
+    let tmp = foo(f1, f2) in
+    f1" in
+  assert_feq (0.4 /. 0.46) (parse_and_prob prog)
+
+let test_fcall6 _ =
+  let prog = "
+    fun foo(test1: (bool, bool)) {
+      let k = observe (fst test1) || (snd test1) in
+      false
+    }
+    let f1 = flip 0.4 in
+    let tmp = foo((f1, flip 0.1)) in f1" in
+  assert_feq (0.4 /. 0.46) (parse_and_prob prog)
+
 let expression_tests =
 "suite">:::
 [
@@ -131,6 +188,12 @@ let expression_tests =
   "test_add3">::test_add3;
   "test_add4">::test_add4;
   "test_add5">::test_add5;
+  "test_fcall1">::test_fcall1;
+  "test_fcall2">::test_fcall2;
+  "test_fcall3">::test_fcall3;
+  "test_fcall4">::test_fcall4;
+  "test_fcall5">::test_fcall5;
+  "test_fcall6">::test_fcall6;
 ]
 
 let () =

@@ -80,6 +80,11 @@ let rec from_external_expr (e: ExternalGrammar.eexpr) : expr =
   | Tup(e1, e2) -> Tup(from_external_expr e1, from_external_expr e2)
   | FuncCall(id, args) -> FuncCall(id, List.map args ~f:(fun i -> from_external_expr i))
 
+let rec from_external_func (f: ExternalGrammar.func) : func =
+  {name = f.name; args = f.args; body = from_external_expr f.body}
+
+let rec from_external_prog (p: ExternalGrammar.program) : program =
+  {functions = List.map p.functions ~f:from_external_func; body = from_external_expr p.body}
 
 (** The result of compiling an expression. A pair (value, normalizing constant) *)
 type varstate =
@@ -137,6 +142,11 @@ type compile_context = {
   name_map: (int, String.t) Hashtbl.Poly.t; (* map from variable identifiers to names, for debugging *)
   weights: weight; (* map from variables to weights *)
   funcs: (String.t, compiled_func) Hashtbl.Poly.t;
+}
+
+type compiled_program = {
+  ctx: compile_context;
+  body: compiled_expr;
 }
 
 type env = (String.t, varstate btree) Map.Poly.t (* map from variable identifiers to BDDs*)
@@ -313,30 +323,46 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
            | Bdd.Bool(true) -> Bdd.dtrue ctx.man
            | Bdd.Bool(false) -> Bdd.dfalse ctx.man
            | Bdd.Ite(lvl, thn, els) ->
-             let root = Hashtbl.Poly.find_or_add nvmap lvl ~default:(fun () -> Bdd.newvar ctx.man) in
+             let root = Hashtbl.Poly.find_or_add nvmap lvl ~default:(fun () ->
+                 (* if it has a weight, refresh that weight (some variables, like function arguments, do not have weights) *)
+                 let newv = Bdd.newvar ctx.man in
+                 (match Hashtbl.Poly.find ctx.weights lvl with
+                  | Some(v) -> Hashtbl.Poly.add_exn ctx.weights (Bdd.topvar newv) v
+                  | None -> ()
+                 ); newv) in
              let s1 = refresh_flips thn and s2 = refresh_flips els in
              Bdd.ite root s1 s2)) in
+    (* helper function: substitute `placeholder` for `arg` in `bdd` *)
+    let subst_placeholder bdd arg placeholder : varstate btree =
+      let curstate = ref bdd in
+      let _ = map_tree (zip_tree arg.state placeholder) (function
+          | (BddLeaf(a), BddLeaf(p)) ->
+            (match Hashtbl.Poly.find nvmap (Bdd.topvar p) with
+             | Some(subst_p) -> curstate := map_bddtree !curstate (fun c -> Bdd.compose (Bdd.topvar subst_p) a c)
+             | None -> ())
+          | (IntLeaf(al), IntLeaf(pl)) -> failwith "not impl"
+          | _ -> failwith (Format.sprintf "Type mismatch in arguments for '%s'\n" (string_of_expr e))) in
+      !curstate in
     let refreshed_state = ref (map_tree func.body.state (fun itm ->
         match itm with
         | BddLeaf(bdd) -> BddLeaf(refresh_flips bdd)
         | IntLeaf(i) -> IntLeaf(List.map i ~f:refresh_flips))) in
-    let refreshed_z = refresh_flips func.body.z in
     (** 2. substitute in the arguments *)
     (* for each compiled argument, update the refreshed state by substituting
        its argument variables *)
     let zipped = try List.zip_exn cargs func.args
       with _ -> failwith (Format.sprintf "Incorrect number of arguments for function call '%s'\n" (string_of_expr e)) in
     List.iter zipped ~f:(fun (carg, placeholder) ->
-        let _ = map_tree (zip_tree carg.state placeholder) (function
-            | (BddLeaf(a), BddLeaf(p)) ->
-              let subst_p = Hashtbl.Poly.find_exn nvmap (Bdd.topvar p) in
-              refreshed_state := map_bddtree !refreshed_state (fun c -> Bdd.compose (Bdd.topvar subst_p) a c);
-            | (IntLeaf(al), IntLeaf(pl)) -> failwith ""
-            | _ -> failwith (Format.sprintf "Type mismatch in arguments for '%s'\n" (string_of_expr e))
-          ) in ()
+        refreshed_state := subst_placeholder !refreshed_state carg placeholder
       );
-    let new_z = List.fold cargs ~init:refreshed_z ~f:(fun acc i -> Bdd.dand acc i.z) in
-    {state = !refreshed_state; z=new_z}
+    (* substitute arguments into z *)
+    let subst_z = List.fold zipped ~init:(refresh_flips func.body.z) ~f:(fun acc (arg, p) ->
+        let acc' = extract_bdd (subst_placeholder (Leaf(BddLeaf(acc))) arg p) in
+        (* some of the arguments themselves may have observe statements in them:
+           this needs to also be incorporated into z, and is done so here *)
+        Bdd.dand acc' arg.z
+      ) in
+    {state = !refreshed_state; z=subst_z}
 
 
 (** generates a symbolic representation for a variable of the given type *)
@@ -364,7 +390,7 @@ let compile_func ctx (f: func) : compiled_func =
   let body = compile_expr ctx env f.body in
   {args = args; body = body}
 
-let compile_program (p:program) : compiled_expr =
+let compile_program (p:program) : compiled_program =
   (* first compile the functions in topological order *)
   let ctx = new_context () in
   List.iter p.functions ~f:(fun func ->
@@ -374,14 +400,12 @@ let compile_program (p:program) : compiled_expr =
     );
   (* now compile the main body, which is the result of the program *)
   let env = Map.Poly.empty in
-  compile_expr ctx env p.body
+  {ctx = ctx; body = compile_expr ctx env p.body}
 
-let get_prob e =
-  let ctx = new_context () in
-  let env = Map.Poly.empty in
-  let c = compile_expr ctx env e in
-  let z = Wmc.wmc c.z ctx.weights in
-  let prob = Wmc.wmc (Bdd.dand (extract_bdd c.state) c.z) ctx.weights in
+let get_prob p =
+  let c = compile_program p in
+  let z = Wmc.wmc c.body.z c.ctx.weights in
+  let prob = Wmc.wmc (Bdd.dand (extract_bdd c.body.state) c.body.z) c.ctx.weights in
   (* BddUtil.dump_dot ctx.name_map (extract_bdd v); *)
   prob /. z
 
