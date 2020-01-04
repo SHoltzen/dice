@@ -167,6 +167,34 @@ let test_fcall6 _ =
     let tmp = foo((f1, flip 0.1)) in f1" in
   assert_feq (0.4 /. 0.46) (parse_and_prob prog)
 
+let test_fcall6 _ =
+  let prog = "
+    fun foo(test1: int(3)) {
+      let k = observe !(test1 == int(3, 0)) in
+      false
+    }
+    let f1 = discrete(0.1, 0.4, 0.5) in
+    let tmp = foo(f1) in f1 == int(3, 1)" in
+  assert_feq (0.4 /. 0.9) (parse_and_prob prog)
+
+let test_caesar _ =
+  let prog = "
+    fun sendChar(key: int(4), observation: int(4)) {
+      let gen = discrete(0.5, 0.25, 0.125, 0.125) in
+      let enc = key + gen in
+      observe observation == enc
+    }
+    let key = discrete(0.25, 0.25, 0.25, 0.25) in
+    let tmp = sendChar(key, int(4, 0)) in
+    let tmp = sendChar(key, int(4, 0)) in
+    let tmp = sendChar(key, int(4, 0)) in
+    let tmp = sendChar(key, int(4, 0)) in
+    let tmp = sendChar(key, int(4, 0)) in
+    key == int(4, 0)" in
+  assert_feq 0.96786389414 (parse_and_prob prog)
+
+
+
 let expression_tests =
 "suite">:::
 [
@@ -194,6 +222,7 @@ let expression_tests =
   "test_fcall4">::test_fcall4;
   "test_fcall5">::test_fcall5;
   "test_fcall6">::test_fcall6;
+  "test_caesar">::test_caesar;
 ]
 
 let () =

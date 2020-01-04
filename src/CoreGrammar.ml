@@ -188,7 +188,7 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
   | Ident(s) ->
     (match Map.Poly.find env s with
      | Some(r) -> {state=r; z=Bdd.dtrue ctx.man}
-     | _ -> failwith (sprintf "Could not find Boolean variable %s" s))
+     | _ -> failwith (sprintf "Could not find variable '%s'" s))
 
   | Tup(e1, e2) ->
     let c1 = compile_expr ctx env e1 in
@@ -340,7 +340,11 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
             (match Hashtbl.Poly.find nvmap (Bdd.topvar p) with
              | Some(subst_p) -> curstate := map_bddtree !curstate (fun c -> Bdd.compose (Bdd.topvar subst_p) a c)
              | None -> ())
-          | (IntLeaf(al), IntLeaf(pl)) -> failwith "not impl"
+          | (IntLeaf(al), IntLeaf(pl)) when (List.length al) = (List.length pl) ->
+            List.iter (List.zip_exn al pl) ~f:(fun (a, p) ->
+                (match Hashtbl.Poly.find nvmap (Bdd.topvar p) with
+                 | Some(subst_p) -> curstate := map_bddtree !curstate (fun c -> Bdd.compose (Bdd.topvar subst_p) a c)
+                 | None -> ()))
           | _ -> failwith (Format.sprintf "Type mismatch in arguments for '%s'\n" (string_of_expr e))) in
       !curstate in
     let refreshed_state = ref (map_tree func.body.state (fun itm ->
