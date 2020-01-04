@@ -1,2 +1,2 @@
 <src>: include
-<src/*>: package(cudd), package(oUnit), package(core), thread, package(ppx_sexp_conv), package(sexplib)
+<src/*>: package(cudd), package(oUnit), package(core), thread, package(ppx_sexp_conv), package(sexplib), package(core_bench)

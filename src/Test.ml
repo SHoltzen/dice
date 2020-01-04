@@ -1,37 +1,6 @@
 open OUnit2
 open Core
-open CoreGrammar
-open Wmc
-open BddUtil
-open Lexing
-open Lexer
-open Parser
-
-let eps = 0.00001
-
-let assert_feq f1 f2 =
-  OUnit2.assert_equal ~cmp:(fun x y -> ((Float.abs (f1 -. f2)) < eps)) f1 f2
-    ~printer:string_of_float
-
-let print_position outx lexbuf =
-  let pos = lexbuf.lex_curr_p in
-  fprintf outx "%s:%d:%d" pos.pos_fname
-    pos.pos_lnum (pos.pos_cnum - pos.pos_bol + 1)
-
-let parse_and_prob ?debug e =
-  let buf = Lexing.from_string e in
-  let parsed = try Parser.program Lexer.token buf with
-  | SyntaxError msg ->
-    fprintf stderr "%a: %s\n" print_position buf msg;
-    failwith ""
-  | Parser.Error ->
-    fprintf stderr "%a: syntax error\n" print_position buf;
-    failwith "" in
-  (match debug with
-   | Some(true)->
-     Format.printf "Program: %s\n" (ExternalGrammar.string_of_prog parsed);
-   | _ -> ());
-  CoreGrammar.get_prob (from_external_prog parsed)
+open Util
 
 let test_1 test_ctx =
   let prog = "let x = flip 0.4 in x" in
@@ -193,8 +162,6 @@ let test_caesar _ =
     key == int(4, 0)" in
   assert_feq 0.96786389414 (parse_and_prob prog)
 
-
-
 let expression_tests =
 "suite">:::
 [
@@ -227,5 +194,3 @@ let expression_tests =
 
 let () =
   run_test_tt_main expression_tests;
-
-
