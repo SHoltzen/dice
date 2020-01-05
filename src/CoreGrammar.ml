@@ -280,6 +280,7 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
     let l = List.init sz (fun i ->
         if i = value then Bdd.dtrue ctx.man else Bdd.dfalse ctx.man) in
     {state=Leaf(IntLeaf(l)); z=Bdd.dtrue ctx.man}
+
   | Eq(e1, e2) ->
     let c1 = compile_expr ctx env e1 in
     let c2 = compile_expr ctx env e2 in
@@ -287,8 +288,8 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
     let zipped = try List.zip_exn l1 l2
             with _ -> failwith (Format.sprintf "Type error: length mismatch between %s and %s"
                                   (string_of_expr e1) (string_of_expr e2)) in
-    let bdd = List.fold zipped ~init:(Bdd.dtrue ctx.man) ~f:(fun acc (l, r) ->
-        Bdd.dand acc (Bdd.eq l r)
+    let bdd = List.fold zipped ~init:(Bdd.dfalse ctx.man) ~f:(fun acc (l, r) ->
+        Bdd.dor acc (Bdd.dand l r)
       ) in
     {state=Leaf(BddLeaf(bdd)); z=Bdd.dand c1.z c2.z}
 
@@ -299,14 +300,18 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
     assert (List.length l1 = List.length l2);
     let len = List.length l1 in
     let init_l = Array.init len ~f:(fun _ -> Bdd.dfalse ctx.man) in
-    let _ =List.mapi l1 ~f:(fun outer_i outer_itm ->
-        let _ = List.mapi l2 ~f:(fun inner_i inner_itm ->
+    (* Format.printf "here we go....\n";
+     * flush_all (); *)
+    List.iteri l1 ~f:(fun outer_i outer_itm ->
+        List.iteri l2 ~f:(fun inner_i inner_itm ->
             let cur_pos = ((outer_i + inner_i) mod len) in
             let cur_arrv = Array.get init_l cur_pos in
             Array.set init_l cur_pos (Bdd.dor cur_arrv (Bdd.dand inner_itm outer_itm));
-          ) in ()
-      ) in
-    {state=Leaf(IntLeaf(Array.to_list init_l)); z=Bdd.dtrue ctx.man}
+          ));
+    (* Format.printf "done\n";
+     * flush_all (); *)
+    (* dump_dot ctx.name_map (Array.get init_l 0); *)
+    {state=Leaf(IntLeaf(Array.to_list init_l)); z=Bdd.dand c1.z c2.z}
 
   | FuncCall(name, args) ->
     let cargs = List.map args ~f:(compile_expr ctx env) in
@@ -326,15 +331,21 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
              let root = Hashtbl.Poly.find_or_add nvmap lvl ~default:(fun () ->
                  (* if it has a weight, refresh that weight (some variables, like function arguments, do not have weights) *)
                  let newv = Bdd.newvar ctx.man in
+                 (* Format.printf "Refreshed %d for %d\n" lvl (Bdd.topvar newv); *)
                  (match Hashtbl.Poly.find ctx.weights lvl with
                   | Some(v) -> Hashtbl.Poly.add_exn ctx.weights (Bdd.topvar newv) v
                   | None -> ()
                  ); newv) in
              let s1 = refresh_flips thn and s2 = refresh_flips els in
              Bdd.ite root s1 s2)) in
-    (* helper function: substitute `placeholder` for `arg` in `bdd` *)
-    let subst_placeholder bdd arg placeholder : varstate btree =
-      let curstate = ref bdd in
+    let refreshed_state = ref (map_tree func.body.state (fun itm ->
+        match itm with
+        | BddLeaf(bdd) -> BddLeaf(refresh_flips bdd)
+        | IntLeaf(i) -> IntLeaf(List.map i ~f:refresh_flips))) in
+    (** 2. substitute in the arguments *)
+    (* helper function: substitute `placeholder` for `arg` in `state` *)
+    let subst_placeholder state arg placeholder : varstate btree =
+      let curstate = ref state in
       let _ = map_tree (zip_tree arg.state placeholder) (function
           | (BddLeaf(a), BddLeaf(p)) ->
             (match Hashtbl.Poly.find nvmap (Bdd.topvar p) with
@@ -347,11 +358,6 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
                  | None -> ()))
           | _ -> failwith (Format.sprintf "Type mismatch in arguments for '%s'\n" (string_of_expr e))) in
       !curstate in
-    let refreshed_state = ref (map_tree func.body.state (fun itm ->
-        match itm with
-        | BddLeaf(bdd) -> BddLeaf(refresh_flips bdd)
-        | IntLeaf(i) -> IntLeaf(List.map i ~f:refresh_flips))) in
-    (** 2. substitute in the arguments *)
     (* for each compiled argument, update the refreshed state by substituting
        its argument variables *)
     let zipped = try List.zip_exn cargs func.args
@@ -375,8 +381,8 @@ let rec gen_sym_type ctx (t:ExternalGrammar.typ) : varstate btree =
   | ExternalGrammar.TBool ->
     let bdd = Bdd.newvar ctx.man in Leaf(BddLeaf(bdd))
   | ExternalGrammar.TInt(sz) ->
-    let lst = List.init sz (fun i -> Bdd.newvar ctx.man) in
-    Leaf(IntLeaf(lst))
+    let bdds = List.init sz (fun i -> Bdd.newvar ctx.man) in
+    Leaf(IntLeaf(bdds))
   | ExternalGrammar.TTuple(t1, t2) ->
     let s1 = gen_sym_type ctx t1 and s2 = gen_sym_type ctx t2 in
     Node(s1, s2)
@@ -385,16 +391,28 @@ let compile_func ctx (f: func) : compiled_func =
   (* set up the context; need both a list and a map, so build both together *)
   let (args, env) = List.fold f.args ~init:([], Map.Poly.empty)
       ~f:(fun (lst, map) (name, typ) ->
-          let arg = gen_sym_type ctx typ in
-          let map' = try Map.Poly.add_exn map ~key:name ~data:arg
+          let placeholder_arg = gen_sym_type ctx typ in
+          (* the environment must know about the mutual exclusivity of integer arguments
+             in order to avoid exponential explosions *)
+          let env_arg = map_tree placeholder_arg (function
+              | BddLeaf(bdd) -> BddLeaf(bdd)
+              | IntLeaf(l) ->
+                IntLeaf(List.init (List.length l) (fun i ->
+                    List.foldi l ~init:(Bdd.dtrue ctx.man) ~f:(fun idx acc cur ->
+                        let bdd = if idx = i then cur else Bdd.dnot cur in
+                        Bdd.dand bdd acc
+                      )))) in
+          let map' = try Map.Poly.add_exn map ~key:name ~data:env_arg
             with _ -> failwith (Format.sprintf "Argument names must be unique: %s found twice" name) in
-          (List.append lst [arg], map')
+          (List.append lst [placeholder_arg], map')
         ) in
   (* now compile the function body with these arguments *)
   let body = compile_expr ctx env f.body in
   {args = args; body = body}
 
 let compile_program (p:program) : compiled_program =
+  (* Format.printf "Compiling program\n";
+   * flush_all (); *)
   (* first compile the functions in topological order *)
   let ctx = new_context () in
   List.iter p.functions ~f:(fun func ->

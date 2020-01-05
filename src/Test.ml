@@ -54,6 +54,10 @@ let test_int3 _ =
   let prog = "let x = discrete(0.1, 0.4, 0.5) in let z = observe ! (x == int(3, 0) || x == int(3,1)) in x == int(3, 2)" in
   assert_feq 1.0 (parse_and_prob prog)
 
+let test_int4 _ =
+  let prog = "let x = discrete(0.1, 0.4, 0.5) in let z = observe ! (x == int(3, 1)) in x == int(3, 2)" in
+  assert_feq (0.5 /. 0.6) (parse_and_prob prog)
+
 let test_add1 _ =
   let prog = "let x = int(3, 0) + int(3, 1) in x == int(3, 1)" in
   assert_feq 1.0 (parse_and_prob prog)
@@ -78,6 +82,16 @@ let test_add5 _ =
    let z = observe x == int(5, 1) in
    sum == int(5, 1)" in
   assert_feq 0.1 (parse_and_prob prog)
+
+(* let test_add5 _ =
+ *   let prog = "
+ *    let x = discrete(0.1, 0.2, 0.3, 0.4, 0.5, 0.6) in
+ *    let y = discrete(0.11, 0.22, 0.33, 0.44, 0.55, 0.66) in
+ *    let sum = x + y in
+ *    let z = observe x == int(5, 1) in
+ *    sum == int(5, 1)" in
+ *   assert_feq 0.1 (parse_and_prob prog) *)
+
 
 let test_fcall1 _ =
   let prog = "
@@ -178,6 +192,7 @@ let expression_tests =
   "test_int1">::test_int1;
   "test_int2">::test_int2;
   "test_int3">::test_int3;
+  "test_int4">::test_int4;
   "test_add1">::test_add1;
   "test_add2">::test_add2;
   "test_add3">::test_add3;
