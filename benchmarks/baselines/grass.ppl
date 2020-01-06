@@ -1,0 +1,10 @@
+let cloudy  = flip 0.5 in
+let rain  = if cloudy then flip 0.8 else flip 0.2 in
+let sprinkler  = if cloudy then flip 0.1 else flip 0.5 in
+let temp1  = flip 0.7 in
+let wetRoof  = (temp1 && rain) in
+let temp2  = flip 0.9 in
+let temp3  = flip 0.9 in
+let wetGrass  = ((temp2 && rain) || ( temp3 && sprinkler)) in
+let tmp = observe wetGrass in
+rain

@@ -1,0 +1,26 @@
+var main = function() {
+    var earthquake = flip(0.0001);
+    var burglary = flip(0.001);
+    var alarm = earthquake || burglary;
+
+    var phoneWorking = earthquake? flip(0.7) : flip(0.99);
+
+
+    var maryWakes = alarm ? (earthquake? flip(0.8) : flip(0.6)) : flip(0.2);
+    var called = maryWakes && phoneWorking;
+    condition(called);
+
+    return burglary; // expected 2969983/992160802·δ(1)[burglary]+989190819/992160802·δ(0)[burglary]
+};
+
+
+var start = new Date().getTime();
+
+var dist = Infer({method: 'enumerate', samples: 10}, function() {
+  return main();
+});
+
+display(dist);
+
+var end = new Date().getTime();
+var time = end - start;

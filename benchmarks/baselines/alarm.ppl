@@ -1,0 +1,10 @@
+let earthquake  = flip 0.0001 in
+let burglary  = flip 0.001 in
+let alarm  = earthquake || burglary in
+let phoneWorking  = if earthquake then flip 0.7 else flip 0.99 in
+let maryWakes  = if alarm then
+    (if earthquake then flip 0.8 else flip 0.6)
+    else flip 0.2 in
+let called  = (maryWakes && phoneWorking) in
+let tmp = observe called in
+burglary

@@ -1,0 +1,11 @@
+let n0  = flip 0.5 in
+let n4  = flip 0.5 in
+let n1  = if n0 then flip 0.8 else flip 0.1 in
+let n21  = if n0 then flip 0.8 else flip 0.1 in
+let n22  = if n4 then flip 0.8 else flip 0.1 in
+let n33  = if n4 then flip 0.8 else flip 0.1 in
+let n2  = (n21 || n22) in
+let n31  = if n1 then flip 0.8 else flip 0.1 in
+let n32  = if n2 then flip 0.8 else flip 0.1 in
+let n3  = (n31  || (n32 || n33)) in
+n3

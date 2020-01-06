@@ -24,8 +24,10 @@ let parse_with_error lexbuf =
 let rec parse_and_print lexbuf =
   let parsed = parse_with_error lexbuf in
   Format.printf "%s\n" (ExternalGrammar.string_of_prog parsed);
-  let prob = CoreGrammar.get_prob (CoreGrammar.from_external_prog parsed) in
-  Format.printf "prob: %f\n" prob
+  let prob = CoreGrammar.print_discrete (CoreGrammar.from_external_prog parsed) in
+  ()
+  (* let prob = CoreGrammar.get_prob (CoreGrammar.from_external_prog parsed) in
+   * Format.printf "prob: %f\n" prob *)
 
 let loop filename () =
   let inx = In_channel.create filename in
@@ -35,7 +37,7 @@ let loop filename () =
   In_channel.close inx
 
 let () =
-  Command.basic_spec ~summary:"Parse and display JSON"
+  Command.basic_spec ~summary:"Parse and compute prob"
     Command.Spec.(empty +> anon ("filename" %: string))
     loop
   |> Command.run

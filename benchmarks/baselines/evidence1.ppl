@@ -1,0 +1,5 @@
+let evidence = flip 0.5 in
+let coin  = flip 0.5 in
+if evidence then
+    let tmp = observe coin in evidence
+    else evidence

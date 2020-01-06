@@ -1,0 +1,5 @@
+let firstCoin  = flip 0.5 in 
+let secondCoin  = flip 0.5 in
+let bothHeads  = (firstCoin && secondCoin) in
+let tmp = observe !bothHeads in
+firstCoin

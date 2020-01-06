@@ -431,14 +431,12 @@ let get_prob p =
   (* BddUtil.dump_dot ctx.name_map (extract_bdd v); *)
   prob /. z
 
-let print_discrete e =
-  let ctx = new_context () in
-  let env = Map.Poly.empty in
-  let c = compile_expr ctx env e in
-  let discrete = extract_discrete c.state in
-  let z = Wmc.wmc c.z ctx.weights in
+let print_discrete p =
+  let c = compile_program p in
+  let discrete = extract_discrete c.body.state in
+  let z = Wmc.wmc c.body.z c.ctx.weights in
   let _ = List.mapi discrete ~f:(fun i itm ->
-      let prob = Wmc.wmc (Bdd.dand itm c.z) ctx.weights in
+      let prob = Wmc.wmc (Bdd.dand itm c.body.z) c.ctx.weights in
       Format.printf "%d\t%f\n" i (prob /. z);
     ) in ()
   (* BddUtil.dump_dot ctx.name_map (extract_bdd v); *)
