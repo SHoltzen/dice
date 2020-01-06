@@ -1,0 +1,482 @@
+def main(){Age := 0; Age = categorical([0.200000,0.600000,0.200000]);
+SocioEcon := 0; if(Age == 2) { SocioEcon = categorical([0.400000,0.400000,0.190000,0.010000]); } else {}
+if(Age == 1) { SocioEcon = categorical([0.400000,0.400000,0.190000,0.010000]); } else {}
+if(Age == 0) { SocioEcon = categorical([0.500000,0.200000,0.290000,0.010000]); } else {}
+
+OtherCar := 0; if(SocioEcon == 3) { OtherCar = flip(0.500000); } else {}
+if(SocioEcon == 2) { OtherCar = flip(0.800000); } else {}
+if(SocioEcon == 1) { OtherCar = flip(0.900000); } else {}
+if(SocioEcon == 0) { OtherCar = flip(0.950000); } else {}
+
+RiskAversion := 0; if(Age == 2) { if(SocioEcon == 3) { RiskAversion = categorical([0.020000,0.580000,0.300000,0.100000]); } else {}
+if(SocioEcon == 2) { RiskAversion = categorical([0.020000,0.380000,0.500000,0.100000]); } else {}
+if(SocioEcon == 1) { RiskAversion = categorical([0.020000,0.480000,0.400000,0.100000]); } else {}
+if(SocioEcon == 0) { RiskAversion = categorical([0.020000,0.580000,0.300000,0.100000]); } else {}
+ } else {}
+if(Age == 1) { if(SocioEcon == 3) { RiskAversion = categorical([0.015000,0.285000,0.500000,0.200000]); } else {}
+if(SocioEcon == 2) { RiskAversion = categorical([0.015000,0.185000,0.600000,0.200000]); } else {}
+if(SocioEcon == 1) { RiskAversion = categorical([0.015000,0.285000,0.500000,0.200000]); } else {}
+if(SocioEcon == 0) { RiskAversion = categorical([0.015000,0.285000,0.400000,0.300000]); } else {}
+ } else {}
+if(Age == 0) { if(SocioEcon == 3) { RiskAversion = categorical([0.010000,0.090000,0.400000,0.500000]); } else {}
+if(SocioEcon == 2) { RiskAversion = categorical([0.010000,0.040000,0.350000,0.600000]); } else {}
+if(SocioEcon == 1) { RiskAversion = categorical([0.010000,0.090000,0.400000,0.500000]); } else {}
+if(SocioEcon == 0) { RiskAversion = categorical([0.010000,0.090000,0.400000,0.500000]); } else {}
+ } else {}
+
+AntiTheft := 0; if(RiskAversion == 3) { if(SocioEcon == 3) { AntiTheft = flip(0.000001); } else {}
+if(SocioEcon == 2) { AntiTheft = flip(0.000001); } else {}
+if(SocioEcon == 1) { AntiTheft = flip(0.050000); } else {}
+if(SocioEcon == 0) { AntiTheft = flip(0.500000); } else {}
+ } else {}
+if(RiskAversion == 2) { if(SocioEcon == 3) { AntiTheft = flip(0.000001); } else {}
+if(SocioEcon == 2) { AntiTheft = flip(0.000001); } else {}
+if(SocioEcon == 1) { AntiTheft = flip(0.200000); } else {}
+if(SocioEcon == 0) { AntiTheft = flip(0.500000); } else {}
+ } else {}
+if(RiskAversion == 1) { if(SocioEcon == 3) { AntiTheft = flip(0.100000); } else {}
+if(SocioEcon == 2) { AntiTheft = flip(0.300000); } else {}
+if(SocioEcon == 1) { AntiTheft = flip(0.900000); } else {}
+if(SocioEcon == 0) { AntiTheft = flip(0.800000); } else {}
+ } else {}
+if(RiskAversion == 0) { if(SocioEcon == 3) { AntiTheft = flip(0.950000); } else {}
+if(SocioEcon == 2) { AntiTheft = true; } else {}
+if(SocioEcon == 1) { AntiTheft = true; } else {}
+if(SocioEcon == 0) { AntiTheft = true; } else {}
+ } else {}
+
+HomeBase := 0; if(RiskAversion == 3) { if(SocioEcon == 3) { HomeBase = categorical([0.000001,0.800000,0.049999,0.150000]); } else {}
+if(SocioEcon == 2) { HomeBase = categorical([0.150000,0.800000,0.040000,0.010000]); } else {}
+if(SocioEcon == 1) { HomeBase = categorical([0.350000,0.600000,0.040000,0.010000]); } else {}
+if(SocioEcon == 0) { HomeBase = categorical([0.489999,0.500000,0.000001,0.010000]); } else {}
+ } else {}
+if(RiskAversion == 2) { if(SocioEcon == 3) { HomeBase = categorical([0.000001,0.800000,0.050000,0.149999]); } else {}
+if(SocioEcon == 2) { HomeBase = categorical([0.010000,0.250000,0.600000,0.140000]); } else {}
+if(SocioEcon == 1) { HomeBase = categorical([0.200000,0.400000,0.300000,0.100000]); } else {}
+if(SocioEcon == 0) { HomeBase = categorical([0.950000,0.000001,0.000001,0.049998]); } else {}
+ } else {}
+if(RiskAversion == 1) { if(SocioEcon == 3) { HomeBase = categorical([0.000001,0.800000,0.050000,0.149999]); } else {}
+if(SocioEcon == 2) { HomeBase = categorical([0.299999,0.000001,0.600000,0.100000]); } else {}
+if(SocioEcon == 1) { HomeBase = categorical([0.500000,0.000001,0.400000,0.099999]); } else {}
+if(SocioEcon == 0) { HomeBase = categorical([0.850000,0.000001,0.001000,0.148999]); } else {}
+ } else {}
+if(RiskAversion == 0) { if(SocioEcon == 3) { HomeBase = categorical([0.000001,0.800000,0.050000,0.149999]); } else {}
+if(SocioEcon == 2) { HomeBase = categorical([0.950000,0.000001,0.024445,0.025554]); } else {}
+if(SocioEcon == 1) { HomeBase = categorical([0.999997,0.000001,0.000001,0.000001]); } else {}
+if(SocioEcon == 0) { HomeBase = categorical([0.999997,0.000001,0.000001,0.000001]); } else {}
+ } else {}
+
+SeniorTrain := 0; if(Age == 2) { if(RiskAversion == 3) { SeniorTrain = flip(0.000000); } else {}
+if(RiskAversion == 2) { SeniorTrain = flip(0.000000); } else {}
+if(RiskAversion == 1) { SeniorTrain = flip(0.000000); } else {}
+if(RiskAversion == 0) { SeniorTrain = flip(0.000000); } else {}
+ } else {}
+if(Age == 1) { if(RiskAversion == 3) { SeniorTrain = flip(0.000000); } else {}
+if(RiskAversion == 2) { SeniorTrain = flip(0.000000); } else {}
+if(RiskAversion == 1) { SeniorTrain = flip(0.000000); } else {}
+if(RiskAversion == 0) { SeniorTrain = flip(0.000000); } else {}
+ } else {}
+if(Age == 0) { if(RiskAversion == 3) { SeniorTrain = flip(0.000001); } else {}
+if(RiskAversion == 2) { SeniorTrain = flip(0.000001); } else {}
+if(RiskAversion == 1) { SeniorTrain = flip(0.300000); } else {}
+if(RiskAversion == 0) { SeniorTrain = flip(0.900000); } else {}
+ } else {}
+
+DrivingSkill := 0; if(Age == 2) { if (SeniorTrain) { DrivingSkill = categorical([0.500000,0.450000,0.050000]); } else { DrivingSkill = categorical([0.500000,0.450000,0.050000]); } } else {}
+if(Age == 1) { if (SeniorTrain) { DrivingSkill = categorical([0.300000,0.600000,0.100000]); } else { DrivingSkill = categorical([0.300000,0.600000,0.100000]); } } else {}
+if(Age == 0) { if (SeniorTrain) { DrivingSkill = categorical([0.100000,0.600000,0.300000]); } else { DrivingSkill = categorical([0.400000,0.500000,0.100000]); } } else {}
+
+DrivHist := 0; if(DrivingSkill == 2) { if(RiskAversion == 3) { DrivHist = categorical([0.001000,0.004000,0.995000]); } else {}
+if(RiskAversion == 2) { DrivHist = categorical([0.002000,0.008000,0.990000]); } else {}
+if(RiskAversion == 1) { DrivHist = categorical([0.030000,0.150000,0.820000]); } else {}
+if(RiskAversion == 0) { DrivHist = categorical([0.300000,0.300000,0.400000]); } else {}
+ } else {}
+if(DrivingSkill == 1) { if(RiskAversion == 3) { DrivHist = categorical([0.100000,0.300000,0.600000]); } else {}
+if(RiskAversion == 2) { DrivHist = categorical([0.500000,0.300000,0.200000]); } else {}
+if(RiskAversion == 1) { DrivHist = categorical([0.900000,0.070000,0.030000]); } else {}
+if(RiskAversion == 0) { DrivHist = categorical([0.950000,0.040000,0.010000]); } else {}
+ } else {}
+if(DrivingSkill == 0) { if(RiskAversion == 3) { DrivHist = categorical([0.300000,0.300000,0.400000]); } else {}
+if(RiskAversion == 2) { DrivHist = categorical([0.600000,0.300000,0.100000]); } else {}
+if(RiskAversion == 1) { DrivHist = categorical([0.990000,0.009999,0.000001]); } else {}
+if(RiskAversion == 0) { DrivHist = categorical([0.999998,0.000001,0.000001]); } else {}
+ } else {}
+
+DrivQuality := 0; if(DrivingSkill == 2) { if(RiskAversion == 3) { DrivQuality = categorical([1.000000,0.000000,0.000000]); } else {}
+if(RiskAversion == 2) { DrivQuality = categorical([1.000000,0.000000,0.000000]); } else {}
+if(RiskAversion == 1) { DrivQuality = categorical([1.000000,0.000000,0.000000]); } else {}
+if(RiskAversion == 0) { DrivQuality = categorical([1.000000,0.000000,0.000000]); } else {}
+ } else {}
+if(DrivingSkill == 1) { if(RiskAversion == 3) { DrivQuality = categorical([0.500000,0.200000,0.300000]); } else {}
+if(RiskAversion == 2) { DrivQuality = categorical([0.300000,0.400000,0.300000]); } else {}
+if(RiskAversion == 1) { DrivQuality = categorical([0.000000,1.000000,0.000000]); } else {}
+if(RiskAversion == 0) { DrivQuality = categorical([0.000000,0.800000,0.200000]); } else {}
+ } else {}
+if(DrivingSkill == 0) { if(RiskAversion == 3) { DrivQuality = categorical([0.300000,0.200000,0.500000]); } else {}
+if(RiskAversion == 2) { DrivQuality = categorical([0.010000,0.010000,0.980000]); } else {}
+if(RiskAversion == 1) { DrivQuality = categorical([0.000000,0.000000,1.000000]); } else {}
+if(RiskAversion == 0) { DrivQuality = categorical([0.000000,0.000000,1.000000]); } else {}
+ } else {}
+
+MakeModel := 0; if(SocioEcon == 3) { if(RiskAversion == 3) { MakeModel = categorical([0.100000,0.700000,0.200000,0.000000,0.000000]); } else {}
+if(RiskAversion == 2) { MakeModel = categorical([0.100000,0.700000,0.200000,0.000000,0.000000]); } else {}
+if(RiskAversion == 1) { MakeModel = categorical([0.100000,0.700000,0.200000,0.000000,0.000000]); } else {}
+if(RiskAversion == 0) { MakeModel = categorical([0.100000,0.700000,0.200000,0.000000,0.000000]); } else {}
+ } else {}
+if(SocioEcon == 2) { if(RiskAversion == 3) { MakeModel = categorical([0.150000,0.200000,0.650000,0.000000,0.000000]); } else {}
+if(RiskAversion == 2) { MakeModel = categorical([0.150000,0.200000,0.650000,0.000000,0.000000]); } else {}
+if(RiskAversion == 1) { MakeModel = categorical([0.150000,0.200000,0.650000,0.000000,0.000000]); } else {}
+if(RiskAversion == 0) { MakeModel = categorical([0.150000,0.200000,0.650000,0.000000,0.000000]); } else {}
+ } else {}
+if(SocioEcon == 1) { if(RiskAversion == 3) { MakeModel = categorical([0.200000,0.050000,0.300000,0.450000,0.000000]); } else {}
+if(RiskAversion == 2) { MakeModel = categorical([0.200000,0.050000,0.300000,0.450000,0.000000]); } else {}
+if(RiskAversion == 1) { MakeModel = categorical([0.200000,0.050000,0.300000,0.450000,0.000000]); } else {}
+if(RiskAversion == 0) { MakeModel = categorical([0.200000,0.050000,0.300000,0.450000,0.000000]); } else {}
+ } else {}
+if(SocioEcon == 0) { if(RiskAversion == 3) { MakeModel = categorical([0.300000,0.010000,0.090000,0.400000,0.200000]); } else {}
+if(RiskAversion == 2) { MakeModel = categorical([0.300000,0.010000,0.090000,0.400000,0.200000]); } else {}
+if(RiskAversion == 1) { MakeModel = categorical([0.300000,0.010000,0.090000,0.400000,0.200000]); } else {}
+if(RiskAversion == 0) { MakeModel = categorical([0.300000,0.010000,0.090000,0.400000,0.200000]); } else {}
+ } else {}
+
+VehicleYear := 0; if(SocioEcon == 3) { if(RiskAversion == 3) { VehicleYear = flip(0.150000); } else {}
+if(RiskAversion == 2) { VehicleYear = flip(0.150000); } else {}
+if(RiskAversion == 1) { VehicleYear = flip(0.150000); } else {}
+if(RiskAversion == 0) { VehicleYear = flip(0.150000); } else {}
+ } else {}
+if(SocioEcon == 2) { if(RiskAversion == 3) { VehicleYear = flip(0.300000); } else {}
+if(RiskAversion == 2) { VehicleYear = flip(0.300000); } else {}
+if(RiskAversion == 1) { VehicleYear = flip(0.300000); } else {}
+if(RiskAversion == 0) { VehicleYear = flip(0.300000); } else {}
+ } else {}
+if(SocioEcon == 1) { if(RiskAversion == 3) { VehicleYear = flip(0.800000); } else {}
+if(RiskAversion == 2) { VehicleYear = flip(0.800000); } else {}
+if(RiskAversion == 1) { VehicleYear = flip(0.800000); } else {}
+if(RiskAversion == 0) { VehicleYear = flip(0.800000); } else {}
+ } else {}
+if(SocioEcon == 0) { if(RiskAversion == 3) { VehicleYear = flip(0.900000); } else {}
+if(RiskAversion == 2) { VehicleYear = flip(0.900000); } else {}
+if(RiskAversion == 1) { VehicleYear = flip(0.900000); } else {}
+if(RiskAversion == 0) { VehicleYear = flip(0.900000); } else {}
+ } else {}
+
+Airbag := 0; if(MakeModel == 4) { if (VehicleYear) { Airbag = true; } else { Airbag = flip(0.100000); } } else {}
+if(MakeModel == 3) { if (VehicleYear) { Airbag = true; } else { Airbag = flip(0.050000); } } else {}
+if(MakeModel == 2) { if (VehicleYear) { Airbag = true; } else { Airbag = flip(0.200000); } } else {}
+if(MakeModel == 1) { if (VehicleYear) { Airbag = true; } else { Airbag = flip(0.600000); } } else {}
+if(MakeModel == 0) { if (VehicleYear) { Airbag = true; } else { Airbag = flip(0.100000); } } else {}
+
+Antilock := 0; if(MakeModel == 4) { if (VehicleYear) { Antilock = flip(0.900000); } else { Antilock = flip(0.100000); } } else {}
+if(MakeModel == 3) { if (VehicleYear) { Antilock = flip(0.001000); } else { Antilock = flip(0.000000); } } else {}
+if(MakeModel == 2) { if (VehicleYear) { Antilock = flip(0.400000); } else { Antilock = flip(0.000000); } } else {}
+if(MakeModel == 1) { if (VehicleYear) { Antilock = flip(0.990000); } else { Antilock = flip(0.300000); } } else {}
+if(MakeModel == 0) { if (VehicleYear) { Antilock = flip(0.990000); } else { Antilock = flip(0.150000); } } else {}
+
+RuggedAuto := 0; if(MakeModel == 4) { if (VehicleYear) { RuggedAuto = categorical([0.950000,0.040000,0.010000]); } else { RuggedAuto = categorical([0.950000,0.040000,0.010000]); } } else {}
+if(MakeModel == 3) { if (VehicleYear) { RuggedAuto = categorical([0.500000,0.500000,0.000000]); } else { RuggedAuto = categorical([0.900000,0.100000,0.000000]); } } else {}
+if(MakeModel == 2) { if (VehicleYear) { RuggedAuto = categorical([0.200000,0.600000,0.200000]); } else { RuggedAuto = categorical([0.050000,0.550000,0.400000]); } } else {}
+if(MakeModel == 1) { if (VehicleYear) { RuggedAuto = categorical([0.100000,0.600000,0.300000]); } else { RuggedAuto = categorical([0.100000,0.600000,0.300000]); } } else {}
+if(MakeModel == 0) { if (VehicleYear) { RuggedAuto = categorical([0.050000,0.550000,0.400000]); } else { RuggedAuto = categorical([0.050000,0.550000,0.400000]); } } else {}
+
+Cushioning := 0; if(RuggedAuto == 2) { if (Airbag) { Cushioning = categorical([0.500000,0.300000,0.200000,0.000000]); } else { Cushioning = categorical([0.700000,0.300000,0.000000,0.000000]); } } else {}
+if(RuggedAuto == 1) { if (Airbag) { Cushioning = categorical([0.000000,0.100000,0.600000,0.300000]); } else { Cushioning = categorical([0.100000,0.600000,0.300000,0.000000]); } } else {}
+if(RuggedAuto == 0) { if (Airbag) { Cushioning = categorical([0.000000,0.000000,0.000000,1.000000]); } else { Cushioning = categorical([0.000000,0.000000,0.700000,0.300000]); } } else {}
+
+GoodStudent := 0; if(SocioEcon == 3) { if(Age == 2) { GoodStudent = flip(0.100000); } else {}
+if(Age == 1) { GoodStudent = flip(0.000000); } else {}
+if(Age == 0) { GoodStudent = flip(0.000000); } else {}
+ } else {}
+if(SocioEcon == 2) { if(Age == 2) { GoodStudent = flip(0.200000); } else {}
+if(Age == 1) { GoodStudent = flip(0.000000); } else {}
+if(Age == 0) { GoodStudent = flip(0.000000); } else {}
+ } else {}
+if(SocioEcon == 1) { if(Age == 2) { GoodStudent = flip(0.500000); } else {}
+if(Age == 1) { GoodStudent = flip(0.000000); } else {}
+if(Age == 0) { GoodStudent = flip(0.000000); } else {}
+ } else {}
+if(SocioEcon == 0) { if(Age == 2) { GoodStudent = flip(0.400000); } else {}
+if(Age == 1) { GoodStudent = flip(0.000000); } else {}
+if(Age == 0) { GoodStudent = flip(0.000000); } else {}
+ } else {}
+
+Mileage := 0; Mileage = categorical([0.100000,0.400000,0.400000,0.100000]);
+CarValue := 0; if(MakeModel == 4) { if (VehicleYear) { if(Mileage == 3) { CarValue = categorical([0.000000,0.100000,0.800000,0.090000,0.010000]); } else {}
+if(Mileage == 2) { CarValue = categorical([0.000000,0.100000,0.800000,0.090000,0.010000]); } else {}
+if(Mileage == 1) { CarValue = categorical([0.000000,0.100000,0.800000,0.090000,0.010000]); } else {}
+if(Mileage == 0) { CarValue = categorical([0.000000,0.100000,0.800000,0.090000,0.010000]); } else {}
+ } else { if(Mileage == 3) { CarValue = categorical([0.030000,0.300000,0.600000,0.060000,0.010000]); } else {}
+if(Mileage == 2) { CarValue = categorical([0.160000,0.500000,0.300000,0.030000,0.010000]); } else {}
+if(Mileage == 1) { CarValue = categorical([0.400000,0.470000,0.100000,0.020000,0.010000]); } else {}
+if(Mileage == 0) { CarValue = categorical([0.900000,0.060000,0.020000,0.010000,0.010000]); } else {}
+ } } else {}
+if(MakeModel == 3) { if (VehicleYear) { if(Mileage == 3) { CarValue = categorical([0.100000,0.800000,0.100000,0.000000,0.000000]); } else {}
+if(Mileage == 2) { CarValue = categorical([0.100000,0.800000,0.100000,0.000000,0.000000]); } else {}
+if(Mileage == 1) { CarValue = categorical([0.100000,0.800000,0.100000,0.000000,0.000000]); } else {}
+if(Mileage == 0) { CarValue = categorical([0.100000,0.800000,0.100000,0.000000,0.000000]); } else {}
+ } else { if(Mileage == 3) { CarValue = categorical([0.250000,0.700000,0.050000,0.000000,0.000000]); } else {}
+if(Mileage == 2) { CarValue = categorical([0.700000,0.299900,0.000100,0.000000,0.000000]); } else {}
+if(Mileage == 1) { CarValue = categorical([0.990000,0.009999,0.000001,0.000000,0.000000]); } else {}
+if(Mileage == 0) { CarValue = categorical([0.999998,0.000001,0.000001,0.000000,0.000000]); } else {}
+ } } else {}
+if(MakeModel == 2) { if (VehicleYear) { if(Mileage == 3) { CarValue = categorical([0.000000,0.100000,0.900000,0.000000,0.000000]); } else {}
+if(Mileage == 2) { CarValue = categorical([0.000000,0.100000,0.900000,0.000000,0.000000]); } else {}
+if(Mileage == 1) { CarValue = categorical([0.000000,0.100000,0.900000,0.000000,0.000000]); } else {}
+if(Mileage == 0) { CarValue = categorical([0.000000,0.100000,0.900000,0.000000,0.000000]); } else {}
+ } else { if(Mileage == 3) { CarValue = categorical([0.200000,0.300000,0.500000,0.000000,0.000000]); } else {}
+if(Mileage == 2) { CarValue = categorical([0.500000,0.300000,0.200000,0.000000,0.000000]); } else {}
+if(Mileage == 1) { CarValue = categorical([0.700000,0.200000,0.100000,0.000000,0.000000]); } else {}
+if(Mileage == 0) { CarValue = categorical([0.990000,0.009999,0.000001,0.000000,0.000000]); } else {}
+ } } else {}
+if(MakeModel == 1) { if (VehicleYear) { if(Mileage == 3) { CarValue = categorical([0.000000,0.000000,0.000000,1.000000,0.000000]); } else {}
+if(Mileage == 2) { CarValue = categorical([0.000000,0.000000,0.000000,1.000000,0.000000]); } else {}
+if(Mileage == 1) { CarValue = categorical([0.000000,0.000000,0.000000,1.000000,0.000000]); } else {}
+if(Mileage == 0) { CarValue = categorical([0.000000,0.000000,0.000000,1.000000,0.000000]); } else {}
+ } else { if(Mileage == 3) { CarValue = categorical([0.010000,0.090000,0.200000,0.700000,0.000000]); } else {}
+if(Mileage == 2) { CarValue = categorical([0.050000,0.150000,0.300000,0.500000,0.000000]); } else {}
+if(Mileage == 1) { CarValue = categorical([0.100000,0.300000,0.300000,0.300000,0.000000]); } else {}
+if(Mileage == 0) { CarValue = categorical([0.200000,0.200000,0.300000,0.300000,0.000000]); } else {}
+ } } else {}
+if(MakeModel == 0) { if (VehicleYear) { if(Mileage == 3) { CarValue = categorical([0.000000,0.000000,0.000000,0.000000,1.000000]); } else {}
+if(Mileage == 2) { CarValue = categorical([0.000000,0.000000,0.000000,0.000000,1.000000]); } else {}
+if(Mileage == 1) { CarValue = categorical([0.000000,0.000000,0.000000,0.000000,1.000000]); } else {}
+if(Mileage == 0) { CarValue = categorical([0.000000,0.000000,0.000000,0.000000,1.000000]); } else {}
+ } else { if(Mileage == 3) { CarValue = categorical([0.000001,0.000001,0.000001,0.000001,0.999996]); } else {}
+if(Mileage == 2) { CarValue = categorical([0.000001,0.000001,0.000001,0.000001,0.999996]); } else {}
+if(Mileage == 1) { CarValue = categorical([0.000001,0.000001,0.000001,0.000001,0.999996]); } else {}
+if(Mileage == 0) { CarValue = categorical([0.000001,0.000001,0.000001,0.000001,0.999996]); } else {}
+ } } else {}
+
+Theft := 0; if (AntiTheft) { if(HomeBase == 3) { if(CarValue == 4) { Theft = flip(0.000001); } else {}
+if(CarValue == 3) { Theft = flip(0.000002); } else {}
+if(CarValue == 2) { Theft = flip(0.000003); } else {}
+if(CarValue == 1) { Theft = flip(0.000002); } else {}
+if(CarValue == 0) { Theft = flip(0.000001); } else {}
+ } else {}
+if(HomeBase == 2) { if(CarValue == 4) { Theft = flip(0.000500); } else {}
+if(CarValue == 3) { Theft = flip(0.002000); } else {}
+if(CarValue == 2) { Theft = flip(0.005000); } else {}
+if(CarValue == 1) { Theft = flip(0.005000); } else {}
+if(CarValue == 0) { Theft = flip(0.000001); } else {}
+ } else {}
+if(HomeBase == 1) { if(CarValue == 4) { Theft = flip(0.000010); } else {}
+if(CarValue == 3) { Theft = flip(0.000100); } else {}
+if(CarValue == 2) { Theft = flip(0.000300); } else {}
+if(CarValue == 1) { Theft = flip(0.000300); } else {}
+if(CarValue == 0) { Theft = flip(0.000001); } else {}
+ } else {}
+if(HomeBase == 0) { if(CarValue == 4) { Theft = flip(0.000010); } else {}
+if(CarValue == 3) { Theft = flip(0.000020); } else {}
+if(CarValue == 2) { Theft = flip(0.000050); } else {}
+if(CarValue == 1) { Theft = flip(0.000050); } else {}
+if(CarValue == 0) { Theft = flip(0.000001); } else {}
+ } else {}
+ } else { if(HomeBase == 3) { if(CarValue == 4) { Theft = flip(0.000001); } else {}
+if(CarValue == 3) { Theft = flip(0.000002); } else {}
+if(CarValue == 2) { Theft = flip(0.000003); } else {}
+if(CarValue == 1) { Theft = flip(0.000002); } else {}
+if(CarValue == 0) { Theft = flip(0.000001); } else {}
+ } else {}
+if(HomeBase == 2) { if(CarValue == 4) { Theft = flip(0.001000); } else {}
+if(CarValue == 3) { Theft = flip(0.005000); } else {}
+if(CarValue == 2) { Theft = flip(0.010000); } else {}
+if(CarValue == 1) { Theft = flip(0.010000); } else {}
+if(CarValue == 0) { Theft = flip(0.000001); } else {}
+ } else {}
+if(HomeBase == 1) { if(CarValue == 4) { Theft = flip(0.000010); } else {}
+if(CarValue == 3) { Theft = flip(0.000200); } else {}
+if(CarValue == 2) { Theft = flip(0.000500); } else {}
+if(CarValue == 1) { Theft = flip(0.000500); } else {}
+if(CarValue == 0) { Theft = flip(0.000001); } else {}
+ } else {}
+if(HomeBase == 0) { if(CarValue == 4) { Theft = flip(0.000010); } else {}
+if(CarValue == 3) { Theft = flip(0.000100); } else {}
+if(CarValue == 2) { Theft = flip(0.000200); } else {}
+if(CarValue == 1) { Theft = flip(0.000200); } else {}
+if(CarValue == 0) { Theft = flip(0.000001); } else {}
+ } else {}
+ }
+Accident := 0; if (Antilock) { if(Mileage == 3) { if(DrivQuality == 2) { Accident = categorical([0.700000,0.200000,0.070000,0.030000]); } else {}
+if(DrivQuality == 1) { Accident = categorical([0.990000,0.007000,0.002000,0.001000]); } else {}
+if(DrivQuality == 0) { Accident = categorical([0.999000,0.000700,0.000200,0.000100]); } else {}
+ } else {}
+if(Mileage == 2) { if(DrivQuality == 2) { Accident = categorical([0.400000,0.300000,0.200000,0.100000]); } else {}
+if(DrivQuality == 1) { Accident = categorical([0.980000,0.010000,0.005000,0.005000]); } else {}
+if(DrivQuality == 0) { Accident = categorical([0.995000,0.003000,0.001000,0.001000]); } else {}
+ } else {}
+if(Mileage == 1) { if(DrivQuality == 2) { Accident = categorical([0.300000,0.300000,0.200000,0.200000]); } else {}
+if(DrivQuality == 1) { Accident = categorical([0.970000,0.020000,0.007000,0.003000]); } else {}
+if(DrivQuality == 0) { Accident = categorical([0.990000,0.007000,0.002000,0.001000]); } else {}
+ } else {}
+if(Mileage == 0) { if(DrivQuality == 2) { Accident = categorical([0.200000,0.200000,0.300000,0.300000]); } else {}
+if(DrivQuality == 1) { Accident = categorical([0.950000,0.030000,0.010000,0.010000]); } else {}
+if(DrivQuality == 0) { Accident = categorical([0.985000,0.010000,0.003000,0.002000]); } else {}
+ } else {}
+ } else { if(Mileage == 3) { if(DrivQuality == 2) { Accident = categorical([0.600000,0.200000,0.100000,0.100000]); } else {}
+if(DrivQuality == 1) { Accident = categorical([0.980000,0.010000,0.005000,0.005000]); } else {}
+if(DrivQuality == 0) { Accident = categorical([0.995000,0.003000,0.001000,0.001000]); } else {}
+ } else {}
+if(Mileage == 2) { if(DrivQuality == 2) { Accident = categorical([0.300000,0.200000,0.200000,0.300000]); } else {}
+if(DrivQuality == 1) { Accident = categorical([0.960000,0.020000,0.015000,0.005000]); } else {}
+if(DrivQuality == 0) { Accident = categorical([0.990000,0.007000,0.002000,0.001000]); } else {}
+ } else {}
+if(Mileage == 1) { if(DrivQuality == 2) { Accident = categorical([0.200000,0.200000,0.200000,0.400000]); } else {}
+if(DrivQuality == 1) { Accident = categorical([0.950000,0.030000,0.015000,0.005000]); } else {}
+if(DrivQuality == 0) { Accident = categorical([0.980000,0.010000,0.005000,0.005000]); } else {}
+ } else {}
+if(Mileage == 0) { if(DrivQuality == 2) { Accident = categorical([0.100000,0.100000,0.300000,0.500000]); } else {}
+if(DrivQuality == 1) { Accident = categorical([0.940000,0.030000,0.020000,0.010000]); } else {}
+if(DrivQuality == 0) { Accident = categorical([0.980000,0.010000,0.007000,0.003000]); } else {}
+ } else {}
+ }
+ILiCost := 0; if(Accident == 3) { ILiCost = categorical([1.000000,0.000000,0.000000,0.000000]); } else {}
+if(Accident == 2) { ILiCost = categorical([0.999000,0.000998,0.000001,0.000001]); } else {}
+if(Accident == 1) { ILiCost = categorical([0.900000,0.050000,0.030000,0.020000]); } else {}
+if(Accident == 0) { ILiCost = categorical([0.800000,0.100000,0.060000,0.040000]); } else {}
+
+MedCost := 0; if(Accident == 3) { if(Age == 2) { if(Cushioning == 3) { MedCost = categorical([1.000000,0.000000,0.000000,0.000000]); } else {}
+if(Cushioning == 2) { MedCost = categorical([1.000000,0.000000,0.000000,0.000000]); } else {}
+if(Cushioning == 1) { MedCost = categorical([1.000000,0.000000,0.000000,0.000000]); } else {}
+if(Cushioning == 0) { MedCost = categorical([1.000000,0.000000,0.000000,0.000000]); } else {}
+ } else {}
+if(Age == 1) { if(Cushioning == 3) { MedCost = categorical([1.000000,0.000000,0.000000,0.000000]); } else {}
+if(Cushioning == 2) { MedCost = categorical([1.000000,0.000000,0.000000,0.000000]); } else {}
+if(Cushioning == 1) { MedCost = categorical([1.000000,0.000000,0.000000,0.000000]); } else {}
+if(Cushioning == 0) { MedCost = categorical([1.000000,0.000000,0.000000,0.000000]); } else {}
+ } else {}
+if(Age == 0) { if(Cushioning == 3) { MedCost = categorical([1.000000,0.000000,0.000000,0.000000]); } else {}
+if(Cushioning == 2) { MedCost = categorical([1.000000,0.000000,0.000000,0.000000]); } else {}
+if(Cushioning == 1) { MedCost = categorical([1.000000,0.000000,0.000000,0.000000]); } else {}
+if(Cushioning == 0) { MedCost = categorical([1.000000,0.000000,0.000000,0.000000]); } else {}
+ } else {}
+ } else {}
+if(Accident == 2) { if(Age == 2) { if(Cushioning == 3) { MedCost = categorical([0.960000,0.030000,0.009000,0.001000]); } else {}
+if(Cushioning == 2) { MedCost = categorical([0.980000,0.019000,0.000900,0.000100]); } else {}
+if(Cushioning == 1) { MedCost = categorical([0.990000,0.009900,0.000090,0.000010]); } else {}
+if(Cushioning == 0) { MedCost = categorical([0.999000,0.000990,0.000009,0.000001]); } else {}
+ } else {}
+if(Age == 1) { if(Cushioning == 3) { MedCost = categorical([0.960000,0.030000,0.009000,0.001000]); } else {}
+if(Cushioning == 2) { MedCost = categorical([0.980000,0.019000,0.000900,0.000100]); } else {}
+if(Cushioning == 1) { MedCost = categorical([0.990000,0.009900,0.000090,0.000010]); } else {}
+if(Cushioning == 0) { MedCost = categorical([0.999000,0.000990,0.000009,0.000001]); } else {}
+ } else {}
+if(Age == 0) { if(Cushioning == 3) { MedCost = categorical([0.900000,0.070000,0.020000,0.010000]); } else {}
+if(Cushioning == 2) { MedCost = categorical([0.950000,0.040000,0.007000,0.003000]); } else {}
+if(Cushioning == 1) { MedCost = categorical([0.970000,0.025000,0.003000,0.002000]); } else {}
+if(Cushioning == 0) { MedCost = categorical([0.990000,0.007000,0.002000,0.001000]); } else {}
+ } else {}
+ } else {}
+if(Accident == 1) { if(Age == 2) { if(Cushioning == 3) { MedCost = categorical([0.500000,0.200000,0.200000,0.100000]); } else {}
+if(Cushioning == 2) { MedCost = categorical([0.800000,0.150000,0.030000,0.020000]); } else {}
+if(Cushioning == 1) { MedCost = categorical([0.950000,0.020000,0.020000,0.010000]); } else {}
+if(Cushioning == 0) { MedCost = categorical([0.990000,0.007000,0.002000,0.001000]); } else {}
+ } else {}
+if(Age == 1) { if(Cushioning == 3) { MedCost = categorical([0.500000,0.200000,0.200000,0.100000]); } else {}
+if(Cushioning == 2) { MedCost = categorical([0.800000,0.150000,0.030000,0.020000]); } else {}
+if(Cushioning == 1) { MedCost = categorical([0.950000,0.020000,0.020000,0.010000]); } else {}
+if(Cushioning == 0) { MedCost = categorical([0.990000,0.007000,0.002000,0.001000]); } else {}
+ } else {}
+if(Age == 0) { if(Cushioning == 3) { MedCost = categorical([0.300000,0.300000,0.200000,0.200000]); } else {}
+if(Cushioning == 2) { MedCost = categorical([0.500000,0.200000,0.200000,0.100000]); } else {}
+if(Cushioning == 1) { MedCost = categorical([0.900000,0.070000,0.020000,0.010000]); } else {}
+if(Cushioning == 0) { MedCost = categorical([0.950000,0.030000,0.010000,0.010000]); } else {}
+ } else {}
+ } else {}
+if(Accident == 0) { if(Age == 2) { if(Cushioning == 3) { MedCost = categorical([0.300000,0.300000,0.200000,0.200000]); } else {}
+if(Cushioning == 2) { MedCost = categorical([0.500000,0.200000,0.200000,0.100000]); } else {}
+if(Cushioning == 1) { MedCost = categorical([0.900000,0.070000,0.020000,0.010000]); } else {}
+if(Cushioning == 0) { MedCost = categorical([0.950000,0.030000,0.010000,0.010000]); } else {}
+ } else {}
+if(Age == 1) { if(Cushioning == 3) { MedCost = categorical([0.300000,0.300000,0.200000,0.200000]); } else {}
+if(Cushioning == 2) { MedCost = categorical([0.500000,0.200000,0.200000,0.100000]); } else {}
+if(Cushioning == 1) { MedCost = categorical([0.900000,0.070000,0.020000,0.010000]); } else {}
+if(Cushioning == 0) { MedCost = categorical([0.950000,0.030000,0.010000,0.010000]); } else {}
+ } else {}
+if(Age == 0) { if(Cushioning == 3) { MedCost = categorical([0.200000,0.200000,0.300000,0.300000]); } else {}
+if(Cushioning == 2) { MedCost = categorical([0.300000,0.300000,0.200000,0.200000]); } else {}
+if(Cushioning == 1) { MedCost = categorical([0.600000,0.300000,0.070000,0.030000]); } else {}
+if(Cushioning == 0) { MedCost = categorical([0.900000,0.050000,0.030000,0.020000]); } else {}
+ } else {}
+ } else {}
+
+OtherCarCost := 0; if(Accident == 3) { if(RuggedAuto == 2) { OtherCarCost = categorical([1.000000,0.000000,0.000000,0.000000]); } else {}
+if(RuggedAuto == 1) { OtherCarCost = categorical([1.000000,0.000000,0.000000,0.000000]); } else {}
+if(RuggedAuto == 0) { OtherCarCost = categorical([1.000000,0.000000,0.000000,0.000000]); } else {}
+ } else {}
+if(Accident == 2) { if(RuggedAuto == 2) { OtherCarCost = categorical([0.990000,0.005000,0.004990,0.000010]); } else {}
+if(RuggedAuto == 1) { OtherCarCost = categorical([0.979966,0.010000,0.009985,0.000050]); } else {}
+if(RuggedAuto == 0) { OtherCarCost = categorical([0.950000,0.030000,0.019980,0.000020]); } else {}
+ } else {}
+if(Accident == 1) { if(RuggedAuto == 2) { OtherCarCost = categorical([0.600000,0.200000,0.199980,0.000020]); } else {}
+if(RuggedAuto == 1) { OtherCarCost = categorical([0.500000,0.200000,0.299970,0.000030]); } else {}
+if(RuggedAuto == 0) { OtherCarCost = categorical([0.400000,0.300000,0.299960,0.000040]); } else {}
+ } else {}
+if(Accident == 0) { if(RuggedAuto == 2) { OtherCarCost = categorical([0.200000,0.400000,0.399960,0.000040]); } else {}
+if(RuggedAuto == 1) { OtherCarCost = categorical([0.100000,0.500000,0.399940,0.000060]); } else {}
+if(RuggedAuto == 0) { OtherCarCost = categorical([0.005000,0.550000,0.444900,0.000100]); } else {}
+ } else {}
+
+ThisCarDam := 0; if(Accident == 3) { if(RuggedAuto == 2) { ThisCarDam = categorical([1.000000,0.000000,0.000000,0.000000]); } else {}
+if(RuggedAuto == 1) { ThisCarDam = categorical([1.000000,0.000000,0.000000,0.000000]); } else {}
+if(RuggedAuto == 0) { ThisCarDam = categorical([1.000000,0.000000,0.000000,0.000000]); } else {}
+ } else {}
+if(Accident == 2) { if(RuggedAuto == 2) { ThisCarDam = categorical([0.001000,0.900000,0.098000,0.001000]); } else {}
+if(RuggedAuto == 1) { ThisCarDam = categorical([0.200000,0.750000,0.049999,0.000001]); } else {}
+if(RuggedAuto == 0) { ThisCarDam = categorical([0.700000,0.290000,0.009999,0.000001]); } else {}
+ } else {}
+if(Accident == 1) { if(RuggedAuto == 2) { ThisCarDam = categorical([0.000001,0.000999,0.700000,0.299000]); } else {}
+if(RuggedAuto == 1) { ThisCarDam = categorical([0.001000,0.099000,0.800000,0.100000]); } else {}
+if(RuggedAuto == 0) { ThisCarDam = categorical([0.050000,0.600000,0.300000,0.050000]); } else {}
+ } else {}
+if(Accident == 0) { if(RuggedAuto == 2) { ThisCarDam = categorical([0.000001,0.000009,0.000090,0.999900]); } else {}
+if(RuggedAuto == 1) { ThisCarDam = categorical([0.000001,0.000999,0.009000,0.990000]); } else {}
+if(RuggedAuto == 0) { ThisCarDam = categorical([0.050000,0.200000,0.200000,0.550000]); } else {}
+ } else {}
+
+ThisCarCost := 0; if(ThisCarDam == 3) { if(CarValue == 4) { if (Theft) { ThisCarCost = categorical([0.200000,0.800000,0.000000,0.000000]); } else { ThisCarCost = categorical([1.000000,0.000000,0.000000,0.000000]); } } else {}
+if(CarValue == 3) { if (Theft) { ThisCarCost = categorical([0.050000,0.950000,0.000000,0.000000]); } else { ThisCarCost = categorical([1.000000,0.000000,0.000000,0.000000]); } } else {}
+if(CarValue == 2) { if (Theft) { ThisCarCost = categorical([0.040000,0.010000,0.950000,0.000000]); } else { ThisCarCost = categorical([1.000000,0.000000,0.000000,0.000000]); } } else {}
+if(CarValue == 1) { if (Theft) { ThisCarCost = categorical([0.040000,0.010000,0.950000,0.000000]); } else { ThisCarCost = categorical([1.000000,0.000000,0.000000,0.000000]); } } else {}
+if(CarValue == 0) { if (Theft) { ThisCarCost = categorical([0.040000,0.010000,0.200000,0.750000]); } else { ThisCarCost = categorical([1.000000,0.000000,0.000000,0.000000]); } } else {}
+ } else {}
+if(ThisCarDam == 2) { if(CarValue == 4) { if (Theft) { ThisCarCost = categorical([0.150000,0.850000,0.000000,0.000000]); } else { ThisCarCost = categorical([0.950000,0.050000,0.000000,0.000000]); } } else {}
+if(CarValue == 3) { if (Theft) { ThisCarCost = categorical([0.030000,0.970000,0.000000,0.000000]); } else { ThisCarCost = categorical([0.950000,0.050000,0.000000,0.000000]); } } else {}
+if(CarValue == 2) { if (Theft) { ThisCarCost = categorical([0.030000,0.020000,0.950000,0.000000]); } else { ThisCarCost = categorical([0.990000,0.010000,0.000000,0.000000]); } } else {}
+if(CarValue == 1) { if (Theft) { ThisCarCost = categorical([0.030000,0.020000,0.950000,0.000000]); } else { ThisCarCost = categorical([0.990000,0.010000,0.000000,0.000000]); } } else {}
+if(CarValue == 0) { if (Theft) { ThisCarCost = categorical([0.020000,0.030000,0.250000,0.700000]); } else { ThisCarCost = categorical([0.980000,0.010000,0.010000,0.000000]); } } else {}
+ } else {}
+if(ThisCarDam == 1) { if(CarValue == 4) { if (Theft) { ThisCarCost = categorical([0.050000,0.950000,0.000000,0.000000]); } else { ThisCarCost = categorical([0.250000,0.750000,0.000000,0.000000]); } } else {}
+if(CarValue == 3) { if (Theft) { ThisCarCost = categorical([0.010000,0.990000,0.000000,0.000000]); } else { ThisCarCost = categorical([0.150000,0.850000,0.000000,0.000000]); } } else {}
+if(CarValue == 2) { if (Theft) { ThisCarCost = categorical([0.001000,0.001000,0.998000,0.000000]); } else { ThisCarCost = categorical([0.010000,0.010000,0.980000,0.000000]); } } else {}
+if(CarValue == 1) { if (Theft) { ThisCarCost = categorical([0.001000,0.001000,0.998000,0.000000]); } else { ThisCarCost = categorical([0.005000,0.005000,0.990000,0.000000]); } } else {}
+if(CarValue == 0) { if (Theft) { ThisCarCost = categorical([0.001000,0.001000,0.018000,0.980000]); } else { ThisCarCost = categorical([0.003000,0.003000,0.044000,0.950000]); } } else {}
+ } else {}
+if(ThisCarDam == 0) { if(CarValue == 4) { if (Theft) { ThisCarCost = categorical([0.030000,0.970000,0.000000,0.000000]); } else { ThisCarCost = categorical([0.050000,0.950000,0.000000,0.000000]); } } else {}
+if(CarValue == 3) { if (Theft) { ThisCarCost = categorical([0.000001,0.999999,0.000000,0.000000]); } else { ThisCarCost = categorical([0.010000,0.990000,0.000000,0.000000]); } } else {}
+if(CarValue == 2) { if (Theft) { ThisCarCost = categorical([0.000001,0.000001,0.999998,0.000000]); } else { ThisCarCost = categorical([0.005000,0.005000,0.990000,0.000000]); } } else {}
+if(CarValue == 1) { if (Theft) { ThisCarCost = categorical([0.000001,0.000001,0.999998,0.000000]); } else { ThisCarCost = categorical([0.001000,0.001000,0.998000,0.000000]); } } else {}
+if(CarValue == 0) { if (Theft) { ThisCarCost = categorical([0.000001,0.000001,0.009998,0.990000]); } else { ThisCarCost = categorical([0.000001,0.000001,0.029998,0.970000]); } } else {}
+ } else {}
+
+PropCost := 0; if(OtherCarCost == 3) { if(ThisCarCost == 3) { PropCost = categorical([0.700000,0.300000,0.000000,0.000000]); } else {}
+if(ThisCarCost == 2) { PropCost = categorical([0.000000,0.950000,0.050000,0.000000]); } else {}
+if(ThisCarCost == 1) { PropCost = categorical([0.000000,0.000000,0.980000,0.020000]); } else {}
+if(ThisCarCost == 0) { PropCost = categorical([0.000000,0.000000,0.000000,1.000000]); } else {}
+ } else {}
+if(OtherCarCost == 2) { if(ThisCarCost == 3) { PropCost = categorical([0.000000,0.950000,0.050000,0.000000]); } else {}
+if(ThisCarCost == 2) { PropCost = categorical([0.000000,0.600000,0.400000,0.000000]); } else {}
+if(ThisCarCost == 1) { PropCost = categorical([0.000000,0.000000,0.950000,0.050000]); } else {}
+if(ThisCarCost == 0) { PropCost = categorical([0.000000,0.000000,0.000000,1.000000]); } else {}
+ } else {}
+if(OtherCarCost == 1) { if(ThisCarCost == 3) { PropCost = categorical([0.000000,0.000000,0.980000,0.020000]); } else {}
+if(ThisCarCost == 2) { PropCost = categorical([0.000000,0.000000,0.800000,0.200000]); } else {}
+if(ThisCarCost == 1) { PropCost = categorical([0.000000,0.000000,0.600000,0.400000]); } else {}
+if(ThisCarCost == 0) { PropCost = categorical([0.000000,0.000000,0.000000,1.000000]); } else {}
+ } else {}
+if(OtherCarCost == 0) { if(ThisCarCost == 3) { PropCost = categorical([0.000000,0.000000,0.000000,1.000000]); } else {}
+if(ThisCarCost == 2) { PropCost = categorical([0.000000,0.000000,0.000000,1.000000]); } else {}
+if(ThisCarCost == 1) { PropCost = categorical([0.000000,0.000000,0.000000,1.000000]); } else {}
+if(ThisCarCost == 0) { PropCost = categorical([0.000000,0.000000,0.000000,1.000000]); } else {}
+ } else {}
+
+return (PropCost,(ThisCarCost,(ThisCarDam,(OtherCarCost,(MedCost,(ILiCost,(Accident,(Theft,(CarValue,(Mileage,(GoodStudent,(Cushioning,(RuggedAuto,(Antilock,(Airbag,(VehicleYear,(MakeModel,(DrivQuality,(DrivHist,(DrivingSkill,(SeniorTrain,(HomeBase,(AntiTheft,(RiskAversion,(OtherCar,(SocioEcon,Age))))))))))))))))))))))))));
+}

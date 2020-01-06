@@ -1,0 +1,11 @@
+let Pollution = discrete(0.500000,0.400000,0.100000) in
+let Smoker = flip 0.300000 in
+let Cancer =
+ if ((Pollution == int(3, 2))) then
+  (if (Smoker) then (flip 0.030000) else (flip 0.0010000))
+ else (if ((Pollution == int(3, 1))) then
+   (if (Smoker) then (flip 0.030000) else (flip 0.0010000))
+ else (if (Smoker) then (flip 0.050000) else (flip 0.020000))) in
+let Dyspnoea = if (Cancer) then (flip 0.650000) else (flip 0.300000) in
+let Xray = if (Cancer) then (flip 0.900000) else (flip 0.200000) in
+Xray

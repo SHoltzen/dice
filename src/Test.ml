@@ -176,6 +176,31 @@ let test_caesar _ =
     key == int(4, 0)" in
   assert_feq 0.96786389414 (parse_and_prob prog)
 
+let test_alarm _ =
+  let prog = In_channel.read_all "benchmarks/baselines/alarm.ppl" in
+  assert_feq (2969983.0 /. 992160802.0) (parse_and_prob prog)
+
+let test_murder _ =
+  let prog = In_channel.read_all "benchmarks/baselines/murderMystery.ppl" in
+  assert_feq (9.0 /. 569.0) (parse_and_prob prog)
+
+let test_evidence1 _ =
+  let prog = In_channel.read_all "benchmarks/baselines/evidence1.ppl" in
+  assert_feq (1.0 /. 3.0) (parse_and_prob prog)
+
+let test_evidence2 _ =
+  let prog = In_channel.read_all "benchmarks/baselines/evidence2.ppl" in
+  assert_feq (2.0 /. 3.0) (parse_and_prob prog)
+
+let test_grass _ =
+  let prog = In_channel.read_all "benchmarks/baselines/grass.ppl" in
+  assert_feq (509.0 /. 719.0) (parse_and_prob prog)
+
+let test_cancer _ =
+  let prog = In_channel.read_all "resources/cancer_test.ppl" in
+  assert_feq (42709.0 /. 200000.0) (parse_and_prob prog)
+
+
 let expression_tests =
 "suite">:::
 [
@@ -205,6 +230,12 @@ let expression_tests =
   "test_fcall5">::test_fcall5;
   "test_fcall6">::test_fcall6;
   "test_caesar">::test_caesar;
+  "test_alarm">::test_alarm;
+  "test_murder">::test_murder;
+  "test_evidence1">::test_evidence1;
+  "test_evidence2">::test_evidence2;
+  "test_grass">::test_grass;
+  "test_cancer">::test_cancer;
 ]
 
 let () =
