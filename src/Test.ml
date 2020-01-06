@@ -83,6 +83,44 @@ let test_add5 _ =
    sum == int(5, 1)" in
   assert_feq 0.1 (parse_and_prob prog)
 
+let test_op1 _ =
+  let prog = "
+   let x = discrete(0.1, 0.2, 0.3, 0.4) in
+   let y = discrete(0.4, 0.3, 0.2, 0.1) in
+   x < y" in
+  assert_feq (3.0 /. 20.0) (parse_and_prob prog)
+
+let test_op2 _ =
+  let prog = "
+   let x = discrete(0.1, 0.2, 0.3, 0.4) in
+   let y = discrete(0.4, 0.3, 0.2, 0.1) in
+   x <= y" in
+  assert_feq (7.0 /. 20.0) (parse_and_prob prog)
+
+let test_op3 _ =
+  let prog = "
+   let x = discrete(0.1, 0.2, 0.3, 0.4) in
+   let y = discrete(0.4, 0.3, 0.2, 0.1) in
+   (x + y) < int(4, 2)" in
+  assert_feq (23.0 /. 50.0) (parse_and_prob prog)
+
+let test_op4 _ =
+  let prog = "
+   let x = discrete(0.1, 0.2, 0.3, 0.4) in
+   let y = discrete(0.4, 0.3, 0.2, 0.1) in
+   (x * y) < int(4, 2)" in
+  assert_feq (31.0 /. 50.0) (parse_and_prob prog)
+
+let test_op5 _ =
+  let prog = "
+   let x = discrete(0.1, 0.2, 0.3, 0.4) in
+   let y = discrete(0.4, 0.3, 0.2, 0.1) in
+   let tmp = observe (x + y) < int(4, 2) in
+   x == y" in
+  assert_feq (5.0 /. 23.0) (parse_and_prob prog)
+
+
+
 (* let test_add5 _ =
  *   let prog = "
  *    let x = discrete(0.1, 0.2, 0.3, 0.4, 0.5, 0.6) in
@@ -240,7 +278,12 @@ let expression_tests =
   "test_evidence2">::test_evidence2;
   "test_grass">::test_grass;
   "test_cancer">::test_cancer;
-  "test_caesar2">::test_caesar_2;
+  "test_op1">::test_op1;
+  "test_op2">::test_op2;
+  "test_op3">::test_op3;
+  "test_op4">::test_op4;
+  "test_op5">::test_op5;
+  (* "test_caesar2">::test_caesar_2; *)
 ]
 
 let () =

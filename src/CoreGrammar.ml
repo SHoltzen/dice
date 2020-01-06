@@ -14,8 +14,12 @@ type expr =
   | Ite of expr * expr * expr
   | Discrete of float List.t
   | Eq of expr * expr
-  | Plus of expr * expr
+  | Lt of expr * expr
   | Int of int * int  (* sz, v *)
+  | Plus of expr * expr
+  | Minus of expr * expr
+  | Mult of expr * expr
+  | Div of expr * expr
   | True
   | False
   | Flip of float
@@ -65,6 +69,22 @@ let rec from_external_expr (e: ExternalGrammar.eexpr) : expr =
   | Eq(e1, e2) ->
     let s1 = from_external_expr e1 in
     let s2 = from_external_expr e2 in Eq(s1, s2)
+  | Neq(e1, e2) -> from_external_expr(Not(Eq(e1, e2)))
+  | Minus(e1, e2) ->
+    let s1 = from_external_expr e1 in
+    let s2 = from_external_expr e2 in Minus(s1, s2)
+  | Mult(e1, e2) ->
+    let s1 = from_external_expr e1 in
+    let s2 = from_external_expr e2 in Mult(s1, s2)
+  | Div(e1, e2) ->
+    let s1 = from_external_expr e1 in
+    let s2 = from_external_expr e2 in Div(s1, s2)
+  | Lt(e1, e2) ->
+    let s1 = from_external_expr e1 in
+    let s2 = from_external_expr e2 in Lt(s1, s2)
+  | Lte(e1, e2) -> from_external_expr(Or(Lt(e1, e2), Eq(e1, e2)))
+  | Gt(e1, e2) -> from_external_expr(Not(Lte(e1, e2)))
+  | Gte(e1, e2) -> from_external_expr(Not(Lt(e1, e2)))
   | Not(e) -> Not(from_external_expr e)
   | Flip(f) -> Flip(f)
   | Ident(s) -> Ident(s)
@@ -161,6 +181,22 @@ let new_context () =
    funcs = Hashtbl.Poly.create ()}
 
 let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
+  (** helper function for implementing binary operations
+      [op] : size -> a -> b -> pos, defines the binary operation being implemented *)
+  let binop_helper e1 e2 (op: int -> int -> int -> int) =
+    let c1 = compile_expr ctx env e1 in
+    let c2 = compile_expr ctx env e2 in
+    let l1 = extract_discrete c1.state and l2 = extract_discrete c2.state in
+    assert (List.length l1 = List.length l2);
+    let len = List.length l1 in
+    let init_l = Array.init len ~f:(fun _ -> Bdd.dfalse ctx.man) in
+    List.iteri l1 ~f:(fun outer_i outer_itm ->
+        List.iteri l2 ~f:(fun inner_i inner_itm ->
+            let cur_pos = op len outer_i inner_i in
+            let cur_arrv = Array.get init_l cur_pos in
+            Array.set init_l cur_pos (Bdd.dor cur_arrv (Bdd.dand inner_itm outer_itm));
+          ));
+    (Array.to_list init_l, Bdd.dand c1.z c2.z) in
   match e with
   | And(e1, e2) ->
     let c1 = compile_expr ctx env e1 in
@@ -293,25 +329,32 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
       ) in
     {state=Leaf(BddLeaf(bdd)); z=Bdd.dand c1.z c2.z}
 
-  | Plus(e1, e2) ->
+  | Lt(e1, e2) ->
     let c1 = compile_expr ctx env e1 in
     let c2 = compile_expr ctx env e2 in
     let l1 = extract_discrete c1.state and l2 = extract_discrete c2.state in
-    assert (List.length l1 = List.length l2);
-    let len = List.length l1 in
-    let init_l = Array.init len ~f:(fun _ -> Bdd.dfalse ctx.man) in
-    (* Format.printf "here we go....\n";
-     * flush_all (); *)
-    List.iteri l1 ~f:(fun outer_i outer_itm ->
-        List.iteri l2 ~f:(fun inner_i inner_itm ->
-            let cur_pos = ((outer_i + inner_i) mod len) in
-            let cur_arrv = Array.get init_l cur_pos in
-            Array.set init_l cur_pos (Bdd.dor cur_arrv (Bdd.dand inner_itm outer_itm));
+    let cur = ref (Bdd.dfalse ctx.man) in
+    List.iteri l1 ~f:(fun o_idx o_bdd ->
+        List.iteri l2 ~f:(fun i_idx i_bdd ->
+            if o_idx < i_idx then cur := Bdd.dor !cur (Bdd.dand o_bdd i_bdd) else ();
           ));
-    (* Format.printf "done\n";
-     * flush_all (); *)
-    (* dump_dot ctx.name_map (Array.get init_l 0); *)
-    {state=Leaf(IntLeaf(Array.to_list init_l)); z=Bdd.dand c1.z c2.z}
+    {state=Leaf(BddLeaf(!cur)); z=Bdd.dand c1.z c2.z}
+
+  | Plus(e1, e2) ->
+    let (l, z) = binop_helper e1 e2 (fun sz a b -> (a + b) mod sz) in
+    {state=Leaf(IntLeaf(l)); z=z}
+
+  | Minus(e1, e2) ->
+    let (l, z) = binop_helper e1 e2 (fun sz a b -> abs ((a - b) mod sz)) in
+    {state=Leaf(IntLeaf(l)); z=z}
+
+  | Mult(e1, e2) ->
+    let (l, z) = binop_helper e1 e2 (fun sz a b -> ((a * b) mod sz)) in
+    {state=Leaf(IntLeaf(l)); z=z}
+
+  | Div(e1, e2) ->
+    let (l, z) = binop_helper e1 e2 (fun sz a b -> (a / b)) in
+    {state=Leaf(IntLeaf(l)); z=z}
 
   | FuncCall(name, args) ->
     let cargs = List.map args ~f:(compile_expr ctx env) in

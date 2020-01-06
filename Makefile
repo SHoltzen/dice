@@ -1,5 +1,5 @@
 build:
-	ocamlbuild -use-ocamlfind -use-menhir  src/Main.native
+	ocamlbuild -use-ocamlfind -use-menhir  src/Dice.native
 clean:
 	ocamlbuild -clean
 bench:
