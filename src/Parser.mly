@@ -23,7 +23,6 @@
 %left LTE GTE LT GT NEQ
 %left PLUS MINUS EQUAL_TO
 %left MULTIPLY DIVIDE MODULUS
-%left NEG
 /* entry point */
 
 %start program
@@ -39,6 +38,14 @@ expr:
     | DISCRETE delimited(LPAREN, separated_list(COMMA, FLOAT_LIT), RPAREN) { Discrete($2) }
     | expr EQUAL_TO expr { Eq($1, $3) }
     | expr PLUS expr { Plus($1, $3) }
+    | expr MINUS expr { Minus($1, $3) }
+    | expr MULTIPLY expr { Mult($1, $3) }
+    | expr DIVIDE expr { Div($1, $3) }
+    | expr LTE expr { Lte($1, $3) }
+    | expr GTE expr { Gte($1, $3) }
+    | expr LT expr { Lt($1, $3) }
+    | expr GT expr { Gt($1, $3) }
+    | expr NEQ expr { Neq($1, $3) }
     | delimited(LPAREN, separated_pair(expr, COMMA, expr), RPAREN) { Tup(fst $1, snd $1) }
     | FST expr { Fst($2) }
     | SND expr { Snd($2) }

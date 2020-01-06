@@ -27,6 +27,14 @@ type eexpr =
   | Int of int * int (* value, size *)
   | Eq of eexpr * eexpr
   | Plus of eexpr * eexpr
+  | Minus of eexpr * eexpr
+  | Mult of eexpr * eexpr
+  | Div of eexpr * eexpr
+  | Lte of eexpr * eexpr
+  | Lt of eexpr * eexpr
+  | Gte of eexpr * eexpr
+  | Gt of eexpr * eexpr
+  | Neq of eexpr * eexpr
   | Fst of eexpr
   | Snd of eexpr
   | Tup of eexpr * eexpr

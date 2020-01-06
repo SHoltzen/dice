@@ -6,5 +6,5 @@ if(Pollution == 0) { if (Smoker) { Cancer = flip(0.050000); } else { Cancer = fl
 
 Dyspnoea := 0; if (Cancer) { Dyspnoea = flip(0.650000); } else { Dyspnoea = flip(0.300000); }
 Xray := 0; if (Cancer) { Xray = flip(0.900000); } else { Xray = flip(0.200000); }
-return Xray;
+return Xray,(Dyspnoea,(Cancer,(Smoker,Pollution))));
 }

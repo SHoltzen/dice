@@ -200,6 +200,10 @@ let test_cancer _ =
   let prog = In_channel.read_all "resources/cancer_test.ppl" in
   assert_feq (42709.0 /. 200000.0) (parse_and_prob prog)
 
+let test_caesar_2 _ =
+  let prog = In_channel.read_all "resources/caesar_test.ppl" in
+  assert_feq  (1113032.0 /. 315312455.0) (parse_and_prob prog)
+
 
 let expression_tests =
 "suite">:::
@@ -236,6 +240,7 @@ let expression_tests =
   "test_evidence2">::test_evidence2;
   "test_grass">::test_grass;
   "test_cancer">::test_cancer;
+  "test_caesar2">::test_caesar_2;
 ]
 
 let () =
