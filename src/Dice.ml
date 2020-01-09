@@ -23,9 +23,18 @@ let parse_with_error lexbuf =
 
 let rec parse_and_print lexbuf =
   let parsed = parse_with_error lexbuf in
-  Format.printf "%s\n" (ExternalGrammar.string_of_prog parsed);
-  let prob = CoreGrammar.print_discrete (CoreGrammar.from_external_prog parsed) in
-  ()
+  let table = CoreGrammar.get_table (CoreGrammar.from_external_prog parsed) in
+  Format.printf "Value\tProbability\n";
+  List.iter table ~f:(fun (typ, prob) ->
+      let rec print_pretty e =
+        match e with
+        | Int(sz, v) -> string_of_int v
+        | True -> "true"
+        | False -> "false"
+        | Tup(l, r) -> Format.sprintf "(%s, %s)" (print_pretty l) (print_pretty r)
+        | _ -> failwith "ouch" in
+      Format.printf "%s\t%f\n" (print_pretty typ) prob;
+    )
   (* let prob = CoreGrammar.get_prob (CoreGrammar.from_external_prog parsed) in
    * Format.printf "prob: %f\n" prob *)
 
@@ -41,4 +50,3 @@ let () =
     Command.Spec.(empty +> anon ("filename" %: string))
     loop
   |> Command.run
-

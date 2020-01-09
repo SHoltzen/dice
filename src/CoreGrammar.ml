@@ -333,7 +333,7 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
     let c1 = compile_expr ctx env e1 in
     let c2 = compile_expr ctx env e2 in
     let l1 = extract_discrete c1.state and l2 = extract_discrete c2.state in
-    let cur = ref (Bdd.dfalse ctx.man) in
+    let cur = ref (Bdd.dtrue ctx.man) in
     List.iteri l1 ~f:(fun o_idx o_bdd ->
         List.iteri l2 ~f:(fun i_idx i_bdd ->
             if o_idx < i_idx then cur := Bdd.dor !cur (Bdd.dand o_bdd i_bdd) else ();
@@ -486,13 +486,28 @@ let print_discrete p =
   (* prob /. z *)
 
 (** prints the joint probability distribution as a TSV *)
-(* let print_table e =
- *   let ctx = new_context () in
- *   let env = Map.Poly.empty in
- *   let (v, zbdd) = compile_expr ctx env e in
- *   let z = Wmc.wmc zbdd ctx.weights in
- *   (\* let prob = Wmc.wmc (Bdd.dand (extract_bdd v) zbdd) ctx.weights in *\)
- *   (\* prob /. z *\)
- *   let rec print_h (state: varstate btree) (cur_str: String.t) =
- *     match state with
- *     | Leaf(BddLeaf(bdd)) ->  *)
+let get_table p =
+  let r = compile_program p in
+  let zbdd = r.body.z in
+  let z = Wmc.wmc zbdd r.ctx.weights in
+  let rec process_state state =
+    match state with
+    | Leaf(BddLeaf(bdd)) ->
+      [(True, bdd); (False, Bdd.dnot bdd)]
+    | Leaf(IntLeaf(l)) ->
+      List.mapi l ~f:(fun i itm ->
+          ((Int(List.length l, i)), itm)
+        )
+    | Node(l, r) ->
+      let lst = process_state l and rst = process_state r in
+      List.map lst ~f:(fun (lt, lbdd) ->
+          List.map rst ~f:(fun (rt, rbdd) ->
+              (Tup(lt, rt), Bdd.dand lbdd rbdd)
+            )
+        )
+      |> List.concat in
+  let states = process_state r.body.state in
+  (* convert the state list into probabilities *)
+  List.map states ~f:(fun (label, bdd) ->
+      let prob = (Wmc.wmc (Bdd.dand bdd zbdd) r.ctx.weights) /. z in
+      (label, prob))

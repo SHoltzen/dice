@@ -119,18 +119,6 @@ let test_op5 _ =
    x == y" in
   assert_feq (5.0 /. 23.0) (parse_and_prob prog)
 
-
-
-(* let test_add5 _ =
- *   let prog = "
- *    let x = discrete(0.1, 0.2, 0.3, 0.4, 0.5, 0.6) in
- *    let y = discrete(0.11, 0.22, 0.33, 0.44, 0.55, 0.66) in
- *    let sum = x + y in
- *    let z = observe x == int(5, 1) in
- *    sum == int(5, 1)" in
- *   assert_feq 0.1 (parse_and_prob prog) *)
-
-
 let test_fcall1 _ =
   let prog = "
     fun foo(test: bool) {
@@ -207,12 +195,11 @@ let test_caesar _ =
     }
     let key = discrete(0.25, 0.25, 0.25, 0.25) in
     let tmp = sendChar(key, int(4, 0)) in
-    let tmp = sendChar(key, int(4, 0)) in
-    let tmp = sendChar(key, int(4, 0)) in
-    let tmp = sendChar(key, int(4, 0)) in
-    let tmp = sendChar(key, int(4, 0)) in
+    let tmp = sendChar(key, int(4, 1)) in
+    let tmp = sendChar(key, int(4, 2)) in
+    let tmp = sendChar(key, int(4, 3)) in
     key == int(4, 0)" in
-  assert_feq 0.96786389414 (parse_and_prob prog)
+  assert_feq 0.25 (parse_and_prob prog)
 
 let test_alarm _ =
   let prog = In_channel.read_all "benchmarks/baselines/alarm.ppl" in
@@ -283,7 +270,6 @@ let expression_tests =
   "test_op3">::test_op3;
   "test_op4">::test_op4;
   "test_op5">::test_op5;
-  (* "test_caesar2">::test_caesar_2; *)
 ]
 
 let () =
