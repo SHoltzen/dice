@@ -333,7 +333,7 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
     let c1 = compile_expr ctx env e1 in
     let c2 = compile_expr ctx env e2 in
     let l1 = extract_discrete c1.state and l2 = extract_discrete c2.state in
-    let cur = ref (Bdd.dtrue ctx.man) in
+    let cur = ref (Bdd.dfalse ctx.man) in
     List.iteri l1 ~f:(fun o_idx o_bdd ->
         List.iteri l2 ~f:(fun i_idx i_bdd ->
             if o_idx < i_idx then cur := Bdd.dor !cur (Bdd.dand o_bdd i_bdd) else ();
