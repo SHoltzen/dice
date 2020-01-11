@@ -105,7 +105,7 @@ x + y
 Breaking this program down:
 
 * `discrete(0.4, 0.1, 0.3)` creates a random integer that is 0 with probability 0.4, 
-   1 with probability 0.1, and 3 with probability 0.3.
+   1 with probability 0.1, and 2 with probability 0.3.
 * `int(3, 1)` creates an integer constant of size 3 and value 1. All integer
   constants in `Dice` must specify their size (i.e., an integer of size 3
   supports values between 0 and 2 inclusive).
