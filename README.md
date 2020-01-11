@@ -15,7 +15,7 @@ opam init   # must be performed before installing opam packages
 opam install mlcuddidl ounit core ppx_sexp_conv sexplib core_bench menhir
 ```
 
-Once the dependencies installed, the following build commands are available:
+Once the dependencies are installed, the following build commands are available:
 
 * `make`: builds the `Dice.native` file which is used to evaluate `dice` programs.
 * `make test`: builds the test suite `Test.native`. It is recommended that you build
@@ -25,7 +25,7 @@ Once the dependencies installed, the following build commands are available:
 
 # Quick Start 
 
-We will start with a very simple example. Imagine you have (unfair) two coins
+We will start with a very simple example. Imagine you have two (unfair) coins
 labeled `a` and `b`. Coin `a` has a 30% probability of landing on heads, and
 coin `b` has a 80% chance of landing on heads. You flip both coins and observe
 that one of them lands heads-side up. What is the probability that 
