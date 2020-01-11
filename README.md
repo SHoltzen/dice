@@ -231,9 +231,8 @@ More example `Dice` programs can be found in the source directories:
 
 # Syntax
 
-The parser for `Dice` is written in
-[menhir](http://gallium.inria.fr/~fpottier/menhir/) and can be found in
-`src/Parser.mly`. The complete syntax for `Dice` in is:
+The parser for `Dice` is written in [menhir](http://gallium.inria.fr/~fpottier/menhir/) and can be found in `src/Parser.mly`. The
+complete syntax for `Dice` in is:
 
 ```
 ```
