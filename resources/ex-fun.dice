@@ -1,0 +1,5 @@
+fun conjoinall(a: bool, b: (bool, bool)) {
+  a && (fst b) && (snd b)
+}
+conjoinall(flip 0.5, (flip 0.1, true))
+
