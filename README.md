@@ -231,10 +231,35 @@ More example `Dice` programs can be found in the source directories:
 
 # Syntax
 
-The complete syntax for `Dice` in
-[EBNF](https://en.wikipedia.org/wiki/Extended_Backus%E2%80%93Naur_form) is:
+The parser for `Dice` is written in
+[menhir](http://gallium.inria.fr/~fpottier/menhir/) and can be found in
+`src/Parser.mly`. The complete syntax for `Dice` in is:
 
 ```
-
 ```
+ident := ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*
+binop := +, -, *, /, <, <=, >, >=, ==, !=, &&, ||
 
+expr := 
+   (expr)
+   | true
+   | false
+   | int (size, value)
+   | discrete(list_of_probabilities) 
+   | expr <binop> expr
+   | (expr, expr)
+   | fst expr
+   | snd expr
+   | ! expr
+   | flip probability
+   | observe expr
+   | if expr then expr else expr
+   | let ident = expr in expr
+
+type := bool | (type, type) | int(size)
+arg := ident: type
+function := fun name(arg1: type1, ...) { expr }
+
+program := expr 
+        | function program
+```
