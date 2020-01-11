@@ -13,7 +13,7 @@ open Lexer
 let () =
   Random.self_init ();
   let benches = dir_contents "benchmarks"
-                |> List.filter ~f:(String.is_suffix ~suffix:".ppl")
+                |> List.filter ~f:(String.is_suffix ~suffix:".dice")
                 |> List.map ~f:(fun filename -> Bench.Test.create ~name:filename (fun () ->
                     let contents = In_channel.read_all filename in
                     let buf = Lexing.from_string contents in

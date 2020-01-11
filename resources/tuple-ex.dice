@@ -1,0 +1,3 @@
+let a = (flip 0.3, (flip 0.8, false)) in
+fst (snd a)
+
