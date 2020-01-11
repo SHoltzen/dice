@@ -12,7 +12,7 @@ Then, install the following dependencies from `opam`:
 
 ```
 opam init   # must be performed before installing opam packages
-opam install mlcuddidl ounit core ppx_sexp_conv sexplib core_bench menhir
+opam install mlcuddidl ounit core ppx_sexp_conv sexplib core_bench menhir ppx_deriving
 ```
 
 Once the dependencies are installed, the following build commands are available:
