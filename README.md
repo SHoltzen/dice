@@ -235,7 +235,6 @@ The parser for `Dice` is written in [menhir](http://gallium.inria.fr/~fpottier/m
 complete syntax for `Dice` in is:
 
 ```
-```
 ident := ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*
 binop := +, -, *, /, <, <=, >, >=, ==, !=, &&, ||
 
