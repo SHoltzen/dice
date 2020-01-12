@@ -97,7 +97,7 @@ false	0.200000
 `Dice` supports distributions over unsigned integers. An example program:
 
 ```
-let x = discrete(0.4, 0.1, 0.3) in 
+let x = discrete(0.4, 0.1, 0.5) in 
 let y = int(3, 1) in 
 x + y
 ```
@@ -119,7 +119,7 @@ Running this program:
 ```
 > ./Dice.native resources/int-ex.dice
 Value	Probability
-0	0.300000
+0	0.500000
 1	0.400000
 2	0.100000
 ```
