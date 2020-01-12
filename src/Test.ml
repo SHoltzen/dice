@@ -229,6 +229,9 @@ let test_caesar_2 _ =
   let prog = In_channel.read_all "resources/caesar_test.dice" in
   assert_feq  (1113032.0 /. 315312455.0) (parse_and_prob prog)
 
+let test_alarm _ =
+  let prog = In_channel.read_all "resources/alarm_test.dice" in
+  assert_feq 0.281037656 (parse_and_prob prog)
 
 let expression_tests =
 "suite">:::
@@ -270,6 +273,7 @@ let expression_tests =
   "test_op3">::test_op3;
   "test_op4">::test_op4;
   "test_op5">::test_op5;
+  "test_alarm">::test_alarm;
 ]
 
 let () =
