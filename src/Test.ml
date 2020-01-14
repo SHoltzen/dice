@@ -233,6 +233,41 @@ let test_alarm _ =
   let prog = In_channel.read_all "resources/alarm_test.dice" in
   assert_feq 0.281037656 (parse_and_prob prog)
 
+let test_coin _ =
+  (* equivalent psi program:
+def main() {
+  coin1 := 0;
+  if(flip (0.5)) {
+        coin1 = 10;
+  } else {
+        coin1 = 25;
+  }
+  coin2 := 0;
+  if(flip(0.5)) {
+    coin2 = 10;
+  } else {
+    coin2 = 25;
+  }
+  s1 := 0;
+  s2 := 0;
+  if(flip(0.8)) { s1 = coin1;  } else { s1 = 0 }
+  if(flip(0.8)) { s2 = coin2 + s1; } else { s2 = s1; }
+  candy := s2 >= 15;
+  observe(candy);
+  return coin1 == 10;
+}
+  *)
+  let prog = "let coin1 = if flip 0.5 then int(51, 10) else int(51, 25) in
+let coin2 = if flip 0.5 then int(51, 10) else int(51, 25) in
+let s1 = if flip(0.8) then coin1 else int(51, 0) in
+let s2 = if flip 0.8 then coin2 + s1 else s1 in
+let candy = s2 >= int(51, 15) in
+let tmp = observe candy in
+coin1 == int(51, 10)
+" in assert_feq 0.45 (parse_and_prob prog)
+
+
+
 let expression_tests =
 "suite">:::
 [
@@ -274,6 +309,7 @@ let expression_tests =
   "test_op4">::test_op4;
   "test_op5">::test_op5;
   "test_alarm">::test_alarm;
+  "test_coin">::test_coin;
 ]
 
 let () =

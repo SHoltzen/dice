@@ -55,6 +55,7 @@ expr:
     | expr OR expr { Or($1, $3) }
     | NOT expr { Not($2) }
     | FLIP FLOAT_LIT { Flip($2) }
+    | FLIP LPAREN FLOAT_LIT RPAREN { Flip($3) }
     | OBSERVE expr { Observe($2) }
     | IF expr THEN expr ELSE expr { Ite($2, $4, $6) }
     | LET ID EQUAL expr IN expr { Let($2, $4, $6) }

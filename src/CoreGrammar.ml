@@ -120,12 +120,12 @@ type 'a btree =
 let extract_bdd (state: varstate btree) =
   match state with
   | Leaf(BddLeaf(bdd)) -> bdd
-  | _ -> failwith "invalid bdd extraction"
+  | _ -> failwith "Type error: expected Boolean"
 
-let extract_discrete(state: varstate btree) =
+let extract_discrete (state: varstate btree) =
   match state with
   | Leaf(IntLeaf(l)) -> l
-  | _ -> failwith "invalid bdd extraction"
+  | _ -> failwith "Type error: expected discrete"
 
 (** applies `f` to each leaf in `s` *)
 let rec map_tree (s:'a btree) (f: 'a -> 'b) : 'b btree =
@@ -187,7 +187,8 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
     let c1 = compile_expr ctx env e1 in
     let c2 = compile_expr ctx env e2 in
     let l1 = extract_discrete c1.state and l2 = extract_discrete c2.state in
-    assert (List.length l1 = List.length l2);
+    (if (List.length l1 <> List.length l2) then
+        failwith (Format.sprintf "Type error: '%s' and '%s' are different types." (string_of_expr e1) (string_of_expr e2)));
     let len = List.length l1 in
     let init_l = Array.init len ~f:(fun _ -> Bdd.dfalse ctx.man) in
     List.iteri l1 ~f:(fun outer_i outer_itm ->
