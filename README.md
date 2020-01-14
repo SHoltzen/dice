@@ -5,13 +5,14 @@ for *discrete* probabilistic programs.
 
 First install `OCaml` and `opam`:
 
-* On Ubuntu, use `apt-get install ocaml opam`.
+* On Ubuntu, use `apt-get install ocaml opam m4`.
 * On Mac, Homebrew contains the necessary packages: `brew install ocaml opam`.
 
 Then, install the following dependencies from `opam`:
 
 ```
 opam init   # must be performed before installing opam packages
+eval `opam config env`     # optional: add this line to your .bashrc
 opam install mlcuddidl ounit core ppx_sexp_conv sexplib core_bench menhir ppx_deriving
 ```
 
