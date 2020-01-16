@@ -1,7 +1,7 @@
 (* Documentation on the benchmark module:
    https://ocaml.janestreet.com/ocaml-core/latest/doc/core_bench/Core_bench/Bench/index.html *)
 open Core
-open Core_bench.Std
+open Core_bench
 open CoreGrammar
 open Wmc
 open BddUtil
