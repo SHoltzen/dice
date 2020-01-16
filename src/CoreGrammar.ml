@@ -53,7 +53,8 @@ type program = {
 [@@deriving sexp_of]
 
 let within_epsilon x y =
-  Float.abs (x -. y) < 0.000001
+  (Float.compare (Float.abs (x -. y)) 0.000001) < 0
+  (* Float.abs  < 0.000001 *)
 
 let rec from_external_expr (e: ExternalGrammar.eexpr) : expr =
   match e with

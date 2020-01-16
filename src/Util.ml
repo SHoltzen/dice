@@ -6,7 +6,8 @@ open Parser
 let eps = 0.00001
 
 let assert_feq f1 f2 =
-  OUnit2.assert_equal ~cmp:(fun x y -> ((Float.abs (f1 -. f2)) < eps)) f1 f2
+  OUnit2.assert_equal ~cmp:(fun x y ->
+      (Float.compare (Float.abs (f1 -. f2)) eps) < 0) f1 f2
     ~printer:string_of_float
 
 let print_position outx lexbuf =
@@ -42,13 +43,14 @@ let dir_is_empty dir =
   *)
 let dir_contents dir =
   let rec loop result = function
-    | f::fs when Sys.is_directory f = `Yes ->
-      Sys.readdir f
-      |> Array.to_list
-      |> List.map ~f:(Filename.concat f)
-      |> List.append fs
-      |> loop result
-    | f::fs -> loop (f::result) fs
+    | f::fs ->
+      (match Sys.is_directory f with
+       | `Yes ->
+         Sys.readdir f
+         |> Array.to_list
+         |> List.map ~f:(Filename.concat f)
+         |> List.append fs
+         |> loop result
+       | _ -> loop (f::result) fs)
     | []    -> result
-  in
-    loop [] [dir]
+  in loop [] [dir]

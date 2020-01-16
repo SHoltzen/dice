@@ -230,6 +230,7 @@ let test_caesar_2 _ =
   assert_feq  (1113032.0 /. 315312455.0) (parse_and_prob prog)
 
 let test_alarm _ =
+  (* the correct answer here is from Ace *)
   let prog = In_channel.read_all "resources/alarm_test.dice" in
   assert_feq 0.281037656 (parse_and_prob prog)
 
