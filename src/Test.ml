@@ -201,6 +201,18 @@ let test_caesar _ =
     key == int(4, 0)" in
   assert_feq 0.25 (parse_and_prob prog)
 
+let test_burglary _ =
+  let prog = "
+    let burglary = flip 0.001 in
+    let earthquake = flip 0.002 in
+    let alarm = if burglary then if earthquake then flip 0.95 else flip 0.94 else if earthquake then flip 0.29 else flip 0.001 in
+    let john = 	if alarm then flip 0.9 else flip 0.05 in
+    let mary = 	if alarm then flip 0.7 else flip 0.01 in
+    let temp = observe john in
+    let temp = observe mary in
+    burglary" in
+  assert_feq 0.284172 (parse_and_prob prog)
+
 let test_alarm _ =
   let prog = In_channel.read_all "benchmarks/baselines/alarm.dice" in
   assert_feq (2969983.0 /. 992160802.0) (parse_and_prob prog)
@@ -311,6 +323,7 @@ let expression_tests =
   "test_op5">::test_op5;
   "test_alarm">::test_alarm;
   "test_coin">::test_coin;
+  "test_burglary">::test_burglary;
 ]
 
 let () =
