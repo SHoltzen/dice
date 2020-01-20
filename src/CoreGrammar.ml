@@ -2,6 +2,7 @@ open Core
 open Cudd
 open Wmc
 open BddUtil
+open VarState
 
 type expr =
   | And of expr * expr
@@ -106,48 +107,6 @@ let rec from_external_func (f: ExternalGrammar.func) : func =
 
 let rec from_external_prog (p: ExternalGrammar.program) : program =
   {functions = List.map p.functions ~f:from_external_func; body = from_external_expr p.body}
-
-(** The result of compiling an expression. A pair (value, normalizing constant) *)
-type varstate =
-    BddLeaf of Bdd.dt
-  | IntLeaf of Bdd.dt List.t
-
-(** A compiled variable. It is a tree to compile tuples. *)
-type 'a btree =
-    Leaf of 'a
-  | Node of 'a btree * 'a btree
-[@@deriving sexp]
-
-let extract_bdd (state: varstate btree) =
-  match state with
-  | Leaf(BddLeaf(bdd)) -> bdd
-  | _ -> failwith "Type error: expected Boolean"
-
-let extract_discrete (state: varstate btree) =
-  match state with
-  | Leaf(IntLeaf(l)) -> l
-  | _ -> failwith "Type error: expected discrete"
-
-(** applies `f` to each leaf in `s` *)
-let rec map_tree (s:'a btree) (f: 'a -> 'b) : 'b btree =
-  match s with
-  | Leaf(bdd) -> Leaf(f bdd)
-  | Node(l, r) -> Node(map_tree l f, map_tree r f)
-
-(** Applies `f` to each BDD in `s` *)
-let rec map_bddtree (s:varstate btree) (f: Bdd.dt -> Bdd.dt) : varstate btree =
-  match s with
-  | Leaf(BddLeaf(bdd)) -> Leaf(BddLeaf(f bdd))
-  | Leaf(IntLeaf(l)) -> Leaf(IntLeaf(List.map l ~f:f))
-  | Node(l, r) -> Node(map_bddtree l f, map_bddtree r f)
-
-
-let rec zip_tree (s1: 'a btree) (s2: 'b btree) =
-  match (s1, s2) with
-  | (Leaf(a), Leaf(b)) -> Leaf((a, b))
-  | (Node(a_l, a_r), Node(b_l, b_r)) ->
-    Node(zip_tree a_l b_l, zip_tree a_r b_r)
-  | _ -> failwith "could not zip trees, incompatible shape"
 
 
 (** Result of compiling an expression *)
@@ -473,7 +432,6 @@ let get_prob p =
   let c = compile_program p in
   let z = Wmc.wmc c.body.z c.ctx.weights in
   let prob = Wmc.wmc (Bdd.dand (extract_bdd c.body.state) c.body.z) c.ctx.weights in
-  (* BddUtil.dump_dot ctx.name_map (extract_bdd v); *)
   prob /. z
 
 let print_discrete p =
@@ -484,8 +442,6 @@ let print_discrete p =
       let prob = Wmc.wmc (Bdd.dand itm c.body.z) c.ctx.weights in
       Format.printf "%d\t%f\n" i (prob /. z);
     ) in ()
-  (* BddUtil.dump_dot ctx.name_map (extract_bdd v); *)
-  (* prob /. z *)
 
 (** prints the joint probability distribution as a TSV *)
 let get_table p =

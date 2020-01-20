@@ -23,18 +23,26 @@ let parse_with_error lexbuf =
 
 let rec parse_and_print lexbuf =
   let parsed = parse_with_error lexbuf in
-  let table = CoreGrammar.get_table (CoreGrammar.from_external_prog parsed) in
+  let compiled = compile_program (CoreGrammar.from_external_prog parsed) in
+  let table = VarState.get_table compiled.body.state in
+  let zbdd = compiled.body.z in
+  let z = Wmc.wmc zbdd compiled.ctx.weights in
+  let probs = List.map table ~f:(fun (label, bdd) ->
+      let prob = (Wmc.wmc (Bdd.dand bdd zbdd) compiled.ctx.weights) /. z in
+      (label, prob)) in
+  (* let table = CoreGrammar.get_table (CoreGrammar.from_external_prog parsed) in *)
   Format.printf "Value\tProbability\n";
-  List.iter table ~f:(fun (typ, prob) ->
+  List.iter probs ~f:(fun (typ, prob) ->
       let rec print_pretty e =
         match e with
-        | Int(sz, v) -> string_of_int v
-        | True -> "true"
-        | False -> "false"
-        | Tup(l, r) -> Format.sprintf "(%s, %s)" (print_pretty l) (print_pretty r)
+        | `Int(sz, v) -> string_of_int v
+        | `True -> "true"
+        | `False -> "false"
+        | `Tup(l, r) -> Format.sprintf "(%s, %s)" (print_pretty l) (print_pretty r)
         | _ -> failwith "ouch" in
       Format.printf "%s\t%f\n" (print_pretty typ) prob;
-    )
+    );
+  Format.printf "Bdd size: %d\n" (VarState.state_size compiled.body.state)
   (* let prob = CoreGrammar.get_prob (CoreGrammar.from_external_prog parsed) in
    * Format.printf "prob: %f\n" prob *)
 
