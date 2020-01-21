@@ -136,6 +136,7 @@ type env = (String.t, varstate btree) Map.Poly.t (* map from variable identifier
 
 let new_context () =
   let man = Man.make_d () in
+  Man.disable_autodyn man;
   let weights = Hashtbl.Poly.create () in
   let names = Hashtbl.Poly.create () in
   {man = man;

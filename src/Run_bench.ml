@@ -46,18 +46,40 @@ let key1  = discrete(0.038461538,0.038461538,0.038461538,0.038461538,0.038461538
   prog := Format.sprintf "%s\n%s" !prog "key1";
   parse_with_error (Lexing.from_string !prog)
 
-let bench_caesar () =
+(** [bench_caesar] runs the Caesar cipher scaling benchmarks.
+    [inline_functions] is true if functions are inlined, false otherwise *)
+let bench_caesar inline_functions =
   let lst = List.init 50 ~f:(fun i -> i * 100) in
   List.iter lst ~f:(fun len ->
       let t0 = Unix.gettimeofday () in
       let caesar = gen_caesar (List.init len ~f:(fun i -> Random.int_incl 0 25)) in
-      let res = CoreGrammar.compile_program (CoreGrammar.from_external_prog (Passes.inline_functions caesar)) in
+      let res = (if inline_functions then Passes.inline_functions caesar else caesar)
+                |> CoreGrammar.from_external_prog
+                |> CoreGrammar.compile_program in
       let sz = Cudd.Bdd.size res.body.z in
       let t1 = Unix.gettimeofday () in
       print_endline (Format.sprintf "Caesar %ds\t%f\t%d" len (t1 -. t0) sz);
     )
 
+let command =
+  Command.basic
+    ~summary:"Generate an MD5 hash of the input data"
+    ~readme:(fun () -> "More detailed information")
+    (let open Command.Let_syntax in
+     let open Command.Param in
+     let%map caesar = flag "-caesar" no_arg ~doc:" run caesar cipher scaling"
+     and baselines = flag "-baselines" no_arg ~doc:" run the baseline experiments"
+     in fun () ->
+       if baselines then (
+         Format.printf "****************************************[Baselines]****************************************\n";
+         run_benches ());
+       if caesar then (
+         Format.printf "****************************************[Caesar Inlined]****************************************\n";
+         bench_caesar true;
+         Format.printf "****************************************[Caesar No Inline]****************************************\n";
+         bench_caesar false;)
+    )
+
 let () =
-  (* Command.basic  *)
-  bench_caesar ()
-  (* run_benches () *)
+  Command.run ~version:"1.0" command
+
