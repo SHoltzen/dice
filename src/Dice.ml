@@ -7,30 +7,16 @@ open Lexer
 open Passes
 open Parser
 
-let print_position outx lexbuf =
-  let pos = lexbuf.lex_curr_p in
-  fprintf outx "%s:%d:%d" pos.pos_fname
-    pos.pos_lnum (pos.pos_cnum - pos.pos_bol + 1)
-
-let parse_with_error lexbuf =
-  try Parser.program Lexer.token lexbuf with
-  | SyntaxError msg ->
-    fprintf stderr "%a: %s\n" print_position lexbuf msg;
-    failwith ""
-  | Parser.Error ->
-    fprintf stderr "%a: syntax error\n" print_position lexbuf;
-    failwith ""
 
 let rec parse_and_print lexbuf =
-  let parsed = parse_with_error lexbuf in
+  let parsed = Util.parse_with_error lexbuf in
   let compiled = compile_program (CoreGrammar.from_external_prog parsed) in
-  let table = VarState.get_table compiled.body.state in
   let zbdd = compiled.body.z in
   let z = Wmc.wmc zbdd compiled.ctx.weights in
+  let table = VarState.get_table compiled.body.state in
   let probs = List.map table ~f:(fun (label, bdd) ->
       let prob = (Wmc.wmc (Bdd.dand bdd zbdd) compiled.ctx.weights) /. z in
       (label, prob)) in
-  (* let table = CoreGrammar.get_table (CoreGrammar.from_external_prog parsed) in *)
   Format.printf "Value\tProbability\n";
   List.iter probs ~f:(fun (typ, prob) ->
       let rec print_pretty e =
@@ -42,7 +28,7 @@ let rec parse_and_print lexbuf =
         | _ -> failwith "ouch" in
       Format.printf "%s\t%f\n" (print_pretty typ) prob;
     );
-  Format.printf "Bdd size: %d\n" (VarState.state_size compiled.body.state)
+  Format.printf "Final compiled size: %d\n" (VarState.state_size compiled.body.state)
   (* let prob = CoreGrammar.get_prob (CoreGrammar.from_external_prog parsed) in
    * Format.printf "prob: %f\n" prob *)
 

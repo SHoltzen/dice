@@ -54,3 +54,19 @@ let dir_contents dir =
        | _ -> loop (f::result) fs)
     | []    -> result
   in loop [] [dir]
+
+
+let print_position outx lexbuf =
+  let pos = lexbuf.lex_curr_p in
+  fprintf outx "%s:%d:%d" pos.pos_fname
+    pos.pos_lnum (pos.pos_cnum - pos.pos_bol + 1)
+
+(** [parse_with_error] parses [lexbuf] as a program *)
+let parse_with_error lexbuf =
+  try Parser.program Lexer.token lexbuf with
+  | SyntaxError msg ->
+    fprintf stderr "%a: %s\n" print_position lexbuf msg;
+    failwith ""
+  | Parser.Error ->
+    fprintf stderr "%a: syntax error\n" print_position lexbuf;
+    failwith ""
