@@ -58,7 +58,7 @@ let bench_caesar inline_functions =
                 |> CoreGrammar.compile_program in
       let sz = Cudd.Bdd.size res.body.z in
       let t1 = Unix.gettimeofday () in
-      print_endline (Format.sprintf "Caesar %ds\t%f\t%d" len (t1 -. t0) sz);
+      print_endline (Format.sprintf "%d\t%f\t%d" len (t1 -. t0) sz);
     )
 
 let command =
