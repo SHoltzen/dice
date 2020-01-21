@@ -252,6 +252,7 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
 
   | Discrete(l) ->
     (* first construct a list of all the properly parameterized flips *)
+    let flips = ref [] in
     let (bdd_l, _) = List.fold ~init:([], 1.0) l ~f:(fun (cur_l, cur_z) param ->
         let new_param = param /. cur_z in
         (* optimize: remove unnecessary flips if they are constant parameters *)
@@ -261,12 +262,13 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
          | x when within_epsilon new_param 1.0 ->
            List.append cur_l [Bdd.dtrue ctx.man], cur_z
          | _ ->
-          let new_f = Bdd.newvar ctx.man in
-          let var_lbl = Bdd.topvar new_f in
-          let new_z = cur_z -. param in
-          Hashtbl.Poly.add_exn ctx.weights var_lbl (1.0-.new_param, new_param);
-          Hashtbl.add_exn ctx.name_map var_lbl (Format.sprintf "i%f" param);
-          (List.append cur_l [new_f], new_z))
+           let new_f = Bdd.newvar ctx.man in
+           flips := List.append !flips [new_f];
+           let var_lbl = Bdd.topvar new_f in
+           let new_z = cur_z -. param in
+           Hashtbl.Poly.add_exn ctx.weights var_lbl (1.0-.new_param, new_param);
+           Hashtbl.add_exn ctx.name_map var_lbl (Format.sprintf "i%f" param);
+           (List.append cur_l [new_f], new_z))
       ) in
     (* convert the flip list into logical formulae *)
     let (l', _) = List.fold bdd_l ~init:([], Bdd.dtrue ctx.man) ~f:(fun (cur_l, cur_guard) flip ->
@@ -274,7 +276,7 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
         let cur_bdd = Bdd.dand cur_guard flip in
         (List.append cur_l [cur_bdd], new_guard)
       ) in
-    {state=Leaf(IntLeaf(l')); z=Bdd.dtrue ctx.man; flips=bdd_l}
+    {state=Leaf(IntLeaf(l')); z=Bdd.dtrue ctx.man; flips = !flips}
 
   | Int(sz, value) ->
     let l = List.init sz (fun i ->
@@ -312,55 +314,39 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
   | FuncCall(name, args) ->
     let func = try Hashtbl.Poly.find_exn ctx.funcs name
       with _ -> failwith (Format.sprintf "Could not find function '%s'." name) in
-    (** 1. refresh the flips *)
-    let nvmap = Hashtbl.Poly.create () (* map from old to new variable labels *) in
-    let visitedmap = Hashtbl.Poly.create () (* caches the visited states for traversing the BDD *) in
-    (* helper function: traverses the BDD and generates a copy BDD with all new variables *)
-    (* in the future it would probably make sense to make this method native *)
-
     let cargs = List.map args ~f:(compile_expr ctx env) in
-    let subst = Hashtbl.Poly.create () in (* a hash table that maps variables to their substituted BDDs *)
     let zippedargs = try List.zip_exn cargs func.args
       with _ -> failwith (Format.sprintf "Incorrect number of arguments for function call '%s'\n" (string_of_expr e)) in
-    (* iterate over the placeholders and update the substitution to the new values *)
-    List.iter zippedargs ~f:(fun (carg, placeholder) ->
-        let _ = map_tree (zip_tree carg.state placeholder) (function
+    (* set up the flip refreshing permutation *)
+    let new_flips = List.map func.body.flips ~f:(fun f ->
+        let newv = Bdd.newvar ctx.man in
+        let lvl = Bdd.topvar newv in
+        (match Hashtbl.Poly.find ctx.weights (Bdd.topvar f) with
+         | Some(v) -> Hashtbl.Poly.add_exn ctx.weights lvl v
+         | None -> ());
+        newv) in
+    let perm = Array.init (Man.get_bddvar_nb ctx.man) ~f:(fun i -> i) in
+    List.iter (List.zip_exn func.body.flips new_flips) ~f:(fun (old_i, new_i) ->
+        Array.swap perm (Bdd.topvar old_i) (Bdd.topvar new_i));
+    let refreshed_state = map_bddtree func.body.state (fun bdd -> Bdd.permute bdd perm) in
+    let refreshed_z = Bdd.permute func.body.z perm in
+    let argcube = List.fold func.args ~init:(Bdd.dtrue ctx.man) ~f:(fun acc argstate ->
+        fold_bddtree argstate acc (fun acc i -> Bdd.dand acc i)) in
+    let argiff = List.fold ~init:(Bdd.dtrue ctx.man) zippedargs ~f:(fun acc (carg, placeholder) ->
+        let tree = map_tree (zip_tree carg.state placeholder) (function
             | (BddLeaf(a), BddLeaf(p)) ->
-                 Hashtbl.Poly.add_exn subst (Bdd.topvar p) a
+                 BddLeaf(Bdd.dand acc (Bdd.eq a p))
             | (IntLeaf(al), IntLeaf(pl)) when (List.length al) = (List.length pl) ->
-              List.iter (List.zip_exn al pl) ~f:(fun (a, p) ->
-                  Hashtbl.Poly.add_exn subst (Bdd.topvar p) a)
+              BddLeaf(List.fold ~init:acc (List.zip_exn al pl) ~f:(fun acc (a, p) ->
+                 Bdd.dand acc (Bdd.eq a p)))
             | _ -> failwith (Format.sprintf "Type mismatch in arguments for '%s'\n" (string_of_expr e))) in
-        ());
-    let rec refresh_flips (bdd: Bdd.dt) : Bdd.dt =
-      Hashtbl.Poly.find_or_add visitedmap bdd ~default:(fun () ->
-          match Bdd.inspect bdd with
-           | Bdd.Bool(true) -> Bdd.dtrue ctx.man
-           | Bdd.Bool(false) -> Bdd.dfalse ctx.man
-           | Bdd.Ite(lvl, thn, els) ->
-             (* check if this variable gets substituted *)
-             (match Hashtbl.Poly.find subst lvl with
-              | None ->
-                (* it is a flip, refresh it *)
-                let root = Hashtbl.Poly.find_or_add nvmap lvl ~default:(fun () ->
-                    (* if it has a weight, refresh that weight (some variables, like function arguments, do not have weights) *)
-                    let newv = Bdd.newvar ctx.man in
-                    (* Format.printf "Refreshed %d for %d\n" lvl (Bdd.topvar newv); *)
-                    (match Hashtbl.Poly.find ctx.weights lvl with
-                     | Some(v) -> Hashtbl.Poly.add_exn ctx.weights (Bdd.topvar newv) v
-                     | None -> ()
-                    ); newv) in
-                let s1 = refresh_flips thn and s2 = refresh_flips els in
-                Bdd.ite root s1 s2
-              | Some(sub) ->
-                (* it's a substitution point, swap in the substituted argument *)
-                Bdd.ite sub (refresh_flips thn) (refresh_flips els)
-             )) in
-    let refreshed_state = map_bddtree func.body.state refresh_flips in
-    let refreshed_z = refresh_flips func.body.z in
-    (* apply observes to subst_z *)
-    let final_z = List.fold ~init:refreshed_z cargs ~f:(fun acc arg -> Bdd.dand arg.z acc ) in
-    {state = refreshed_state; z=final_z}
+        fold_bddtree tree acc (fun acc i -> Bdd.dand acc i)) in
+    (* apply the arguments*)
+    let final_state = map_bddtree refreshed_state (fun bdd ->
+        Bdd.existand argcube argiff bdd) in
+    let final_z = List.fold ~init:(Bdd.existand argcube argiff refreshed_z) cargs
+        ~f:(fun acc arg -> Bdd.dand arg.z acc ) in
+    {state=final_state; z=final_z; flips=new_flips}
 
 
 (** generates a symbolic representation for a variable of the given type *)
