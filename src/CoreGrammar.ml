@@ -326,6 +326,9 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
          | None -> ());
         newv) in
     let perm = Array.init (Man.get_bddvar_nb ctx.man) ~f:(fun i -> i) in
+    (** TODO This call to perm can be sped up by making it native. It's technically not a
+        permutation: we are replacing one BDD with a new one with all fresh variables, which is
+        much faster than permuting*)
     List.iter (List.zip_exn func.body.flips new_flips) ~f:(fun (old_i, new_i) ->
         Array.swap perm (Bdd.topvar old_i) (Bdd.topvar new_i));
     let refreshed_state = map_bddtree func.body.state (fun bdd -> Bdd.permute bdd perm) in

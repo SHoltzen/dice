@@ -51,7 +51,7 @@ let bench_caesar () =
   List.iter lst ~f:(fun len ->
       let t0 = Unix.gettimeofday () in
       let caesar = gen_caesar (List.init len ~f:(fun i -> Random.int_incl 0 25)) in
-      let res = CoreGrammar.compile_program (CoreGrammar.from_external_prog caesar) in
+      let res = CoreGrammar.compile_program (CoreGrammar.from_external_prog (Passes.inline_functions caesar)) in
       let sz = Cudd.Bdd.size res.body.z in
       let t1 = Unix.gettimeofday () in
       print_endline (Format.sprintf "Caesar %ds\t%f\t%d" len (t1 -. t0) sz);
