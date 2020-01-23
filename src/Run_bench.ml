@@ -25,7 +25,7 @@ let run_benches () =
   List.iter benches ~f:(fun (name, bench) ->
       let t0 = Unix.gettimeofday () in
       let res = bench () in
-      let sz = VarState.state_size res.body.state in
+      let sz = VarState.state_size [res.body.state; VarState.Leaf(VarState.BddLeaf(res.body.z))] in
       let t1 = Unix.gettimeofday () in
       print_endline (Format.sprintf "%s\t%f\t%d" name (t1 -. t0) sz);
     )
@@ -46,9 +46,11 @@ let key1  = discrete(0.038461538,0.038461538,0.038461538,0.038461538,0.038461538
   prog := Format.sprintf "%s\n%s" !prog "key1";
   parse_with_error (Lexing.from_string !prog)
 
+
 (** [bench_caesar] runs the Caesar cipher scaling benchmarks.
     [inline_functions] is true if functions are inlined, false otherwise *)
 let bench_caesar inline_functions =
+  Format.printf "Length\tTime (s)\tBDD Size\n";
   let lst = List.init 50 ~f:(fun i -> i * 100) in
   List.iter lst ~f:(fun len ->
       let t0 = Unix.gettimeofday () in
@@ -77,8 +79,7 @@ let command =
          Format.printf "****************************************[Caesar Inlined]****************************************\n";
          bench_caesar true;
          Format.printf "****************************************[Caesar No Inline]****************************************\n";
-         bench_caesar false;)
-    )
+         bench_caesar false;))
 
 let () =
   Command.run ~version:"1.0" command

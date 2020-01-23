@@ -73,7 +73,7 @@ let get_table st =
 
 
 (** [state_size] computes the size of the multirooted BDD [state] *)
-let state_size (state : varstate btree) =
+let state_size (states : varstate btree List.t) =
   let seen = Hash_set.Poly.create () in
   let rec helper (bdd : Bdd.dt) =
     match Hash_set.Poly.mem seen bdd with
@@ -83,6 +83,5 @@ let state_size (state : varstate btree) =
       (match Bdd.inspect bdd with
        | Bool(_) -> 1
        | Ite(_, l, r) -> 1 + (helper l) + (helper r)) in
-  fold_bddtree state 0 (fun acc bdd ->
-      acc + (helper bdd)
-    )
+  List.fold states ~init:0 ~f:(fun acc i -> fold_bddtree i acc (fun acc bdd ->
+      acc + (helper bdd)))

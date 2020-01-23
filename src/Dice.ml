@@ -28,7 +28,7 @@ let rec parse_and_print lexbuf =
         | _ -> failwith "ouch" in
       Format.printf "%s\t%f\n" (print_pretty typ) prob;
     );
-  Format.printf "Final compiled size: %d\n" (VarState.state_size compiled.body.state)
+  Format.printf "Final compiled size: %d\n" (VarState.state_size [compiled.body.state])
   (* let prob = CoreGrammar.get_prob (CoreGrammar.from_external_prog parsed) in
    * Format.printf "prob: %f\n" prob *)
 
