@@ -279,11 +279,18 @@ let tmp = observe candy in
 coin1 == int(51, 10)
 " in assert_feq 0.45 (parse_and_prob prog)
 
-
+let test_mc1 _ =
+  let open Cudd in
+  let open VarState in
+  let mgr = Man.make_d () in
+  let bdd = Bdd.dor (Bdd.dor (Bdd.newvar mgr) (Bdd.newvar mgr)) (Bdd.newvar mgr) in
+  let mc = model_count (Man.get_bddvar_nb mgr) [Leaf(BddLeaf(bdd))] in
+  assert_bool (Format.sprintf "Expected %d, got %d" 7 mc) (mc = 7) 
 
 let expression_tests =
 "suite">:::
 [
+  "test_mc1">::test_mc1;
   "test_1">::test_1;
   "test_not">::test_not;
   "test_obs1">::test_obs1;

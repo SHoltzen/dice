@@ -19,15 +19,17 @@ let run_benches () =
                       | Parser.Error ->
                         fprintf stderr "%a: syntax error\n" print_position buf;
                         failwith (Format.sprintf "Error parsing %s" contents) in
-                    CoreGrammar.compile_program (CoreGrammar.from_external_prog parsed)
+                    (parsed, CoreGrammar.compile_program (CoreGrammar.from_external_prog parsed))
                   ))) in
-  print_endline (Format.sprintf "Benchmark\tTime (s)\tBDD Size");
+  print_endline (Format.sprintf "Benchmark\tTime (s)\t#Paths\tBDD Size");
   List.iter benches ~f:(fun (name, bench) ->
       let t0 = Unix.gettimeofday () in
-      let res = bench () in
-      let sz = VarState.state_size [res.body.state; VarState.Leaf(VarState.BddLeaf(res.body.z))] in
+      let (parsed, res) = bench () in
+      let st = [res.body.state; VarState.Leaf(VarState.BddLeaf(res.body.z))] in
+      let sz = VarState.state_size st in
       let t1 = Unix.gettimeofday () in
-      print_endline (Format.sprintf "%s\t%f\t%d" name (t1 -. t0) sz);
+      print_endline (Format.sprintf "%s\t%f\t%s\t%d"
+                       name (t1 -. t0) (LogProbability.to_string 10.0 (Passes.num_paths parsed)) sz);
     )
 
 let gen_caesar (str: int list) =
@@ -60,7 +62,8 @@ let bench_caesar inline_functions =
                 |> CoreGrammar.compile_program in
       let sz = Cudd.Bdd.size res.body.z in
       let t1 = Unix.gettimeofday () in
-      print_endline (Format.sprintf "%d\t%f\t%d" len (t1 -. t0) sz);
+      print_endline (Format.sprintf "%d\t%f\t%d\t%d" len (t1 -. t0)
+                       (0) sz);
     )
 
 let command =

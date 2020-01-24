@@ -72,7 +72,8 @@ let get_table st =
   process_state st
 
 
-(** [state_size] computes the size of the multirooted BDD [state] *)
+(** [state_size] computes the total number of unique nodes in the list of
+    varstates [states] *)
 let state_size (states : varstate btree List.t) =
   let seen = Hash_set.Poly.create () in
   let rec helper (bdd : Bdd.dt) =
@@ -85,3 +86,22 @@ let state_size (states : varstate btree List.t) =
        | Ite(_, l, r) -> 1 + (helper l) + (helper r)) in
   List.fold states ~init:0 ~f:(fun acc i -> fold_bddtree i acc (fun acc bdd ->
       acc + (helper bdd)))
+
+(** [model_count] computes number of distinct models for the states in [states] *)
+let model_count num_vars (states : varstate btree List.t) =
+  let seen = Hashtbl.Poly.create () in
+  let rec helper (bdd : Bdd.dt) cur_level =
+    match Hashtbl.Poly.find seen bdd with
+    | Some(v) -> v
+    | None ->
+      let v = (match Bdd.inspect bdd with
+       | Bool(true) -> Int.pow 2 (Int.abs (num_vars - cur_level))
+       | Bool(false) -> 0
+       | Ite(level, l, r) ->
+         (Int.pow 2 (Int.abs (level - cur_level))) * ((helper l cur_level) + (helper r level))) in
+      Hashtbl.Poly.add_exn seen bdd v;
+      v in
+  List.fold states ~init:0 ~f:(fun acc i -> fold_bddtree i acc (fun acc bdd ->
+      match Bdd.is_cst bdd with
+      | true -> acc + 1
+      | false -> acc + (helper bdd 0)))
