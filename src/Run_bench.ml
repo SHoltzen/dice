@@ -62,8 +62,9 @@ let bench_caesar inline_functions =
                 |> CoreGrammar.compile_program in
       let sz = Cudd.Bdd.size res.body.z in
       let t1 = Unix.gettimeofday () in
-      print_endline (Format.sprintf "%d\t%f\t%d\t%d" len (t1 -. t0)
-                       (0) sz);
+      let numpaths = Passes.num_paths caesar in
+      print_endline (Format.sprintf "%d\t%f\t%s\t%d" len (t1 -. t0)
+                       (LogProbability.to_string 10.0 numpaths) sz);
     )
 
 let command =
