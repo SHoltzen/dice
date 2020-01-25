@@ -21,7 +21,7 @@ let run_benches () =
                         failwith (Format.sprintf "Error parsing %s" contents) in
                     (parsed, CoreGrammar.compile_program (CoreGrammar.from_external_prog parsed))
                   ))) in
-  print_endline (Format.sprintf "Benchmark\tTime (s)\t#Paths\tBDD Size");
+  print_endline (Format.sprintf "Benchmark\tTime (s)\t#Paths (log10)\tBDD Size");
   List.iter benches ~f:(fun (name, bench) ->
       let t0 = Unix.gettimeofday () in
       let (parsed, res) = bench () in
@@ -53,7 +53,7 @@ let key1  = discrete(0.038461538,0.038461538,0.038461538,0.038461538,0.038461538
     [inline_functions] is true if functions are inlined, false otherwise *)
 let bench_caesar inline_functions =
   Format.printf "Length\tTime (s)\tBDD Size\n";
-  let lst = List.init 50 ~f:(fun i -> i * 100) in
+  let lst = List.init 50 ~f:(fun i -> i * 1000) in
   List.iter lst ~f:(fun len ->
       let t0 = Unix.gettimeofday () in
       let caesar = gen_caesar (List.init len ~f:(fun i -> Random.int_incl 0 25)) in
