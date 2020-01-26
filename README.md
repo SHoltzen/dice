@@ -13,7 +13,16 @@ Then, install the following dependencies from `opam`:
 ```
 opam init   # must be performed before installing opam packages
 eval `opam config env`     # optional: add this line to your .bashrc
-opam install mlcuddidl ounit core ppx_sexp_conv sexplib core_bench menhir ppx_deriving
+opam remote add devel git://devel.git 
+opam install ounit core ppx_sexp_conv sexplib core_bench menhir ppx_deriving
+```
+
+Next, install the BDD library `mlcuddidl`:
+
+```
+git clone git@github.com:SHoltzen/mlcuddidil.git
+cd mlcuddidl
+./configure && make && make install
 ```
 
 Once the dependencies are installed, the following build commands are available:
