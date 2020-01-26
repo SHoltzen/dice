@@ -80,10 +80,10 @@ let command =
          Format.printf "****************************************[Baselines]****************************************\n";
          run_benches ());
        if caesar then (
-         Format.printf "****************************************[Caesar Inlined]****************************************\n";
-         bench_caesar true;
          Format.printf "****************************************[Caesar No Inline]****************************************\n";
-         bench_caesar false;))
+         bench_caesar false;
+         Format.printf "****************************************[Caesar Inlined]****************************************\n";
+         bench_caesar true))
 
 let () =
   Command.run ~version:"1.0" command

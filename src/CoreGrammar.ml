@@ -326,14 +326,10 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
          | Some(v) -> Hashtbl.Poly.add_exn ctx.weights lvl v
          | None -> ());
         newv) in
-    let perm = Array.init (Man.get_bddvar_nb ctx.man) ~f:(fun i -> i) in
-    (** TODO This call to perm can be sped up by making it native. It's technically not a
-        permutation: we are replacing one BDD with a new one with all fresh variables, which is
-        much faster than permuting*)
-    List.iter (List.zip_exn func.body.flips new_flips) ~f:(fun (old_i, new_i) ->
-        Array.swap perm (Bdd.topvar old_i) (Bdd.topvar new_i));
-    let refreshed_state = map_bddtree func.body.state (fun bdd -> Bdd.permute bdd perm) in
-    let refreshed_z = Bdd.permute func.body.z perm in
+    let swapA = List.to_array (List.map new_flips ~f:(fun cur -> Bdd.topvar cur)) in
+    let swapB = List.to_array (List.map func.body.flips ~f:(fun cur -> Bdd.topvar cur)) in
+    let refreshed_state = map_bddtree func.body.state (fun bdd -> Bdd.swapvariables bdd swapA swapB) in
+    let refreshed_z = Bdd.swapvariables func.body.z swapA swapB in
     let argcube = List.fold func.args ~init:(Bdd.dtrue ctx.man) ~f:(fun acc argstate ->
         fold_bddtree argstate acc (fun acc i -> Bdd.dand acc i)) in
     let argiff = List.fold ~init:(Bdd.dtrue ctx.man) zippedargs ~f:(fun acc (carg, placeholder) ->
