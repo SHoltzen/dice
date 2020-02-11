@@ -91,10 +91,10 @@ let key1  = discrete(0.038461538,0.038461538,0.038461538,0.038461538,0.038461538
     false otherwise *)
 let bench_caesar_error inline_functions =
   Format.printf "Length\tTime (s)\tBDD Size\n";
-  let lst = List.init 50 ~f:(fun i -> i * 1000) in
+  let lst = List.init 25 ~f:(fun i -> i * 1000) in
   List.iter lst ~f:(fun len ->
       let t0 = Unix.gettimeofday () in
-      let caesar = gen_caesar (List.init len ~f:(fun i -> Random.int_incl 0 25)) in
+      let caesar = gen_caesar_error (List.init len ~f:(fun i -> Random.int_incl 0 25)) in
       let res = (if inline_functions then Passes.inline_functions caesar else caesar)
                 |> CoreGrammar.from_external_prog
                 |> CoreGrammar.compile_program in
