@@ -79,3 +79,4 @@ let num_paths (p: ExternalGrammar.program) : LogProbability.t =
     | Snd(e) | Fst(e) -> helper e
     | FuncCall(id, args) -> failwith "unreachable, functions inlined" in
   helper inlined.body
+

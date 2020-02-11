@@ -13,7 +13,6 @@ Then, install the following dependencies from `opam`:
 ```
 opam init   # must be performed before installing opam packages
 eval `opam config env`     # optional: add this line to your .bashrc
-opam remote add devel git://devel.git 
 opam install ounit core ppx_sexp_conv sexplib core_bench menhir ppx_deriving
 ```
 
