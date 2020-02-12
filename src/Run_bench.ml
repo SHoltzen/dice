@@ -106,6 +106,42 @@ let bench_caesar_error inline_functions =
     )
 
 
+let gen_ladder n =
+  let prog = ref "
+fun diamond(s1: bool) {
+      let route = flip 0.5 in
+      let s2 = if route then s1 else false in
+      let s3 = if route then false else s1 in
+      let drop = flip 0.0001 in
+      s2 || (s3 && !drop)
+}
+      let x = true in
+" in
+  for x = 0 to n do
+      let new_ln = Format.sprintf "let x = diamond(x) in" in
+      prog := Format.sprintf "%s\n%s" !prog new_ln;
+  done;
+  prog := Format.sprintf "%s\n%s" !prog "x";
+  parse_with_error (Lexing.from_string !prog)
+
+let bench_ladder inline_functions =
+  Format.printf "Length\tTime (s)\tBDD Size\n";
+  let lst = List.init 50 ~f:(fun i -> i * 1000) in
+  List.iter lst ~f:(fun len ->
+      let t0 = Unix.gettimeofday () in
+      let caesar = gen_ladder len in
+      let res = (if inline_functions then Passes.inline_functions caesar else caesar)
+                |> CoreGrammar.from_external_prog
+                |> CoreGrammar.compile_program in
+      let sz = VarState.state_size [res.body.state] in
+      let t1 = Unix.gettimeofday () in
+      let numpaths = Passes.num_paths caesar in
+      print_endline (Format.sprintf "%d\t%f\t%s\t%d" len (t1 -. t0)
+                       (LogProbability.to_string 10.0 numpaths) sz);
+    )
+
+
+
 let command =
   Command.basic
     ~summary:"Generate an MD5 hash of the input data"
@@ -113,7 +149,8 @@ let command =
     (let open Command.Let_syntax in
      let open Command.Param in
      let%map caesar = flag "-caesar" no_arg ~doc:" run caesar cipher scaling"
-     and caesar_error = flag "-caesar-error" no_arg ~doc:" run caesar cipher scaling"
+     and caesar_error = flag "-caesar-error" no_arg ~doc:" run caesar cipher with errors scaling"
+     and ladder = flag "-ladder" no_arg ~doc:" run ladder"
      and baselines = flag "-baselines" no_arg ~doc:" run the baseline experiments"
      in fun () ->
        if baselines then (
@@ -125,10 +162,15 @@ let command =
          Format.printf "****************************************[Caesar Inlined]****************************************\n";
          bench_caesar true);
        if caesar_error then (
-         Format.printf "****************************************[Caesar No Inline]****************************************\n";
+         Format.printf "****************************************[Caesar Error No Inline]****************************************\n";
          bench_caesar_error false;
-         Format.printf "****************************************[Caesar Inlined]****************************************\n";
-         bench_caesar_error true)
+         Format.printf "****************************************[Caesar Error Inlined]****************************************\n";
+         bench_caesar_error true);
+       if ladder then (
+         Format.printf "****************************************[Ladder No Inline]****************************************\n";
+         bench_ladder false;
+         Format.printf "****************************************[Ladder Inlined]****************************************\n";
+         bench_ladder true)
     )
 
 let () =
