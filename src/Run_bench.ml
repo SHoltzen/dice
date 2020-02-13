@@ -106,32 +106,33 @@ let bench_caesar_error inline_functions =
     )
 
 
-let gen_ladder n =
+let gen_diamond n =
   let prog = ref "
 fun diamond(s1: bool) {
-      let route = flip 0.5 in
-      let s2 = if route then s1 else false in
-      let s3 = if route then false else s1 in
-      let drop = flip 0.0001 in
-      s2 || (s3 && !drop)
+      if flip(0.5) then s1 else (flip(0.0001) && s1)
+//      let route = flip 0.5 in
+//      let s2 = if route then s1 else false in
+//      let s3 = if route then false else s1 in
+//      let drop = flip 0.0001 in
+//      s2 || (s3 && !drop)
 }
-      let x = true in
+      let x0 = true in
 " in
-  for x = 0 to n do
-      let new_ln = Format.sprintf "let x = diamond(x) in" in
+  for x = 1 to n do
+      let new_ln = Format.sprintf "let x%d = diamond(x%d) in" x (x-1) in
       prog := Format.sprintf "%s\n%s" !prog new_ln;
   done;
-  prog := Format.sprintf "%s\n%s" !prog "x";
+prog := Format.sprintf "%s\n%s%d" !prog "x" (n-1);
   parse_with_error (Lexing.from_string !prog)
 
-let bench_ladder inline_functions =
+let bench_diamond inline_functions =
   Format.printf "Length\tTime (s)\tBDD Size\n";
-  let lst = List.init 50 ~f:(fun i -> i * 1000) in
+  let lst = List.init 2 ~f:(fun i -> i * 1000) in
   List.iter lst ~f:(fun len ->
+      let caesar = gen_diamond (len + 1) in
+      let inlined = if inline_functions then Passes.inline_functions caesar else caesar in
       let t0 = Unix.gettimeofday () in
-      let caesar = gen_ladder len in
-      let res = (if inline_functions then Passes.inline_functions caesar else caesar)
-                |> CoreGrammar.from_external_prog
+      let res = CoreGrammar.from_external_prog inlined
                 |> CoreGrammar.compile_program in
       let sz = VarState.state_size [res.body.state] in
       let t1 = Unix.gettimeofday () in
@@ -150,7 +151,7 @@ let command =
      let open Command.Param in
      let%map caesar = flag "-caesar" no_arg ~doc:" run caesar cipher scaling"
      and caesar_error = flag "-caesar-error" no_arg ~doc:" run caesar cipher with errors scaling"
-     and ladder = flag "-ladder" no_arg ~doc:" run ladder"
+     and diamond = flag "-diamond" no_arg ~doc:" run diamond"
      and baselines = flag "-baselines" no_arg ~doc:" run the baseline experiments"
      in fun () ->
        if baselines then (
@@ -166,11 +167,11 @@ let command =
          bench_caesar_error false;
          Format.printf "****************************************[Caesar Error Inlined]****************************************\n";
          bench_caesar_error true);
-       if ladder then (
-         Format.printf "****************************************[Ladder No Inline]****************************************\n";
-         bench_ladder false;
-         Format.printf "****************************************[Ladder Inlined]****************************************\n";
-         bench_ladder true)
+       if diamond then (
+         Format.printf "****************************************[Diamond No Inline]****************************************\n";
+         bench_diamond true;
+         Format.printf "****************************************[Diamond Inlined]****************************************\n";
+         bench_diamond true)
     )
 
 let () =
