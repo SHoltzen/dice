@@ -8,8 +8,9 @@ open Passes
 open Parser
 
 
-let rec parse_and_print lexbuf =
+let rec parse_and_print print_parsed print_info lexbuf =
   let parsed = Util.parse_with_error lexbuf in
+  if print_parsed then Format.printf "Parsed program: %s\n" (ExternalGrammar.string_of_prog parsed);
   let compiled = compile_program (CoreGrammar.from_external_prog parsed) in
   let zbdd = compiled.body.z in
   let z = Wmc.wmc zbdd compiled.ctx.weights in
@@ -28,22 +29,28 @@ let rec parse_and_print lexbuf =
         | _ -> failwith "ouch" in
       Format.printf "%s\t%f\n" (print_pretty typ) prob;
     );
-  Man.print_info compiled.ctx.man;
+  if print_info then Man.print_info compiled.ctx.man;
   Format.printf "Final compiled size: %d\n" (VarState.state_size [compiled.body.state]);
   Format.printf "Live: %d\n" (Man.get_node_count compiled.ctx.man)
-  (* Format.printf "Final compiled size: %d\n" (Bdd.size (VarState.extract_bdd compiled.body.state)) *)
-  (* let prob = CoreGrammar.get_prob (CoreGrammar.from_external_prog parsed) in
-   * Format.printf "prob: %f\n" prob *)
 
-let loop filename () =
-  let inx = In_channel.create filename in
-  let lexbuf = Lexing.from_channel inx in
-  lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
-  parse_and_print lexbuf;
-  In_channel.close inx
+let command =
+  Command.basic
+    ~summary:"Evaluate a dice program."
+    ~readme:(fun () -> "")
+    (let open Command.Let_syntax in
+     let open Command.Param in
+     let%map
+       fname = anon ("filename" %: string)
+     and print_info = flag "-show-info" no_arg ~doc:" print BDD info and statistics"
+     and print_parsed = flag "-show-parsed" no_arg ~doc:" print parsed dice program"
+     in fun () ->
+       let inx = In_channel.create fname in
+       let lexbuf = Lexing.from_channel inx in
+       lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = fname };
+       parse_and_print print_parsed print_info lexbuf
+    )
 
 let () =
-  Command.basic_spec ~summary:"Parse and compute prob"
-    Command.Spec.(empty +> anon ("filename" %: string))
-    loop
-  |> Command.run
+  Command.run ~version:"1.0" command
+
+
