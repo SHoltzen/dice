@@ -126,7 +126,7 @@ prog := Format.sprintf "%s\n%s%d" !prog "x" (n-1);
   parse_with_error (Lexing.from_string !prog)
 
 let bench_diamond inline_functions =
-  Format.printf "Length\tTime (s)\tBDD Size\n";
+  Format.printf "Length\tTime (ms)\tBDD Size\n";
   let lst = [1; 100; 200; 300; 400; 500; 700; 800; 900; 1000; 2000; 3000; 4000; 5000] in
   List.iter lst ~f:(fun len ->
       let caesar = gen_diamond (len + 1) in
@@ -137,7 +137,7 @@ let bench_diamond inline_functions =
       let sz = VarState.state_size [res.body.state] in
       let t1 = Unix.gettimeofday () in
       let numpaths = Passes.num_paths caesar in
-      print_endline (Format.sprintf "%d\t%f\t%s\t%d" len (t1 -. t0)
+      print_endline (Format.sprintf "%d\t%f\t%s\t%d" len ((t1 -. t0) *. 1000.0)
                        (LogProbability.to_string 10.0 numpaths) sz);
     )
 
@@ -164,7 +164,7 @@ prog := Format.sprintf "%s\n%s" !prog "x" ;
   parse_with_error (Lexing.from_string !prog)
 
 let bench_ladder inline_functions =
-  Format.printf "Length\tTime (s)\tBDD Size\n";
+  Format.printf "Length\tTime (ms)\tBDD Size\n";
   let lst = [1; 100; 200; 300; 400; 500; 700; 800; 900; 1000; 2000; 3000; 4000; 5000] in
   List.iter lst ~f:(fun len ->
       let caesar = gen_ladder (len + 1) in
@@ -175,7 +175,7 @@ let bench_ladder inline_functions =
       let sz = VarState.state_size [res.body.state] in
       let t1 = Unix.gettimeofday () in
       let numpaths = Passes.num_paths caesar in
-      print_endline (Format.sprintf "%d\t%f\t%s\t%d" len (t1 -. t0)
+      print_endline (Format.sprintf "%d\t%f\t%s\t%d" len ((t1 -. t0) *. 1000.0)
                        (LogProbability.to_string 10.0 numpaths) sz);
     )
 
