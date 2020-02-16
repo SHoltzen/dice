@@ -109,12 +109,12 @@ let bench_caesar_error inline_functions =
 let gen_diamond n =
   let prog = ref "
 fun diamond(s1: bool) {
-      if flip(0.5) then s1 else (flip(0.0001) && s1)
-//      let route = flip 0.5 in
-//      let s2 = if route then s1 else false in
-//      let s3 = if route then false else s1 in
-//      let drop = flip 0.0001 in
-//      s2 || (s3 && !drop)
+//      if flip(0.5) then s1 else (flip(0.0001) && s1)
+      let route = flip 0.5 in
+      let s2 = if route then s1 else false in
+      let s3 = if route then false else s1 in
+      let drop = flip 0.0001 in
+      s2 || (s3 && !drop)
 }
       let x0 = true in
 " in
@@ -142,6 +142,44 @@ let bench_diamond inline_functions =
     )
 
 
+let gen_ladder n =
+  let prog = ref "
+fun ladder(s1: bool, s2: bool) {
+      if s1 then
+        if flip 0.001 then
+          (false, false)
+        else
+           let f = flip 0.5 in (f, !f)
+      else if s2 then
+           let f = flip 0.5 in (f, !f)
+      else (false, false)
+}
+      let x = (true, false) in
+" in
+  for x = 1 to n do
+      let new_ln = Format.sprintf "let x = ladder(fst x, snd x) in" in
+      prog := Format.sprintf "%s\n%s" !prog new_ln;
+  done;
+prog := Format.sprintf "%s\n%s" !prog "x" ;
+  parse_with_error (Lexing.from_string !prog)
+
+let bench_ladder inline_functions =
+  Format.printf "Length\tTime (s)\tBDD Size\n";
+  let lst = List.init 10 ~f:(fun i -> i * 1000) in
+  List.iter lst ~f:(fun len ->
+      let caesar = gen_ladder (len + 1) in
+      let inlined = if inline_functions then Passes.inline_functions caesar else caesar in
+      let t0 = Unix.gettimeofday () in
+      let res = CoreGrammar.from_external_prog inlined
+                |> CoreGrammar.compile_program in
+      let sz = VarState.state_size [res.body.state] in
+      let t1 = Unix.gettimeofday () in
+      let numpaths = Passes.num_paths caesar in
+      print_endline (Format.sprintf "%d\t%f\t%s\t%d" len (t1 -. t0)
+                       (LogProbability.to_string 10.0 numpaths) sz);
+    )
+
+
 
 let command =
   Command.basic
@@ -152,6 +190,7 @@ let command =
      let%map caesar = flag "-caesar" no_arg ~doc:" run caesar cipher scaling"
      and caesar_error = flag "-caesar-error" no_arg ~doc:" run caesar cipher with errors scaling"
      and diamond = flag "-diamond" no_arg ~doc:" run diamond"
+     and ladder = flag "-ladder" no_arg ~doc:" run ladder"
      and baselines = flag "-baselines" no_arg ~doc:" run the baseline experiments"
      in fun () ->
        if baselines then (
@@ -171,8 +210,12 @@ let command =
          Format.printf "****************************************[Diamond Non-Inlined]****************************************\n";
          bench_diamond false;
          Format.printf "****************************************[Diamond Inlined]****************************************\n";
-         bench_diamond true)
-    )
+         bench_diamond true);
+       if ladder then (
+         Format.printf "****************************************[Ladder Non-Inlined]****************************************\n";
+         bench_ladder false;
+         Format.printf "****************************************[Ladder Inlined]****************************************\n";
+         bench_ladder true))
 
 let () =
   Command.run ~version:"1.0" command
