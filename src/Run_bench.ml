@@ -127,7 +127,7 @@ prog := Format.sprintf "%s\n%s%d" !prog "x" (n-1);
 
 let bench_diamond inline_functions =
   Format.printf "Length\tTime (s)\tBDD Size\n";
-  let lst = List.init 10 ~f:(fun i -> i * 1000) in
+  let lst = [1; 100; 200; 300; 400; 500; 700; 800; 900; 1000; 2000; 3000; 4000; 5000] in
   List.iter lst ~f:(fun len ->
       let caesar = gen_diamond (len + 1) in
       let inlined = if inline_functions then Passes.inline_functions caesar else caesar in
@@ -165,7 +165,7 @@ prog := Format.sprintf "%s\n%s" !prog "x" ;
 
 let bench_ladder inline_functions =
   Format.printf "Length\tTime (s)\tBDD Size\n";
-  let lst = List.init 10 ~f:(fun i -> i * 1000) in
+  let lst = [1; 100; 200; 300; 400; 500; 700; 800; 900; 1000; 2000; 3000; 4000; 5000] in
   List.iter lst ~f:(fun len ->
       let caesar = gen_ladder (len + 1) in
       let inlined = if inline_functions then Passes.inline_functions caesar else caesar in
