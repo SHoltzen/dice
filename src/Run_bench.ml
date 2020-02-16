@@ -127,7 +127,7 @@ prog := Format.sprintf "%s\n%s%d" !prog "x" (n-1);
 
 let bench_diamond inline_functions =
   Format.printf "Length\tTime (s)\tBDD Size\n";
-  let lst = List.init 2 ~f:(fun i -> i * 1000) in
+  let lst = List.init 10 ~f:(fun i -> i * 1000) in
   List.iter lst ~f:(fun len ->
       let caesar = gen_diamond (len + 1) in
       let inlined = if inline_functions then Passes.inline_functions caesar else caesar in
@@ -168,8 +168,8 @@ let command =
          Format.printf "****************************************[Caesar Error Inlined]****************************************\n";
          bench_caesar_error true);
        if diamond then (
-         Format.printf "****************************************[Diamond No Inline]****************************************\n";
-         bench_diamond true;
+         Format.printf "****************************************[Diamond Non-Inlined]****************************************\n";
+         bench_diamond false;
          Format.printf "****************************************[Diamond Inlined]****************************************\n";
          bench_diamond true)
     )

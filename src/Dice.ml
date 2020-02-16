@@ -11,7 +11,7 @@ open Parser
 let rec parse_and_print print_parsed print_info lexbuf =
   let parsed = Util.parse_with_error lexbuf in
   if print_parsed then Format.printf "Parsed program: %s\n" (ExternalGrammar.string_of_prog parsed);
-  let compiled = compile_program (CoreGrammar.from_external_prog parsed) in
+  let compiled = compile_program (from_external_prog parsed) in
   let zbdd = compiled.body.z in
   let z = Wmc.wmc zbdd compiled.ctx.weights in
   let table = VarState.get_table compiled.body.state in
