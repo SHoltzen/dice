@@ -213,7 +213,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
             Array.set init_l cur_pos (Bdd.dor cur_arrv (Bdd.dand inner_itm outer_itm));
           ));
     {state=Leaf(IntLeaf(Array.to_list init_l)); z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips} in
-  match e with
+  let r = match e with
   | And(e1, e2) ->
     let c2 = compile_expr ctx tenv env e2 in
     let c1 = compile_expr ctx tenv env e1 in
@@ -302,7 +302,15 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     (* create a temp variable *)
     let t = (type_of tenv e1) in
     let tmp = gen_sym_type ctx t in
-    let env' = Map.Poly.set env ~key:x ~data:tmp in
+    let env_tmp = map_tree tmp (function
+              | BddLeaf(bdd) -> BddLeaf(bdd)
+              | IntLeaf(l) ->
+                IntLeaf(List.init (List.length l) (fun i ->
+                    List.foldi l ~init:(Bdd.dtrue ctx.man) ~f:(fun idx acc cur ->
+                        let bdd = if idx = i then cur else Bdd.dnot cur in
+                        Bdd.dand bdd acc
+                      )))) in
+    let env' = Map.Poly.set env ~key:x ~data:env_tmp in
     let tenv' = Map.Poly.set tenv ~key:x ~data:t in
     let c2 = compile_expr ctx tenv' env' e2 in
     (* do substitution *)
@@ -418,7 +426,9 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
         Bdd.existand argcube argiff bdd) in
     let final_z = List.fold ~init:(Bdd.existand argcube argiff refreshed_z) cargs
         ~f:(fun acc arg -> Bdd.dand arg.z acc ) in
-    {state=final_state; z=final_z; flips=new_flips}
+    {state=final_state; z=final_z; flips=new_flips} in
+  r
+
 
 
 
