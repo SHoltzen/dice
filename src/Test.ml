@@ -283,46 +283,46 @@ coin1 == int(51, 10)
 let expression_tests =
 "suite">:::
 [
-  "test_1">::test_1;
-  "test_not">::test_not;
-  "test_obs1">::test_obs1;
-  "test_obs2">::test_obs2;
-  "test_tup1">::test_tup1;
-  "test_nestedtup">::test_nestedtup;
-  "test_nestedtup2">::test_nestedtup2;
-  "test_ite1">::test_ite1;
-  "test_ite2">::test_ite2;
-  "test_ite3">::test_ite3;
-  "test_int1">::test_int1;
-  "test_int2">::test_int2;
-  "test_int3">::test_int3;
-  "test_int4">::test_int4;
-  "test_add1">::test_add1;
-  "test_add2">::test_add2;
-  "test_add3">::test_add3;
-  "test_add4">::test_add4;
-  "test_add5">::test_add5;
-  "test_fcall1">::test_fcall1;
-  "test_fcall2">::test_fcall2;
-  "test_fcall3">::test_fcall3;
-  "test_fcall4">::test_fcall4;
-  "test_fcall5">::test_fcall5;
-  "test_fcall6">::test_fcall6;
-  "test_caesar">::test_caesar;
-  "test_alarm">::test_alarm;
-  "test_murder">::test_murder;
-  "test_evidence1">::test_evidence1;
-  "test_evidence2">::test_evidence2;
-  "test_grass">::test_grass;
-  "test_cancer">::test_cancer;
-  "test_op1">::test_op1;
-  "test_op2">::test_op2;
-  "test_op3">::test_op3;
-  "test_op4">::test_op4;
-  "test_op5">::test_op5;
-  "test_alarm">::test_alarm;
+  (* "test_1">::test_1;
+   * "test_not">::test_not;
+   * "test_obs1">::test_obs1;
+   * "test_obs2">::test_obs2;
+   * "test_tup1">::test_tup1;
+   * "test_nestedtup">::test_nestedtup;
+   * "test_nestedtup2">::test_nestedtup2;
+   * "test_ite1">::test_ite1;
+   * "test_ite2">::test_ite2;
+   * "test_ite3">::test_ite3;
+   * "test_int1">::test_int1;
+   * "test_int2">::test_int2;
+   * "test_int3">::test_int3;
+   * "test_int4">::test_int4;
+   * "test_add1">::test_add1;
+   * "test_add2">::test_add2;
+   * "test_add3">::test_add3;
+   * "test_add4">::test_add4;
+   * "test_add5">::test_add5;
+   * "test_fcall1">::test_fcall1;
+   * "test_fcall2">::test_fcall2;
+   * "test_fcall3">::test_fcall3;
+   * "test_fcall4">::test_fcall4;
+   * "test_fcall5">::test_fcall5;
+   * "test_fcall6">::test_fcall6;
+   * "test_caesar">::test_caesar; *)
+  (* "test_alarm">::test_alarm;
+   * "test_murder">::test_murder;
+   * "test_evidence1">::test_evidence1;
+   * "test_evidence2">::test_evidence2;
+   * "test_grass">::test_grass;
+   * "test_cancer">::test_cancer; *)
+  (* "test_op1">::test_op1;
+   * "test_op2">::test_op2;
+   * "test_op3">::test_op3;
+   * "test_op4">::test_op4;
+   * "test_op5">::test_op5;
+   * "test_alarm">::test_alarm; *)
   "test_coin">::test_coin;
-  "test_burglary">::test_burglary;
+  (* "test_burglary">::test_burglary; *)
 ]
 
 let () =

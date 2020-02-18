@@ -211,10 +211,10 @@ let command =
          Format.printf "****************************************[Diamond Inlined]****************************************\n";
          bench_diamond true);
        if ladder then (
-         Format.printf "****************************************[Ladder Non-Inlined]****************************************\n";
-         bench_ladder false;
          Format.printf "****************************************[Ladder Inlined]****************************************\n";
-         bench_ladder true))
+         bench_ladder true;
+         Format.printf "****************************************[Ladder Non-Inlined]****************************************\n";
+         bench_ladder false))
 
 let () =
   Command.run ~version:"1.0" command

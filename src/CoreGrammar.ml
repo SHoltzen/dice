@@ -45,12 +45,12 @@ let rec type_of env e : typ =
   match e with
   | And(_, _) | Or(_, _) | Not(_) | True | False | Flip(_) | Observe(_) -> ExternalGrammar.TBool
   | Ident(s) -> Map.Poly.find_exn env s
-  | Fst(e) ->
-    (match type_of env e with
+  | Fst(e1) ->
+    (match type_of env e1 with
      | ExternalGrammar.TTuple(l, _) -> l
      | _ -> failwith "Type error: expected tuple")
-  | Snd(e) ->
-    (match type_of env e with
+  | Snd(e1) ->
+    (match type_of env e1 with
      | ExternalGrammar.TTuple(_, r) -> r
      | _ -> failwith "Type error: expected tuple")
   | Tup(e1, e2) ->
@@ -297,6 +297,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     {state=Leaf(BddLeaf(Bdd.dtrue ctx.man)); z=Bdd.dand (extract_bdd c.state) c.z; flips=c.flips}
 
   | Let(x, e1, e2) ->
+
     let c1 = compile_expr ctx tenv env e1 in
     (* create a temp variable *)
     let t = (type_of tenv e1) in
@@ -319,6 +320,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     let final_state = map_bddtree c2.state (fun bdd ->
         Bdd.existand argcube iff bdd) in
     let final_z = Bdd.existand argcube iff c2.z in
+
     {state=final_state; z=Bdd.dand c1.z final_z; flips=List.append c1.flips c2.flips}
 
   | Discrete(l) ->
