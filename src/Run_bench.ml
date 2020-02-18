@@ -116,18 +116,17 @@ fun diamond(s1: bool) {
       let drop = flip 0.0001 in
       s2 || (s3 && !drop)
 }
-      let x0 = true in
 " in
+  let ln = ref "true" in
   for x = 1 to n do
-      let new_ln = Format.sprintf "let x%d = diamond(x%d) in" x (x-1) in
-      prog := Format.sprintf "%s\n%s" !prog new_ln;
-  done;
-prog := Format.sprintf "%s\n%s%d" !prog "x" (n-1);
+      ln := Format.sprintf "diamond(%s)" !ln;
+    done;
+  prog := Format.sprintf "%s\n%s" !prog !ln;
   parse_with_error (Lexing.from_string !prog)
 
 let bench_diamond inline_functions =
   Format.printf "Length\tTime (ms)\tBDD Size\n";
-  let lst = [1; 100; 200; 300; 400; 500; 700; 800; 900; 1000; 2000; 3000; 4000; 5000] in
+  let lst = [1000] in
   List.iter lst ~f:(fun len ->
       let caesar = gen_diamond (len + 1) in
       let inlined = if inline_functions then Passes.inline_functions caesar else caesar in
