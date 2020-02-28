@@ -6,11 +6,13 @@ open Lexing
 open Lexer
 open Passes
 open Parser
+open Optimization
 
 
 let rec parse_and_print lexbuf =
   let parsed = Util.parse_with_error lexbuf in
-  let compiled = compile_program (CoreGrammar.from_external_prog parsed) in
+  let optimized = Optimization.code_motion parsed in
+  let compiled = compile_program (CoreGrammar.from_external_prog optimized) in
   let zbdd = compiled.body.z in
   let z = Wmc.wmc zbdd compiled.ctx.weights in
   let table = VarState.get_table compiled.body.state in
