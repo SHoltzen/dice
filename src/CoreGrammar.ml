@@ -442,6 +442,9 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
 
 let compile_func ctx tenv (f: func) : compiled_func =
   (* set up the context; need both a list and a map, so build both together *)
+  let new_tenv = List.fold ~init:tenv f.args ~f:(fun acc (name, typ) ->
+      Map.Poly.add_exn acc ~key:name ~data:typ
+    ) in
   let (args, env) = List.fold f.args ~init:([], Map.Poly.empty)
       ~f:(fun (lst, map) (name, typ) ->
           let placeholder_arg = gen_sym_type ctx typ in
@@ -460,7 +463,7 @@ let compile_func ctx tenv (f: func) : compiled_func =
           (List.append lst [placeholder_arg], map')
         ) in
   (* now compile the function body with these arguments *)
-  let body = compile_expr ctx tenv env f.body in
+  let body = compile_expr ctx new_tenv env f.body in
   {args = args; body = body}
 
 let compile_program (p:program) : compiled_program =
