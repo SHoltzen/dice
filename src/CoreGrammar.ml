@@ -44,7 +44,8 @@ type tenv = (String.t, typ) Map.Poly.t
 let rec type_of env e : typ =
   match e with
   | And(_, _) | Or(_, _) | Not(_) | True | False | Flip(_) | Observe(_) -> ExternalGrammar.TBool
-  | Ident(s) -> Map.Poly.find_exn env s
+  | Ident(s) -> (try Map.Poly.find_exn env s
+    with _ -> failwith (Format.sprintf "Could not find variable %s during typechecking" s))
   | Fst(e1) ->
     (match type_of env e1 with
      | ExternalGrammar.TTuple(l, _) -> l
@@ -63,17 +64,19 @@ let rec type_of env e : typ =
     type_of (Map.Poly.set env x te1) e2
   | Ite(g, thn, els) ->
     let t1 = type_of env thn in
-    let t2 = type_of env els in
+    (* let t2 = type_of env els in *)
     (* assert (t1 == t2); *)
     t1
   | Eq(s1, s2) | Lt(s1, s2) | Plus(s1, s2) |
     Minus(s1, s2) | Mult(s1, s2) | Div(s1, s2) ->
     let t1 = type_of env s1 in
-    let t2 = type_of env s2 in
+    (* let t2 = type_of env s2 in *)
     (* assert (t1 == t2); *)
     t1
   | Discrete(l) -> ExternalGrammar.TInt(List.length l)
-  | FuncCall(id, _) -> Map.Poly.find_exn env id
+  | FuncCall(id, _) ->
+    (try Map.Poly.find_exn env id
+    with _ -> failwith (Format.sprintf "Could not find function '%s' during typechecking" id))
 
 
 (** Core function grammar *)
@@ -83,6 +86,13 @@ type func = {
   body: expr;
 }
 [@@deriving sexp_of]
+
+let type_of_fun env f : typ =
+  (* set up the type environment and then type the body *)
+  let new_env = List.fold ~init:env f.args ~f:(fun acc (name, typ) ->
+      Map.Poly.add_exn acc ~key:name ~data:typ
+    ) in
+  type_of new_env f.body
 
 
 type program = {
@@ -297,7 +307,6 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     {state=Leaf(BddLeaf(Bdd.dtrue ctx.man)); z=Bdd.dand (extract_bdd c.state) c.z; flips=c.flips}
 
   | Let(x, e1, e2) ->
-
     let c1 = compile_expr ctx tenv env e1 in
     (* create a temp variable *)
     let t = (type_of tenv e1) in
@@ -328,7 +337,6 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     let final_state = map_bddtree c2.state (fun bdd ->
         Bdd.existand argcube iff bdd) in
     let final_z = Bdd.existand argcube iff c2.z in
-
     {state=final_state; z=Bdd.dand c1.z final_z; flips=List.append c1.flips c2.flips}
 
   | Discrete(l) ->
@@ -456,18 +464,18 @@ let compile_func ctx tenv (f: func) : compiled_func =
   {args = args; body = body}
 
 let compile_program (p:program) : compiled_program =
-  (* Format.printf "Compiling program\n";
-   * flush_all (); *)
   (* first compile the functions in topological order *)
   let ctx = new_context () in
+  let tenv = ref Map.Poly.empty in
   List.iter p.functions ~f:(fun func ->
-      let c = compile_func ctx (Map.Poly.empty) func in
+      let c = compile_func ctx !tenv func in
+      tenv := Map.Poly.add_exn !tenv ~key:func.name ~data:(type_of_fun !tenv func);
       try Hashtbl.Poly.add_exn ctx.funcs ~key:func.name ~data:c
       with _ -> failwith (Format.sprintf "Function names must be unique: %s found twice" func.name)
     );
   (* now compile the main body, which is the result of the program *)
   let env = Map.Poly.empty in
-  {ctx = ctx; body = compile_expr ctx (Map.Poly.empty) env p.body}
+  {ctx = ctx; body = compile_expr ctx !tenv env p.body}
 
 
 let get_prob p =
