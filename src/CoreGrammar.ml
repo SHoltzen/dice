@@ -172,6 +172,7 @@ type compile_context = {
   man: Man.dt;
   name_map: (int, String.t) Hashtbl.Poly.t; (* map from variable identifiers to names, for debugging *)
   weights: weight; (* map from variables to weights *)
+  lazy_eval: bool; (* true if lazy let evaluation *)
   funcs: (String.t, compiled_func) Hashtbl.Poly.t;
 }
 
@@ -182,7 +183,8 @@ type compiled_program = {
 
 type env = (String.t, varstate btree) Map.Poly.t (* map from variable identifiers to BDDs*)
 
-let new_context () =
+
+let new_context ~lazy_eval () =
   let man = Man.make_d () in
   Man.disable_autodyn man;
   let weights = Hashtbl.Poly.create () in
@@ -190,7 +192,8 @@ let new_context () =
   {man = man;
    name_map = names;
    weights = weights;
-   funcs = Hashtbl.Poly.create ()}
+   funcs = Hashtbl.Poly.create ();
+   lazy_eval = lazy_eval}
 
 
 (** generates a symbolic representation for a variable of the given type *)
@@ -307,37 +310,46 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     {state=Leaf(BddLeaf(Bdd.dtrue ctx.man)); z=Bdd.dand (extract_bdd c.state) c.z; flips=c.flips}
 
   | Let(x, e1, e2) ->
-    let c1 = compile_expr ctx tenv env e1 in
-    (* create a temp variable *)
-    let t = (type_of tenv e1) in
-    let tmp = gen_sym_type ctx t in
-    let env_tmp = map_tree tmp (function
-              | BddLeaf(bdd) -> BddLeaf(bdd)
-              | IntLeaf(l) ->
-                IntLeaf(List.init (List.length l) (fun i ->
-                    List.foldi l ~init:(Bdd.dtrue ctx.man) ~f:(fun idx acc cur ->
-                        let bdd = if idx = i then cur else Bdd.dnot cur in
-                        Bdd.dand bdd acc
-                      )))) in
-    let env' = Map.Poly.set env ~key:x ~data:env_tmp in
-    let tenv' = Map.Poly.set tenv ~key:x ~data:t in
-    let c2 = compile_expr ctx tenv' env' e2 in
-    (* do substitution *)
-    let argcube = fold_bddtree tmp (Bdd.dtrue ctx.man) (fun acc i -> Bdd.dand acc i) in
-    let iff =
-      let tree = map_tree (zip_tree c1.state tmp) (function
-            | (BddLeaf(a), BddLeaf(p)) ->
-                 BddLeaf(Bdd.eq a p)
-            | (IntLeaf(al), IntLeaf(pl)) when (List.length al) = (List.length pl) ->
-              BddLeaf(List.fold ~init:(Bdd.dtrue ctx.man) (List.zip_exn al pl) ~f:(fun acc (a, p) ->
-                 Bdd.dand acc (Bdd.eq a p)))
-            | _ -> failwith (Format.sprintf "Type mismatch in arguments for '%s'\n" (string_of_expr e))) in
-        fold_bddtree tree (Bdd.dtrue ctx.man) (fun acc i -> Bdd.dand acc i) in
-    (* apply the arguments*)
-    let final_state = map_bddtree c2.state (fun bdd ->
-        Bdd.existand argcube iff bdd) in
-    let final_z = Bdd.existand argcube iff c2.z in
-    {state=final_state; z=Bdd.dand c1.z final_z; flips=List.append c1.flips c2.flips}
+    (* 2 different evaluation strategies here: lazy and eager  *)
+    (match ctx.lazy_eval with
+     | true ->
+       let c1 = compile_expr ctx tenv env e1 in
+       (* create a temp variable *)
+       let t = (type_of tenv e1) in
+       let tmp = gen_sym_type ctx t in
+       let env_tmp = map_tree tmp (function
+           | BddLeaf(bdd) -> BddLeaf(bdd)
+           | IntLeaf(l) ->
+             IntLeaf(List.init (List.length l) (fun i ->
+                 List.foldi l ~init:(Bdd.dtrue ctx.man) ~f:(fun idx acc cur ->
+                     let bdd = if idx = i then cur else Bdd.dnot cur in
+                     Bdd.dand bdd acc
+                   )))) in
+       let env' = Map.Poly.set env ~key:x ~data:env_tmp in
+       let tenv' = Map.Poly.set tenv ~key:x ~data:t in
+       let c2 = compile_expr ctx tenv' env' e2 in
+       (* do substitution *)
+       let argcube = fold_bddtree tmp (Bdd.dtrue ctx.man) (fun acc i -> Bdd.dand acc i) in
+       let iff =
+         let tree = map_tree (zip_tree c1.state tmp) (function
+             | (BddLeaf(a), BddLeaf(p)) ->
+               BddLeaf(Bdd.eq a p)
+             | (IntLeaf(al), IntLeaf(pl)) when (List.length al) = (List.length pl) ->
+               BddLeaf(List.fold ~init:(Bdd.dtrue ctx.man) (List.zip_exn al pl) ~f:(fun acc (a, p) ->
+                   Bdd.dand acc (Bdd.eq a p)))
+             | _ -> failwith (Format.sprintf "Type mismatch in arguments for '%s'\n" (string_of_expr e))) in
+         fold_bddtree tree (Bdd.dtrue ctx.man) (fun acc i -> Bdd.dand acc i) in
+       (* apply the arguments*)
+       let final_state = map_bddtree c2.state (fun bdd ->
+           Bdd.existand argcube iff bdd) in
+       let final_z = Bdd.existand argcube iff c2.z in
+       {state=final_state; z=Bdd.dand c1.z final_z; flips=List.append c1.flips c2.flips}
+
+     | false ->
+       let c1 = compile_expr ctx tenv env e1 in
+       let env' = Map.Poly.set env ~key:x ~data:c1.state in
+       let c2 = compile_expr ctx tenv env' e2 in
+       {state=c2.state; z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips})
 
   | Discrete(l) ->
     (* first construct a list of all the properly parameterized flips *)
@@ -468,7 +480,7 @@ let compile_func ctx tenv (f: func) : compiled_func =
 
 let compile_program (p:program) : compiled_program =
   (* first compile the functions in topological order *)
-  let ctx = new_context () in
+  let ctx = new_context ~lazy_eval:true () in
   let tenv = ref Map.Poly.empty in
   List.iter p.functions ~f:(fun func ->
       let c = compile_func ctx !tenv func in

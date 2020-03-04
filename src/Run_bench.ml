@@ -53,7 +53,7 @@ let key1  = discrete(0.038461538,0.038461538,0.038461538,0.038461538,0.038461538
     [inline_functions] is true if functions are inlined, false otherwise *)
 let bench_caesar inline_functions =
   Format.printf "Length\tTime (s)\tBDD Size\n";
-  let lst = List.init 50 ~f:(fun i -> i * 1000) in
+  let lst = [1; 100; 250; 500; 1000; 2500; 5000; 10000] in
   List.iter lst ~f:(fun len ->
       let t0 = Unix.gettimeofday () in
       let caesar = gen_caesar (List.init len ~f:(fun i -> Random.int_incl 0 25)) in
@@ -63,7 +63,7 @@ let bench_caesar inline_functions =
       let sz = Cudd.Bdd.size res.body.z in
       let t1 = Unix.gettimeofday () in
       let numpaths = Passes.num_paths caesar in
-      print_endline (Format.sprintf "%d\t%f\t%s\t%d" len (t1 -. t0)
+      print_endline (Format.sprintf "%d\t%f\t%s\t%d" len ((t1 -. t0) *. 1000.0)
                        (LogProbability.to_string 10.0 numpaths) sz);
     )
 
@@ -90,8 +90,8 @@ let key1  = discrete(0.038461538,0.038461538,0.038461538,0.038461538,0.038461538
     in the encryption. [inline_functions] is true if functions are inlined,
     false otherwise *)
 let bench_caesar_error inline_functions =
-  Format.printf "Length\tTime (s)\tBDD Size\n";
-  let lst = List.init 25 ~f:(fun i -> i * 1000) in
+  Format.printf "Length\tTime (ms)\tBDD Size\n";
+  let lst = [1; 100; 250; 500; 1000; 2500; 5000; 10000] in
   List.iter lst ~f:(fun len ->
       let t0 = Unix.gettimeofday () in
       let caesar = gen_caesar_error (List.init len ~f:(fun i -> Random.int_incl 0 25)) in
@@ -101,7 +101,7 @@ let bench_caesar_error inline_functions =
       let sz = Cudd.Bdd.size res.body.z in
       let t1 = Unix.gettimeofday () in
       let numpaths = Passes.num_paths caesar in
-      print_endline (Format.sprintf "%d\t%f\t%s\t%d" len (t1 -. t0)
+      print_endline (Format.sprintf "%d\t%f\t%s\t%d" len ((t1 -. t0) *. 1000.0)
                        (LogProbability.to_string 10.0 numpaths) sz);
     )
 
