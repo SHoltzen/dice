@@ -48,24 +48,24 @@ let cmp t1 t2 : int =
   let (v2, f2) = t2 in
   if f1 < f2 then -1 else if f1 > f2 then 1 else if v1 < v2 then -1 else if v1 > v2 then 1 else 0
 
-  (* helper: external expr -> (list of (variable name, flip param). )*)
-let rec helper (e: ExternalGrammar.eexpr) : (string * float) list * ExternalGrammar.eexpr =
+  (* codeMotionHelper: external expr -> (list of (variable name, flip param). )*)
+let rec codeMotionHelper (e: ExternalGrammar.eexpr) : (string * float) list * ExternalGrammar.eexpr =
   match e with
   | Let(v, e1, e2)-> 
-    let (s1, n1) = helper e1 in
-    let (s2, n2) = helper e2 in
+    let (s1, n1) = codeMotionHelper e1 in
+    let (s2, n2) = codeMotionHelper e2 in
     (match e1 with
     | Flip(f1) -> ((v,f1)::(s1@s2), Let(v, n1, n2))
     | _ -> (s2, Let(v, n1, n2)))
   | Ite(g, thn, els) ->
     (* let (gc, n1) = helper g in *)
-    let (tc, n2) = helper thn in
-    let (ec, n3) = helper els in
+    let (tc, n2) = codeMotionHelper thn in
+    let (ec, n3) = codeMotionHelper els in
     let can = (ckFlip (List.sort cmp tc) (List.sort cmp ec)) in 
     (match can with
     | [] -> ([], Ite(g, n2, n3))
     | _ -> 
-      let (l, n) = helper (pullOut can (Ite(g, n2, n3))) in
+      let (l, n) = codeMotionHelper (pullOut can (Ite(g, n2, n3))) in
       ([], n))
 
   | And(_, _) | Or(_, _) | Plus(_, _) | Eq(_, _) | Minus(_, _)
@@ -74,32 +74,201 @@ let rec helper (e: ExternalGrammar.eexpr) : (string * float) list * ExternalGram
   | Snd(_) | Fst(_) | Not(_) | Observe(_) | Flip(_) -> ([], e)
   | _ -> ([], e)
 
+let rec printL (f: float list) = 
+  match f with
+  | [] -> Format.printf "\n";
+  | head::tail -> Format.printf "%f " head; (printL tail) 
+
 let rec print_expr (e: ExternalGrammar.eexpr) = 
   match e with
   | Flip(f) -> (
     Format.printf "flip %f " f;
-    e
     )
   | Let(x, e1, e2) ->
     (Format.printf "let %s = " x;
-    let _ = (print_expr e1) in 
-    Format.printf "in \n";
-    let _ = (print_expr e2) in e)
+    print_expr e1;
+    Format.printf "in\n";
+    print_expr e2)
   | Ite(g, thn, els) -> 
     (Format.printf "if ";
-    let _ = (print_expr g) in 
-    Format.printf "then ";
-    let _ = (print_expr thn) in 
+    print_expr g; 
+    Format.printf "then\n";
+    print_expr thn;
+    Format.printf "\n";
     Format.printf "else ";
-    let _ = (print_expr els) in e)
-  | True -> Format.printf "True "; e
-  | False -> Format.printf "False "; e
-  | Ident(x) -> Format.printf "%s " x; e
-  | _ -> Format.printf "something "; e
+    Format.printf "\n";
+    print_expr els)
+  | True -> Format.printf "True ";
+  | False -> Format.printf "False ";
+  | Ident(x) -> Format.printf "%s " x;
+  | _ -> Format.printf "something "
 
-let code_motion (p: ExternalGrammar.program) : ExternalGrammar.program =
+  (* Perform Code Motion on Let x = flip f patterns *)
+let code_motion (p: ExternalGrammar.eexpr) : ExternalGrammar.eexpr =
   Format.printf "I'm in code_motion\n";
-  let (l, n) = helper p.body in
-  let x = (print_expr n) in
+  let (l, n) = codeMotionHelper p in
+  print_expr n;
   Format.printf "\n"; 
-  { functions= p.functions; body= x }
+  n
+
+let equal f1 f2 = if f1 = f2 then true else false
+
+(* If there are a pair of same floats in l1 and l2 use only 1 copy *)
+let rec consolidate (l1: float list) (l2: float list) : float list = 
+  match l1, l2 with
+  | [], _ -> l2
+  | _, [] -> l1
+  | head1::tail1, head2::tail2 -> 
+    (if head1 = head2 then 
+      let n1 = consolidate tail1 tail2 in
+      head1::n1
+    else if head2 < head1 then
+      let n1 = consolidate l1 tail2 in
+      head2::n1
+    else
+      let n1 = consolidate tail1 l2 in
+      head1::n1)
+
+let cmp2 f1 f2 = if f1 < f2 then -1 else if f1 > f2 then 1 else 0
+
+(* Collect flips that need to be replaced *)
+let rec upPass (e: ExternalGrammar.eexpr) : float list =
+  match e with
+  | Flip(f) -> f::[]
+  | Ite(g, thn, els) ->
+    (* let (gc, n1) = helper g in *)
+    let n1 = upPass thn in
+    let n2 = upPass els in
+    let n3 = consolidate (List.sort cmp2 n1) (List.sort cmp2 n2) in 
+    n3
+  | Let(_, e1, e2) | And(e1, e2) | Or(e1, e2) | Plus(e1, e2) | Eq(e1, e2) | Minus(e1, e2)
+  | Neq(e1, e2) | Div(e1, e2) | Mult(e1, e2) | Lt(e1, e2) | Gt(e1, e2)
+  | Lte(e1, e2) | Gte(e1, e2) | Tup(e1, e2) -> 
+    let n1 = upPass e1 in
+    let n2 = upPass e2 in
+    (n1@n2)
+  | Snd(e1) | Fst(e1) | Not(e1) | Observe(e1) -> (upPass e1)
+  | _ -> []
+  
+  (* Return the variable name of the replacement flip *)
+let rec replace (f: float) (fl: (String.t * float) list) : String.t * (String.t * float) list =
+  match fl with
+  | [] -> raise(Failure "Can't find corresponding flip")
+  | (var, flip)::tail -> 
+    (if flip = f then 
+      (var, tail)
+    else 
+      let (v, rest) = (replace f tail) in
+      (v, (var, flip)::rest))
+
+  (* Replace the flips with corresponding variables *)
+let rec downPass (e: ExternalGrammar.eexpr) (fl: (String.t * float) list) : ExternalGrammar.eexpr * (String.t * float) list =
+  match e with
+  | Flip(f) -> 
+    let (v, lst) = replace f fl in
+    (Ident(v), lst)
+  | Ite(g, thn, els) ->
+    (* let (gc, n1) = helper g in *)
+    let (te, tlst) = downPass thn fl in
+    let (ee, elst) = downPass els fl in
+    (Ite(g, te, ee), [])
+  | Let(v, e1, e2) ->
+    let (n1, lst1) = downPass e1 fl in
+    let (n2, lst2) = downPass e2 lst1 in
+    (Let(v, n1, n2), lst2)
+  | And(e1, e2) ->
+    let (n1, lst1) = downPass e1 fl in
+    let (n2, lst2) = downPass e2 lst1 in
+    (And(n1, n2), lst2)
+  | Or(e1, e2) ->
+    let (n1, lst1) = downPass e1 fl in
+    let (n2, lst2) = downPass e2 lst1 in
+    (Or(n1, n2), lst2) 
+  | Plus(e1, e2) ->
+    let (n1, lst1) = downPass e1 fl in
+    let (n2, lst2) = downPass e2 lst1 in
+    (Plus(n1, n2), lst2) 
+  | Eq(e1, e2) ->
+    let (n1, lst1) = downPass e1 fl in
+    let (n2, lst2) = downPass e2 lst1 in
+    (Eq(n1, n2), lst2) 
+  | Minus(e1, e2) ->
+    let (n1, lst1) = downPass e1 fl in
+    let (n2, lst2) = downPass e2 lst1 in
+    (Minus(n1, n2), lst2)
+  | Neq(e1, e2)  ->
+    let (n1, lst1) = downPass e1 fl in
+    let (n2, lst2) = downPass e2 lst1 in
+    (Neq(n1, n2), lst2)
+  | Div(e1, e2) ->
+    let (n1, lst1) = downPass e1 fl in
+    let (n2, lst2) = downPass e2 lst1 in
+    (Div(n1, n2), lst2)
+  | Mult(e1, e2) ->
+    let (n1, lst1) = downPass e1 fl in
+    let (n2, lst2) = downPass e2 lst1 in
+    (Mult(n1, n2), lst2)
+  | Lt(e1, e2) ->
+    let (n1, lst1) = downPass e1 fl in
+    let (n2, lst2) = downPass e2 lst1 in
+    (Lt(n1, n2), lst2)
+  | Gt(e1, e2) ->
+    let (n1, lst1) = downPass e1 fl in
+    let (n2, lst2) = downPass e2 lst1 in
+    (Gt(n1, n2), lst2)
+  | Lte(e1, e2) ->
+    let (n1, lst1) = downPass e1 fl in
+    let (n2, lst2) = downPass e2 lst1 in
+    (Lte(n1, n2), lst2) 
+  | Gte(e1, e2) ->
+    let (n1, lst1) = downPass e1 fl in
+    let (n2, lst2) = downPass e2 lst1 in
+    (Gte(n1, n2), lst2)
+  | Tup(e1, e2) ->
+    let (n1, lst1) = downPass e1 fl in
+    let (n2, lst2) = downPass e2 lst1 in
+    (Tup(n1, n2), lst2)    
+  | Snd(e1) ->
+    let (n1, lst1) = downPass e1 fl in
+    (Snd(n1), lst1)
+  | Fst(e1) ->
+    let (n1, lst1) = downPass e1 fl in
+    (Fst(n1), lst1)
+  | Not(e1) ->
+    let (n1, lst1) = downPass e1 fl in
+    (Not(n1), lst1)
+  | Observe(e1) ->
+    let (n1, lst1) = downPass e1 fl in
+    (Observe(n1), lst1)
+  | _ -> (e, fl)
+
+  (* Return variable assignments to flips and list of (var, flip val) *)
+let rec addFlips (fl: float list) (i: int) : ExternalGrammar.eexpr * (String.t * float) list = 
+  match fl with 
+  | [] -> (True, [])
+  | head::tail -> 
+    let var = Printf.sprintf "%d" i in
+    let (e, vf) = addFlips tail (i+1) in
+    (Let(var, Flip(head), e), (var, head)::vf)
+  
+  (* Glue variable assignments of flips to parsed program *)
+let rec glue_together (vars: ExternalGrammar.eexpr) (e: ExternalGrammar.eexpr) : ExternalGrammar.eexpr = 
+  match vars with
+  | True -> e
+  | Let(v,e1,e2) -> Let(v, e1, (glue_together e2 e))
+  | _ -> e
+
+  (* Perform code motion on flip f patterns *)
+let flip_code_motion (p: ExternalGrammar.eexpr) : ExternalGrammar.eexpr = 
+  Format.printf "I'm in flip_code_motion\n";
+  let fl = upPass p in
+  let (vars, vl) = addFlips fl 0 in
+  let (inner, l) = downPass p vl in
+  let e = glue_together vars inner in
+  print_expr e;
+  Format.printf "\n";
+  e
+
+let optimize (p:ExternalGrammar.program) : ExternalGrammar.program = 
+  let n = flip_code_motion p.body in
+  { functions= p.functions; body= n }

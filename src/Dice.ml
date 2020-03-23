@@ -11,7 +11,7 @@ open Optimization
 
 let rec parse_and_print lexbuf =
   let parsed = Util.parse_with_error lexbuf in
-  let optimized = Optimization.code_motion parsed in
+  let optimized = Optimization.optimize parsed in
   let compiled = compile_program (CoreGrammar.from_external_prog optimized) in
   let zbdd = compiled.body.z in
   let z = Wmc.wmc zbdd compiled.ctx.weights in
