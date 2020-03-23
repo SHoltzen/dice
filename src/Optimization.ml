@@ -79,6 +79,11 @@ let rec printL (f: float list) =
   | [] -> Format.printf "\n";
   | head::tail -> Format.printf "%f " head; (printL tail) 
 
+let rec printVFL (fl: (String.t * float) list) = 
+  match fl with
+  | [] -> Format.printf "\n";
+  | (var, f)::tail -> Format.printf "%f " f; (printVFL tail) 
+
 let rec print_expr (e: ExternalGrammar.eexpr) = 
   match e with
   | Flip(f) -> (
@@ -152,8 +157,9 @@ let rec upPass (e: ExternalGrammar.eexpr) : float list =
   
   (* Return the variable name of the replacement flip *)
 let rec replace (f: float) (fl: (String.t * float) list) : String.t * (String.t * float) list =
+  (* printVFL fl; *)
   match fl with
-  | [] -> raise(Failure "Can't find corresponding flip")
+  | [] -> Format.printf "Flip %f\n" f; raise(Failure "Can't find corresponding flip")
   | (var, flip)::tail -> 
     (if flip = f then 
       (var, tail)
@@ -165,13 +171,15 @@ let rec replace (f: float) (fl: (String.t * float) list) : String.t * (String.t 
 let rec downPass (e: ExternalGrammar.eexpr) (fl: (String.t * float) list) : ExternalGrammar.eexpr * (String.t * float) list =
   match e with
   | Flip(f) -> 
+    (* Format.printf "Flip %f\n" f; *)
     let (v, lst) = replace f fl in
+    (* printVFL lst; *)
     (Ident(v), lst)
   | Ite(g, thn, els) ->
     (* let (gc, n1) = helper g in *)
     let (te, tlst) = downPass thn fl in
     let (ee, elst) = downPass els fl in
-    (Ite(g, te, ee), [])
+    (Ite(g, te, ee), fl)
   | Let(v, e1, e2) ->
     let (n1, lst1) = downPass e1 fl in
     let (n2, lst2) = downPass e2 lst1 in
@@ -262,7 +270,11 @@ let rec glue_together (vars: ExternalGrammar.eexpr) (e: ExternalGrammar.eexpr) :
 let flip_code_motion (p: ExternalGrammar.eexpr) : ExternalGrammar.eexpr = 
   Format.printf "I'm in flip_code_motion\n";
   let fl = upPass p in
+  (* printL fl; *)
   let (vars, vl) = addFlips fl 0 in
+  (* print_expr vars;
+  Format.printf "\n"; *)
+  (* printVFL vl; *)
   let (inner, l) = downPass p vl in
   let e = glue_together vars inner in
   print_expr e;
