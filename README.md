@@ -20,7 +20,7 @@ Next, install the BDD library `mlcuddidl`:
 
 ```
 git clone git@github.com:SHoltzen/mlcuddidil.git
-cd mlcuddidl
+cd mlcuddidil
 ./configure && make && make install
 ```
 
