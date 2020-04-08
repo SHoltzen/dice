@@ -16,7 +16,7 @@ eval `opam config env`     # optional: add this line to your .bashrc
 opam install ounit core ppx_sexp_conv sexplib core_bench menhir ppx_deriving
 ```
 
-Next, install the BDD library `mlcuddidl`:
+Next, install the BDD library `mlcuddidl` (by cloning into a separate directory):
 
 ```
 git clone git@github.com:SHoltzen/mlcuddidil.git
