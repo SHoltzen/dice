@@ -110,10 +110,10 @@ let rec print_expr (e: ExternalGrammar.eexpr) =
 
   (* Perform Code Motion on Let x = flip f patterns *)
 let code_motion (p: ExternalGrammar.eexpr) : ExternalGrammar.eexpr =
-  Format.printf "I'm in code_motion\n";
+  (* Format.printf "I'm in code_motion\n"; *)
   let (l, n) = codeMotionHelper p in
-  print_expr n;
-  Format.printf "\n"; 
+  (* print_expr n;
+  Format.printf "\n";  *)
   n
 
 let equal f1 f2 = if f1 = f2 then true else false
@@ -268,7 +268,7 @@ let rec glue_together (vars: ExternalGrammar.eexpr) (e: ExternalGrammar.eexpr) :
 
   (* Perform code motion on flip f patterns *)
 let flip_code_motion (p: ExternalGrammar.eexpr) : ExternalGrammar.eexpr = 
-  Format.printf "I'm in flip_code_motion\n";
+  (* Format.printf "I'm in flip_code_motion\n"; *)
   let fl = upPass p in
   (* printL fl; *)
   let (vars, vl) = addFlips fl 0 in
@@ -277,8 +277,8 @@ let flip_code_motion (p: ExternalGrammar.eexpr) : ExternalGrammar.eexpr =
   (* printVFL vl; *)
   let (inner, l) = downPass p vl in
   let e = glue_together vars inner in
-  print_expr e;
-  Format.printf "\n";
+  (* print_expr e;
+  Format.printf "\n"; *)
   e
 
 let optimize (p:ExternalGrammar.program) : ExternalGrammar.program = 
