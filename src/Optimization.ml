@@ -120,21 +120,14 @@ let equal f1 f2 = if f1 = f2 then true else false
 
 (* If there are a pair of same floats in l1 and l2 use only 1 copy *)
 let rec consolidate (l1: float list) (l2: float list) : float list = 
-  match l1, l2 with
-  | [], _ -> l2
-  | _, [] -> l1
-  | head1::tail1, head2::tail2 -> 
-    (if head1 = head2 then 
-      let n1 = consolidate tail1 tail2 in
-      head1::n1
-    else if head2 < head1 then
-      let n1 = consolidate l1 tail2 in
-      head2::n1
+  match l1 with
+  | [] -> l2
+  | head::tail ->
+    let n = consolidate tail l2 in
+    if (List.mem l2 head (fun x y -> x = y)) then
+      n
     else
-      let n1 = consolidate tail1 l2 in
-      head1::n1)
-
-let cmp2 f1 f2 = if f1 < f2 then -1 else if f1 > f2 then 1 else 0
+      head::n
 
 (* Collect flips that need to be replaced *)
 let rec upPass (e: ExternalGrammar.eexpr) : float list =
@@ -144,7 +137,7 @@ let rec upPass (e: ExternalGrammar.eexpr) : float list =
     (* let (gc, n1) = helper g in *)
     let n1 = upPass thn in
     let n2 = upPass els in
-    let n3 = consolidate (List.sort cmp2 n1) (List.sort cmp2 n2) in 
+    let n3 = consolidate n1 n2 in 
     n3
   | Let(_, e1, e2) | And(e1, e2) | Or(e1, e2) | Plus(e1, e2) | Eq(e1, e2) | Minus(e1, e2)
   | Neq(e1, e2) | Div(e1, e2) | Mult(e1, e2) | Lt(e1, e2) | Gt(e1, e2)

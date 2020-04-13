@@ -2,6 +2,7 @@ open Core
 open Lexing
 open Lexer
 open Parser
+open Optimization
 
 let eps = 0.00001
 
@@ -30,7 +31,24 @@ let parse_and_prob ?debug txt =
    | Some(true)->
      Format.printf "Program: %s\n" (ExternalGrammar.string_of_prog parsed);
    | _ -> ());
+  
   CoreGrammar.get_prob (CoreGrammar.from_external_prog parsed)
+
+let parse_optimize_and_prob ?debug txt =
+  let buf = Lexing.from_string txt in
+  let parsed = try Parser.program Lexer.token buf with
+  | SyntaxError msg ->
+    fprintf stderr "%a: %s\n" print_position buf msg;
+    failwith (Format.sprintf "Error parsing %s" txt)
+  | Parser.Error ->
+    fprintf stderr "%a: syntax error\n" print_position buf;
+    failwith (Format.sprintf "Error parsing %s" txt) in
+  (match debug with
+    | Some(true)->
+      Format.printf "Program: %s\n" (ExternalGrammar.string_of_prog parsed);
+    | _ -> ());
+  let opt = optimize parsed in
+  CoreGrammar.get_prob (CoreGrammar.from_external_prog opt)
 
 (** [dir_is_empty dir] is true, if [dir] contains no files except
  * "." and ".."
