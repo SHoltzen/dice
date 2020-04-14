@@ -29,6 +29,7 @@ let rec consolidate (l1: 'a list) (l2: 'a list) : 'a list =
 
 type tree = 
   | Node of (float list * float list) * tree * tree
+  | Branch of tree * tree
   | Leaf 
 
 (* Collect flips that need to be replaced *)
@@ -46,7 +47,7 @@ let rec upPass (e: ExternalGrammar.eexpr) : float list * tree =
   | Lte(e1, e2) | Gte(e1, e2) | Tup(e1, e2) -> 
     let n1, t1 = upPass e1 in
     let n2, t2 = upPass e2 in
-    (n1@n2, t2)
+    (n1@n2, Branch(t1, t2))
   | Snd(e1) | Fst(e1) | Not(e1) | Observe(e1) -> (upPass e1)
   | _ -> [], Leaf
   
@@ -110,7 +111,6 @@ let rec downPass (e: ExternalGrammar.eexpr) (fl: (String.t * float) list) (i: in
   | Ite(g, thn, els) ->
     (* Find common flips between subtrees *)
     (match t with
-    | Leaf -> Ite(g, thn, els), fl
     | Node((llist, rlist), left, right) -> 
       let node_list = find_match llist rlist in
       let upper_flips = List.map fl (fun (v, f) -> f) in
@@ -124,63 +124,105 @@ let rec downPass (e: ExternalGrammar.eexpr) (fl: (String.t * float) list) (i: in
       let (els_expr, els_lst) = downPass els pass_down_vf new_i right in
 
       (add_flips new_vf (Ite(g, thn_expr, els_expr))), fl
-    )
+    | _ -> e, fl)
   | Let(v, e1, e2) ->
-    let (n1, lst1) = downPass e1 fl i t in
-    let (n2, lst2) = downPass e2 lst1 i t in
-    (Let(v, n1, n2), lst2)
+    (match t with
+    | Branch(t1, t2) -> 
+      let (n1, lst1) = downPass e1 fl i t1 in
+      let (n2, lst2) = downPass e2 lst1 i t2 in
+      (Let(v, n1, n2), lst2)
+    | _ -> e, fl)
   | And(e1, e2) ->
-    let (n1, lst1) = downPass e1 fl i t in
-    let (n2, lst2) = downPass e2 lst1 i t in
-    (And(n1, n2), lst2)
+    (match t with
+    | Branch(t1, t2) -> 
+      let (n1, lst1) = downPass e1 fl i t1 in
+      let (n2, lst2) = downPass e2 lst1 i t2 in
+      (And(n1, n2), lst2)
+    | _ -> e, fl)
   | Or(e1, e2) ->
-    let (n1, lst1) = downPass e1 fl i t in
-    let (n2, lst2) = downPass e2 lst1 i t in
-    (Or(n1, n2), lst2) 
+    (match t with
+    | Branch(t1, t2) -> 
+      let (n1, lst1) = downPass e1 fl i t1 in
+      let (n2, lst2) = downPass e2 lst1 i t2 in
+      (Or(n1, n2), lst2)
+    | _ -> e, fl)
   | Plus(e1, e2) ->
-    let (n1, lst1) = downPass e1 fl i t in
-    let (n2, lst2) = downPass e2 lst1 i t in
-    (Plus(n1, n2), lst2) 
+    (match t with
+    | Branch(t1, t2) -> 
+      let (n1, lst1) = downPass e1 fl i t1 in
+      let (n2, lst2) = downPass e2 lst1 i t2 in
+      (Plus(n1, n2), lst2)
+    | _ -> e, fl)
   | Eq(e1, e2) ->
-    let (n1, lst1) = downPass e1 fl i t in
-    let (n2, lst2) = downPass e2 lst1 i t in
-    (Eq(n1, n2), lst2) 
+    (match t with
+    | Branch(t1, t2) -> 
+      let (n1, lst1) = downPass e1 fl i t1 in
+      let (n2, lst2) = downPass e2 lst1 i t2 in
+      (Eq(n1, n2), lst2)
+    | _ -> e, fl)
   | Minus(e1, e2) ->
-    let (n1, lst1) = downPass e1 fl i t in
-    let (n2, lst2) = downPass e2 lst1 i t in
-    (Minus(n1, n2), lst2)
+    (match t with
+    | Branch(t1, t2) -> 
+      let (n1, lst1) = downPass e1 fl i t1 in
+      let (n2, lst2) = downPass e2 lst1 i t2 in
+      (Minus(n1, n2), lst2)
+    | _ -> e, fl)
   | Neq(e1, e2)  ->
-    let (n1, lst1) = downPass e1 fl i t in
-    let (n2, lst2) = downPass e2 lst1 i t in
-    (Neq(n1, n2), lst2)
+    (match t with
+    | Branch(t1, t2) -> 
+      let (n1, lst1) = downPass e1 fl i t1 in
+      let (n2, lst2) = downPass e2 lst1 i t2 in
+      (Neq(n1, n2), lst2)
+    | _ -> e, fl)
   | Div(e1, e2) ->
-    let (n1, lst1) = downPass e1 fl i t in
-    let (n2, lst2) = downPass e2 lst1 i t in
-    (Div(n1, n2), lst2)
+    (match t with
+    | Branch(t1, t2) -> 
+      let (n1, lst1) = downPass e1 fl i t1 in
+      let (n2, lst2) = downPass e2 lst1 i t2 in
+      (Div(n1, n2), lst2)
+    | _ -> e, fl)
   | Mult(e1, e2) ->
-    let (n1, lst1) = downPass e1 fl i t in
-    let (n2, lst2) = downPass e2 lst1 i t in
-    (Mult(n1, n2), lst2)
+    (match t with
+    | Branch(t1, t2) -> 
+      let (n1, lst1) = downPass e1 fl i t1 in
+      let (n2, lst2) = downPass e2 lst1 i t2 in
+      (Mult(n1, n2), lst2)
+    | _ -> e, fl)
   | Lt(e1, e2) ->
-    let (n1, lst1) = downPass e1 fl i t in
-    let (n2, lst2) = downPass e2 lst1 i t in
-    (Lt(n1, n2), lst2)
+    (match t with
+    | Branch(t1, t2) -> 
+      let (n1, lst1) = downPass e1 fl i t1 in
+      let (n2, lst2) = downPass e2 lst1 i t2 in
+      (Lt(n1, n2), lst2)
+    | _ -> e, fl)
   | Gt(e1, e2) ->
-    let (n1, lst1) = downPass e1 fl i t in
-    let (n2, lst2) = downPass e2 lst1 i t in
-    (Gt(n1, n2), lst2)
+    (match t with
+    | Branch(t1, t2) -> 
+      let (n1, lst1) = downPass e1 fl i t1 in
+      let (n2, lst2) = downPass e2 lst1 i t2 in
+      (Gt(n1, n2), lst2)
+    | _ -> e, fl)
   | Lte(e1, e2) ->
-    let (n1, lst1) = downPass e1 fl i t in
-    let (n2, lst2) = downPass e2 lst1 i t in
-    (Lte(n1, n2), lst2) 
+    (match t with
+    | Branch(t1, t2) -> 
+      let (n1, lst1) = downPass e1 fl i t1 in
+      let (n2, lst2) = downPass e2 lst1 i t2 in
+      (Lte(n1, n2), lst2)
+    | _ -> e, fl)
   | Gte(e1, e2) ->
-    let (n1, lst1) = downPass e1 fl i t in
-    let (n2, lst2) = downPass e2 lst1 i t in
-    (Gte(n1, n2), lst2)
+    (match t with
+    | Branch(t1, t2) -> 
+      let (n1, lst1) = downPass e1 fl i t1 in
+      let (n2, lst2) = downPass e2 lst1 i t2 in
+      (Gte(n1, n2), lst2)
+    | _ -> e, fl)
   | Tup(e1, e2) ->
-    let (n1, lst1) = downPass e1 fl i t in
-    let (n2, lst2) = downPass e2 lst1 i t in
-    (Tup(n1, n2), lst2)    
+    (match t with
+    | Branch(t1, t2) -> 
+      let (n1, lst1) = downPass e1 fl i t1 in
+      let (n2, lst2) = downPass e2 lst1 i t2 in
+      (Tup(n1, n2), lst2)
+    | _ -> e, fl)   
   | Snd(e1) ->
     let (n1, lst1) = downPass e1 fl i t in
     (Snd(n1), lst1)
