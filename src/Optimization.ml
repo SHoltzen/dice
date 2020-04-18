@@ -37,11 +37,13 @@ let rec upPass (e: ExternalGrammar.eexpr) : float list * tree =
   match e with
   | Flip(f) -> [f], Leaf
   | Ite(g, thn, els) ->
+    let n0, t0 = upPass g in
     let n1, t1 = upPass thn in
     let n2, t2 = upPass els in
     let t3 = Node((n1, n2), t1, t2) in
     let n3 = consolidate n1 n2 in 
-    (n3, t3)
+    (* (n3, t3) *)
+    (n0@n3, Branch(t0, t3))
   | Let(_, e1, e2) | And(e1, e2) | Or(e1, e2) | Plus(e1, e2) | Eq(e1, e2) | Minus(e1, e2)
   | Neq(e1, e2) | Div(e1, e2) | Mult(e1, e2) | Lt(e1, e2) | Gt(e1, e2)
   | Lte(e1, e2) | Gte(e1, e2) | Tup(e1, e2) -> 
@@ -111,19 +113,23 @@ let rec downPass (e: ExternalGrammar.eexpr) (fl: (String.t * float) list) (i: in
   | Ite(g, thn, els) ->
     (* Find common flips between subtrees *)
     (match t with
-    | Node((llist, rlist), left, right) -> 
-      let node_list = find_match llist rlist in
-      let upper_flips = List.map fl (fun (v, f) -> f) in
-      let new_flips = find_no_match node_list upper_flips in
-      let new_vf = flip_to_vf i new_flips in
-      let pass_down_vf = fl@new_vf in
+    | Branch(t1, t2) -> 
+      let (g_expr, g_lst) = downPass g fl i t1 in
+      (match t2 with
+      | Node((llist, rlist), left, right) -> 
+        let node_list = find_match llist rlist in
+        let upper_flips = List.map fl (fun (v, f) -> f) in
+        let new_flips = find_no_match node_list upper_flips in
+        let new_vf = flip_to_vf i new_flips in
+        let pass_down_vf = fl@new_vf in
 
-      let new_i = i + (List.length new_flips) in
-      (* Pass flips down *)
-      let (thn_expr, thn_lst) = downPass thn pass_down_vf new_i left in
-      let (els_expr, els_lst) = downPass els pass_down_vf new_i right in
+        let new_i = i + (List.length new_flips) in
+        (* Pass flips down *)
+        let (thn_expr, thn_lst) = downPass thn pass_down_vf new_i left in
+        let (els_expr, els_lst) = downPass els pass_down_vf new_i right in
 
-      (add_flips new_vf (Ite(g, thn_expr, els_expr))), fl
+        (add_flips new_vf (Ite(g_expr, thn_expr, els_expr))), fl
+      | _ -> e, fl)
     | _ -> e, fl)
   | Let(v, e1, e2) ->
     (match t with
