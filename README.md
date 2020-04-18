@@ -5,7 +5,7 @@ for *discrete* probabilistic programs.
 
 First install `OCaml` and `opam`:
 
-* On Ubuntu, use `apt-get install ocaml opam m4`.
+* On Ubuntu (19.10), use `apt-get install ocaml ocamlbuild opam m4`.
 * On Mac, Homebrew contains the necessary packages: `brew install ocaml opam`.
 
 Then, install the following dependencies from `opam`:
@@ -13,14 +13,14 @@ Then, install the following dependencies from `opam`:
 ```
 opam init   # must be performed before installing opam packages
 eval `opam config env`     # optional: add this line to your .bashrc
-opam install ounit core ppx_sexp_conv sexplib core_bench menhir ppx_deriving
+opam install ounit core ppx_sexp_conv sexplib core_bench menhir ppx_deriving camlidl
 ```
 
-Next, install the BDD library `mlcuddidl`:
+Next, install the BDD library `mlcuddidl` (by cloning into a separate directory):
 
 ```
 git clone git@github.com:SHoltzen/mlcuddidil.git
-cd mlcuddidl
+cd mlcuddidil
 ./configure && make && make install
 ```
 
