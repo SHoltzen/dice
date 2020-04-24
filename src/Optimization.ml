@@ -11,21 +11,11 @@ let rec printVFL (fl: (String.t * float) list) =
   | [] -> Format.printf "\n";
   | (var, f)::tail -> Format.printf "%f " f; (printVFL tail) 
 
-let equal f1 f2 = if f1 = f2 then true else false
-
 (* Remove one item from list l if predicate function f returns true *)
 let rec remove_one l f = 
   match l with
   | [] -> []
   | head::tail -> if f head then tail else head::(remove_one tail f)
-
-(* If there are a pair of same items in l1 and l2 use only 1 copy *)
-let rec consolidate (l1: 'a list) (l2: 'a list) : 'a list = 
-  match l1 with
-  | [] -> l2
-  | head::tail ->
-    let new_l2 = remove_one l2 (fun x -> x = head) in
-    head::(consolidate tail new_l2)
 
 type tree = 
   | Node of (float list * float list) * tree * tree
@@ -34,6 +24,15 @@ type tree =
 
 (* Collect flips that need to be replaced *)
 let rec upPass (e: ExternalGrammar.eexpr) : float list * tree =
+  (* If there are a pair of same items in l1 and l2 use only 1 copy *)
+  let rec consolidate (l1: 'a list) (l2: 'a list) : 'a list = 
+    match l1 with
+    | [] -> l2
+    | head::tail ->
+      let new_l2 = remove_one l2 (fun x -> x = head) in
+      head::(consolidate tail new_l2)
+  in
+
   match e with
   | Flip(f) -> [f], Leaf
   | Ite(g, thn, els) ->
@@ -52,58 +51,59 @@ let rec upPass (e: ExternalGrammar.eexpr) : float list * tree =
     (n1@n2, Branch(t1, t2))
   | Snd(e1) | Fst(e1) | Not(e1) | Observe(e1) -> (upPass e1)
   | _ -> [], Leaf
-  
-  (* Return the variable name of the replacement flip *)
-let rec replace (f: float) (fl: (String.t * float) list) : (String.t * (String.t * float) list) option =
-  match fl with
-  | [] -> None
-  | (var, flip)::tail -> 
-    if flip = f then
-      Some (var, tail)
-    else 
-      match replace f tail with
-      | None -> None
-      | Some (v, rest) -> Some (v, (var, flip)::rest)
-
-(* Return each matching pair from two list *)
-let rec find_match (l1: float list) (l2: float list) : float list = 
-  match l1 with
-  | [] -> []
-  | head::tail ->
-    if List.exists l2 (fun x -> x = head) then
-      let new_l2 = remove_one l2 (fun x -> x = head) in
-      head::(find_match tail new_l2)
-    else
-      (find_match tail l2)
-
-(* Return each non-pair from two list *)
-let rec find_no_match (l1: float list) (l2: float list) : float list =
-  match l1 with
-  | [] -> []
-  | head::tail -> 
-    if List.exists l2 (fun x -> x = head) then
-      let new_l2 = remove_one l2 (fun x -> x = head) in
-      (find_no_match tail new_l2)
-    else
-      head::(find_no_match tail l2)
-
-let rec flip_to_vf (i: int) (fl: float list) : (String.t * float) list =
-  match fl with
-  | [] -> []
-  | head::tail -> 
-    let var = Printf.sprintf "%d" i in
-    (var, head)::(flip_to_vf (i+1) tail)
-
-(* Return variable assignments to flips *)
-let rec add_flips (fl: (String.t * float) list) (inner: ExternalGrammar.eexpr) : ExternalGrammar.eexpr = 
-  match fl with 
-  | [] -> inner
-  | (v, f)::tail -> 
-    let e = add_flips tail inner in
-    Let(v, Flip(f), e)
 
   (* Replace the flips with corresponding variables *)
 let rec downPass (e: ExternalGrammar.eexpr) (fl: (String.t * float) list) (i: int) (t: tree): ExternalGrammar.eexpr * (String.t * float) list =
+  (* Return the variable name of the replacement flip *)
+  let rec replace (f: float) (fl: (String.t * float) list) : (String.t * (String.t * float) list) option =
+    match fl with
+    | [] -> None
+    | (var, flip)::tail -> 
+      if flip = f then
+        Some (var, tail)
+      else 
+        match replace f tail with
+        | None -> None
+        | Some (v, rest) -> Some (v, (var, flip)::rest)
+
+  and flip_to_vf (i: int) (fl: float list) : (String.t * float) list =
+    match fl with
+    | [] -> []
+    | head::tail -> 
+      let var = Printf.sprintf "%d" i in
+      (var, head)::(flip_to_vf (i+1) tail)
+
+  (* Return each matching pair from two list *)
+  and find_match (l1: float list) (l2: float list) : float list = 
+    match l1 with
+    | [] -> []
+    | head::tail ->
+      if List.exists l2 (fun x -> x = head) then
+        let new_l2 = remove_one l2 (fun x -> x = head) in
+        head::(find_match tail new_l2)
+      else
+        (find_match tail l2)
+
+  (* Return each non-pair from two list *)
+  and find_no_match (l1: float list) (l2: float list) : float list =
+    match l1 with
+    | [] -> []
+    | head::tail -> 
+      if List.exists l2 (fun x -> x = head) then
+        let new_l2 = remove_one l2 (fun x -> x = head) in
+        (find_no_match tail new_l2)
+      else
+        head::(find_no_match tail l2)
+
+  (* Return variable assignments to flips *)
+  and add_flips (fl: (String.t * float) list) (inner: ExternalGrammar.eexpr) : ExternalGrammar.eexpr = 
+    match fl with 
+    | [] -> inner
+    | (v, f)::tail -> 
+      let e = add_flips tail inner in
+      Let(v, Flip(f), e)
+  in
+
   match e with
   | Flip(f) -> 
     (match replace f fl with
@@ -242,13 +242,6 @@ let rec downPass (e: ExternalGrammar.eexpr) (fl: (String.t * float) list) (i: in
     let (n1, lst1) = downPass e1 fl i t in
     (Observe(n1), lst1)
   | _ -> (e, fl)
-  
-  (* Glue variable assignments of flips to parsed program *)
-let rec glue_together (vars: ExternalGrammar.eexpr) (e: ExternalGrammar.eexpr) : ExternalGrammar.eexpr = 
-  match vars with
-  | True -> e
-  | Let(v,e1,e2) -> Let(v, e1, (glue_together e2 e))
-  | _ -> e
 
   (* Perform code motion on flip f patterns *)
 let flip_code_motion (p: ExternalGrammar.eexpr) : ExternalGrammar.eexpr = 

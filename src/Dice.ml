@@ -7,7 +7,8 @@ open Lexer
 open Passes
 open Parser
 open Optimization
-
+open BddUtil
+open VarState
 
 let rec parse_and_print lexbuf =
   let parsed = Util.parse_with_error lexbuf in
@@ -15,6 +16,7 @@ let rec parse_and_print lexbuf =
   (* Format.printf "%s\n" (ExternalGrammar.string_of_eexpr optimized.body); *)
   let compiled = compile_program (CoreGrammar.from_external_prog optimized) in
   let zbdd = compiled.body.z in
+  (* dump_dot compiled.ctx.name_map (extract_bdd compiled.body.state); *)
   let z = Wmc.wmc zbdd compiled.ctx.weights in
   let table = VarState.get_table compiled.body.state in
   let probs = List.map table ~f:(fun (label, bdd) ->
