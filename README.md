@@ -6,7 +6,7 @@ for *discrete* probabilistic programs.
 First install `OCaml` and `opam`:
 
 * On Ubuntu (19.10), use `apt-get install ocaml ocamlbuild opam m4`.
-* On Mac, Homebrew contains the necessary packages: `brew install ocaml opam`.
+* On Mac, Homebrew contains the necessary packages: `brew install ocaml opam ocamlbuild ocaml-findlib`.
 
 Then, install the following dependencies from `opam`:
 
