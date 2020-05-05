@@ -308,7 +308,7 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
     {state=Leaf(BddLeaf(!cur)); z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips}
 
   | Plus(e1, e2) -> binop_helper e1 e2 (fun sz a b -> (a + b) mod sz)
-  | Minus(e1, e2) -> binop_helper e1 e2 (fun sz a b -> abs ((a - b) mod sz))
+  | Minus(e1, e2) -> binop_helper e1 e2 (fun sz a b ->  (a + sz - b) mod sz)
   | Mult(e1, e2) -> binop_helper e1 e2 (fun sz a b -> ((a * b) mod sz))
   | Div(e1, e2) -> binop_helper e1 e2 (fun sz a b -> (a / b))
 
