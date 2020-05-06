@@ -57,6 +57,8 @@ let within_epsilon x y =
   (Float.compare (Float.abs (x -. y)) 0.000001) < 0
   (* Float.abs  < 0.000001 *)
 
+let flip_id = ref 1
+
 let rec from_external_expr (e: ExternalGrammar.eexpr) : expr =
   match e with
   | And(e1, e2) ->
@@ -237,8 +239,10 @@ let rec compile_expr (ctx: compile_context) (env: env) e : compiled_expr =
   | Flip(f) ->
     let new_f = Bdd.newvar ctx.man in
     let var_lbl = Bdd.topvar new_f in
+    let var_name = (Format.sprintf "f%d" !flip_id) in
+    flip_id := !flip_id + 1;
     Hashtbl.Poly.add_exn ctx.weights var_lbl (1.0-.f, f);
-    Hashtbl.add_exn ctx.name_map var_lbl (Format.sprintf "f%f" f);
+    Hashtbl.add_exn ctx.name_map var_lbl var_name;
     {state=Leaf(BddLeaf(new_f)); z=Bdd.dtrue ctx.man; flips=[new_f]}
 
   | Observe(g) ->
