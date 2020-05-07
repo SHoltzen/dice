@@ -13,16 +13,26 @@ open VarState
 let rec parse_and_print lexbuf =
   let parsed = Util.parse_with_error lexbuf in
   let optimized = Optimization.optimize parsed in
-  (* Format.printf "%s\n" (ExternalGrammar.string_of_eexpr optimized.body); *)
+  Format.printf "%s\n" (ExternalGrammar.string_of_eexpr optimized.body);
   let compiled = compile_program (CoreGrammar.from_external_prog optimized) in
   let zbdd = compiled.body.z in
-  (* dump_dot compiled.ctx.name_map (extract_bdd compiled.body.state); *)
+  dump_dot compiled.ctx.name_map (extract_bdd compiled.body.state);
   let z = Wmc.wmc zbdd compiled.ctx.weights in
   let table = VarState.get_table compiled.body.state in
   let probs = List.map table ~f:(fun (label, bdd) ->
       let prob = (Wmc.wmc (Bdd.dand bdd zbdd) compiled.ctx.weights) /. z in
       (label, prob)) in
   Format.printf "Value\tProbability\n";
+  (* let rec top i lst acc =
+    match lst with
+    | [] -> List.rev acc
+    | head::tail -> 
+      if i = 0 then
+        List.rev acc
+      else
+        top (i - 1) tail (head::acc)
+  in
+  let top_three = top 3 (List.sort (fun (l1, p1) (l2, p2) -> if p1 > p2 then -1 else if p1 < p2 then 1 else 0) probs) [] in *)
   List.iter probs ~f:(fun (typ, prob) ->
       let rec print_pretty e =
         match e with
