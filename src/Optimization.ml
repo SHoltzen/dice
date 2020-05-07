@@ -47,13 +47,14 @@ let rec upPass (e: ExternalGrammar.eexpr) : float list * tree =
     let n3 = consolidate n1 n2 in 
     (* (n3, t3) *)
     (n0@n3, Branch(t0, t3))
-  | Let(_, e1, e2) | And(e1, e2) | Or(e1, e2) | Plus(e1, e2) | Eq(e1, e2) | Minus(e1, e2)
-  | Neq(e1, e2) | Div(e1, e2) | Mult(e1, e2) | Lt(e1, e2) | Gt(e1, e2)
-  | Lte(e1, e2) | Gte(e1, e2) | Tup(e1, e2) -> 
+  | Let(_, e1, e2) -> 
     let n1, t1 = upPass e1 in
     let n2, t2 = upPass e2 in
     (n1@n2, Branch(t1, t2))
-  | Snd(e1) | Fst(e1) | Not(e1) | Observe(e1) -> (upPass e1)
+  | And(e1, e2) | Or(e1, e2) | Plus(e1, e2) | Eq(e1, e2) | Minus(e1, e2)
+  | Neq(e1, e2) | Div(e1, e2) | Mult(e1, e2) | Lt(e1, e2) | Gt(e1, e2)
+  | Lte(e1, e2) | Gte(e1, e2) | Tup(e1, e2) -> [], Leaf
+  | Snd(e1) | Fst(e1) | Not(e1) | Observe(e1) -> [], Leaf
   | _ -> [], Leaf
 
   (* Replace the flips with corresponding variables *)
@@ -175,102 +176,10 @@ let rec downPass (e: ExternalGrammar.eexpr) (fl: (String.t * float) list) (i: in
       let (n2, lst2) = downPass e2 lst1 i t2 in
       (And(n1, n2), lst2)
     | _ -> e, fl)
-  | Or(e1, e2) ->
-    (match t with
-    | Branch(t1, t2) -> 
-      let (n1, lst1) = downPass e1 fl i t1 in
-      let (n2, lst2) = downPass e2 lst1 i t2 in
-      (Or(n1, n2), lst2)
-    | _ -> e, fl)
-  | Plus(e1, e2) ->
-    (match t with
-    | Branch(t1, t2) -> 
-      let (n1, lst1) = downPass e1 fl i t1 in
-      let (n2, lst2) = downPass e2 lst1 i t2 in
-      (Plus(n1, n2), lst2)
-    | _ -> e, fl)
-  | Eq(e1, e2) ->
-    (match t with
-    | Branch(t1, t2) -> 
-      let (n1, lst1) = downPass e1 fl i t1 in
-      let (n2, lst2) = downPass e2 lst1 i t2 in
-      (Eq(n1, n2), lst2)
-    | _ -> e, fl)
-  | Minus(e1, e2) ->
-    (match t with
-    | Branch(t1, t2) -> 
-      let (n1, lst1) = downPass e1 fl i t1 in
-      let (n2, lst2) = downPass e2 lst1 i t2 in
-      (Minus(n1, n2), lst2)
-    | _ -> e, fl)
-  | Neq(e1, e2)  ->
-    (match t with
-    | Branch(t1, t2) -> 
-      let (n1, lst1) = downPass e1 fl i t1 in
-      let (n2, lst2) = downPass e2 lst1 i t2 in
-      (Neq(n1, n2), lst2)
-    | _ -> e, fl)
-  | Div(e1, e2) ->
-    (match t with
-    | Branch(t1, t2) -> 
-      let (n1, lst1) = downPass e1 fl i t1 in
-      let (n2, lst2) = downPass e2 lst1 i t2 in
-      (Div(n1, n2), lst2)
-    | _ -> e, fl)
-  | Mult(e1, e2) ->
-    (match t with
-    | Branch(t1, t2) -> 
-      let (n1, lst1) = downPass e1 fl i t1 in
-      let (n2, lst2) = downPass e2 lst1 i t2 in
-      (Mult(n1, n2), lst2)
-    | _ -> e, fl)
-  | Lt(e1, e2) ->
-    (match t with
-    | Branch(t1, t2) -> 
-      let (n1, lst1) = downPass e1 fl i t1 in
-      let (n2, lst2) = downPass e2 lst1 i t2 in
-      (Lt(n1, n2), lst2)
-    | _ -> e, fl)
-  | Gt(e1, e2) ->
-    (match t with
-    | Branch(t1, t2) -> 
-      let (n1, lst1) = downPass e1 fl i t1 in
-      let (n2, lst2) = downPass e2 lst1 i t2 in
-      (Gt(n1, n2), lst2)
-    | _ -> e, fl)
-  | Lte(e1, e2) ->
-    (match t with
-    | Branch(t1, t2) -> 
-      let (n1, lst1) = downPass e1 fl i t1 in
-      let (n2, lst2) = downPass e2 lst1 i t2 in
-      (Lte(n1, n2), lst2)
-    | _ -> e, fl)
-  | Gte(e1, e2) ->
-    (match t with
-    | Branch(t1, t2) -> 
-      let (n1, lst1) = downPass e1 fl i t1 in
-      let (n2, lst2) = downPass e2 lst1 i t2 in
-      (Gte(n1, n2), lst2)
-    | _ -> e, fl)
-  | Tup(e1, e2) ->
-    (match t with
-    | Branch(t1, t2) -> 
-      let (n1, lst1) = downPass e1 fl i t1 in
-      let (n2, lst2) = downPass e2 lst1 i t2 in
-      (Tup(n1, n2), lst2)
-    | _ -> e, fl)   
-  | Snd(e1) ->
-    let (n1, lst1) = downPass e1 fl i t in
-    (Snd(n1), lst1)
-  | Fst(e1) ->
-    let (n1, lst1) = downPass e1 fl i t in
-    (Fst(n1), lst1)
-  | Not(e1) ->
-    let (n1, lst1) = downPass e1 fl i t in
-    (Not(n1), lst1)
-  | Observe(e1) ->
-    let (n1, lst1) = downPass e1 fl i t in
-    (Observe(n1), lst1)
+  | Or(e1, e2) | Plus(e1, e2) | Eq(e1, e2) | Minus(e1, e2) 
+  | Neq(e1, e2) | Div(e1, e2) | Mult(e1, e2) | Lt(e1, e2) 
+  | Gt(e1, e2) | Lte(e1, e2) | Gte(e1, e2) | Tup(e1, e2) -> (e, fl)
+  | Snd(e1) | Fst(e1) | Not(e1) | Observe(e1) -> (e, fl)
   | _ -> (e, fl)
 
   (* Perform code motion on flip f patterns *)
