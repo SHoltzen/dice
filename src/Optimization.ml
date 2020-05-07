@@ -150,7 +150,7 @@ let rec downPass (e: ExternalGrammar.eexpr) (fl: (String.t * float) list) (i: in
         let node_list = find_match llist rlist in
         let upper_flips = List.map fl (fun (v, f) -> f) in
         let new_flips = find_no_match node_list upper_flips in
-        let new_vf = guard_vf@(flip_to_vf guard_i new_flips) in
+        let new_vf = (flip_to_vf guard_i new_flips) in
         let pass_down_vf = fl@new_vf in
 
         let new_i = guard_i + (List.length new_flips) in
@@ -158,7 +158,7 @@ let rec downPass (e: ExternalGrammar.eexpr) (fl: (String.t * float) list) (i: in
         let (thn_expr, thn_lst) = downPass thn pass_down_vf new_i left in
         let (els_expr, els_lst) = downPass els pass_down_vf new_i right in
 
-        (add_flips new_vf (Ite(new_g, thn_expr, els_expr))), fl
+        (add_flips guard_vf (add_flips new_vf (Ite(new_g, thn_expr, els_expr)))), fl
       | _ -> e, fl)
     | _ -> e, fl)
   | Let(v, e1, e2) ->
