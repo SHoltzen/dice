@@ -31,6 +31,7 @@ let rec parse_and_print print_parsed print_info lexbuf =
     );
   if print_info then Man.print_info compiled.ctx.man;
   Format.printf "Final compiled size: %d\n" (VarState.state_size [compiled.body.state]);
+  Format.printf "Live: %d\n" (Man.get_node_count compiled.ctx.man)
 
 let command =
   Command.basic
@@ -51,5 +52,4 @@ let command =
 
 let () =
   Command.run ~version:"1.0" command
-
 

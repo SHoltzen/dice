@@ -67,8 +67,8 @@ let rec type_of env e : typ =
     (* let t2 = type_of env els in *)
     (* assert (t1 == t2); *)
     t1
-  | Eq(s1, s2) | Lt(s1, s2) | Plus(s1, s2) |
-    Minus(s1, s2) | Mult(s1, s2) | Div(s1, s2) ->
+  | Eq(s1, s2) | Lt(s1, s2) -> TBool
+  | Plus(s1, s2) | Minus(s1, s2) | Mult(s1, s2) | Div(s1, s2) ->
     let t1 = type_of env s1 in
     (* let t2 = type_of env s2 in *)
     (* assert (t1 == t2); *)
@@ -149,6 +149,10 @@ let rec from_external_expr (e: ExternalGrammar.eexpr) : expr =
   | Fst(e) -> Fst(from_external_expr e)
   | Tup(e1, e2) -> Tup(from_external_expr e1, from_external_expr e2)
   | FuncCall(id, args) -> FuncCall(id, List.map args ~f:(fun i -> from_external_expr i))
+  | Iter(f, init, k) ->
+    let e = from_external_expr init in
+    List.fold (List.init k ~f:(fun _ -> ()))  ~init:e
+      ~f:(fun acc _ -> FuncCall(f, [acc]))
 
 let rec from_external_func (f: ExternalGrammar.func) : func =
   {name = f.name; args = f.args; body = from_external_expr f.body}
