@@ -58,7 +58,7 @@ expr:
     | FLIP LPAREN FLOAT_LIT RPAREN { Flip($3) }
     | OBSERVE expr { Observe($2) }
     | IF expr THEN expr ELSE expr { Ite($2, $4, $6) }
-    | ITERATE LPAREN ID expr INT_LIT RPAREN { Iter($3, $4, $5) }
+    | ITERATE LPAREN id=ID COMMA e=expr COMMA k=INT_LIT RPAREN { Iter(id, e, k) }
     | LET ID EQUAL expr IN expr { Let($2, $4, $6) }
 
 typ:
