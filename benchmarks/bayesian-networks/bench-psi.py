@@ -16,8 +16,5 @@ for subdir, dirs, files in os.walk(rootdir):
     for f in files:
         ext = os.path.splitext(f)[-1].lower()
         if ext in extensions:
-            try:
-                output = subprocess.run('timeout 180m (time (psi %s))' % (f), shell=True, stderr=subprocess.STDOUT, timeout=10)
-                output = subprocess.run('time 180m ((psi --dp %s))' % (f), shell=True, stderr=subprocess.STDOUT, timeout=10)
-            except: ()
-            break
+            output = subprocess.run('timeout 180m (time (psi %s))' % (f), shell=True, stderr=subprocess.STDOUT)
+            output = subprocess.run('time 180m ((psi --dp %s))' % (f), shell=True, stderr=subprocess.STDOUT)
