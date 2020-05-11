@@ -4,4 +4,4 @@ let E = if ((A == int(3, 0))) then (if ((S == int(2, 0))) then (discrete(0.75000
 let R = if ((E == int(2, 0))) then (discrete(0.250000,0.750000)) else (discrete(0.200000,0.800000)) in
 let O = if ((E == int(2, 0))) then (discrete(0.960000,0.040000)) else (discrete(0.920000,0.080000)) in
 let T = if ((O == int(2, 0))) then (if ((R == int(2, 0))) then (discrete(0.480000,0.420000,0.100000)) else (discrete(0.580000,0.240000,0.180000))) else (if ((R == int(2, 0))) then (discrete(0.560000,0.360000,0.080000)) else (discrete(0.700000,0.210000,0.090000))) in
-let obs = observe ((int(3, 0) == T) || ((int(2, 0) == O) || ((int(2, 0) == R) || ((int(2, 0) == E) || ((int(2, 0) == S) || (int(3, 0) == A)))))) in A
+T

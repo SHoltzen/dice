@@ -1,5 +1,7 @@
 import os
 import subprocess
+from multiprocessing import Pool
+
 
 rootdir = '.'
 extensions = ('.psi')
@@ -16,5 +18,8 @@ for subdir, dirs, files in os.walk(rootdir):
     for f in files:
         ext = os.path.splitext(f)[-1].lower()
         if ext in extensions:
-            output = subprocess.run('timeout 180m (time (psi %s))' % (f), shell=True, stderr=subprocess.STDOUT)
-            output = subprocess.run('time 180m ((psi --dp %s))' % (f), shell=True, stderr=subprocess.STDOUT)
+            output = subprocess.run('time psi %s; echo %s' % (f, f), shell=True, stderr=subprocess.STDOUT)
+            output = subprocess.run('time psi --dp %s' % (f), shell=True, stderr=subprocess.STDOUT)
+
+time.sleep(10800)
+os.sys('pkill psi')
