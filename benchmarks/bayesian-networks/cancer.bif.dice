@@ -1,6 +1,6 @@
 let Pollution = discrete(0.500000,0.400000,0.100000) in
-let Smoker = flip 0.300000 in
-let Cancer = if ((Pollution == int(3, 0))) then (if (Smoker) then (flip 0.030000) else (flip 0.001000)) else (if ((Pollution == int(3, 1))) then (if (Smoker) then (flip 0.030000) else (flip 0.001000)) else (if (Smoker) then (flip 0.050000) else (flip 0.020000))) in
-let Dyspnoea = if (Cancer) then (flip 0.650000) else (flip 0.300000) in
-let Xray = if (Cancer) then (flip 0.900000) else (flip 0.200000) in
-(Xray && (Dyspnoea && (Cancer && (Smoker && Pollution))))
+let Smoker = discrete(0.300000,0.700000) in
+let Cancer = if ((Pollution == int(3, 0))) then (if ((Smoker == int(2, 0))) then (discrete(0.030000,0.970000)) else (discrete(0.001000,0.999000))) else (if ((Pollution == int(3, 1))) then (if ((Smoker == int(2, 0))) then (discrete(0.030000,0.970000)) else (discrete(0.001000,0.999000))) else (if ((Smoker == int(2, 0))) then (discrete(0.050000,0.950000)) else (discrete(0.020000,0.980000)))) in
+let Dyspnoea = if ((Cancer == int(2, 0))) then (discrete(0.650000,0.350000)) else (discrete(0.300000,0.700000)) in
+let Xray = if ((Cancer == int(2, 0))) then (discrete(0.900000,0.100000)) else (discrete(0.200000,0.800000)) in
+let obs = observe ((int(2, 0) == Xray) || ((int(2, 0) == Dyspnoea) || ((int(2, 0) == Cancer) || ((int(2, 0) == Smoker) || (int(3, 0) == Pollution))))) in Pollution
