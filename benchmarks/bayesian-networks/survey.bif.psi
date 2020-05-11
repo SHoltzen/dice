@@ -1,11 +1,8 @@
 def main(){A := 0; A = categorical([0.300000,0.500000,0.200000]);
 S := 0; S = flip(0.600000);
-E := 0; if(A == 2) { if (S) { E = flip(0.750000); } else { E = flip(0.640000); } } else {}
-if(A == 1) { if (S) { E = flip(0.720000); } else { E = flip(0.700000); } } else {}
-if(A == 0) { if (S) { E = flip(0.880000); } else { E = flip(0.900000); } } else {}
-
+E := 0; if (A == 0) { if (S) { E = flip(0.750000); } else { E = flip(0.640000); } } else { if (A == 1) { if (S) { E = flip(0.720000); } else { E = flip(0.700000); } } else { if (S) { E = flip(0.880000); } else { E = flip(0.900000); } } }
 R := 0; if (E) { R = flip(0.250000); } else { R = flip(0.200000); }
 O := 0; if (E) { O = flip(0.960000); } else { O = flip(0.920000); }
 T := 0; if (O) { if (R) { T = categorical([0.480000,0.420000,0.100000]); } else { T = categorical([0.580000,0.240000,0.180000]); } } else { if (R) { T = categorical([0.560000,0.360000,0.080000]); } else { T = categorical([0.700000,0.210000,0.090000]); } }
-return (T,(O,(R,(E,(S,A)))));
+return (T && (O && (R && (E && (S && A)))));
 }

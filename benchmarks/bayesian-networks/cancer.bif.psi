@@ -1,0 +1,7 @@
+def main(){Pollution := 0; Pollution = categorical([0.500000,0.400000,0.100000]);
+Smoker := 0; Smoker = flip(0.300000);
+Cancer := 0; if (Pollution == 0) { if (Smoker) { Cancer = flip(0.030000); } else { Cancer = flip(0.001000); } } else { if (Pollution == 1) { if (Smoker) { Cancer = flip(0.030000); } else { Cancer = flip(0.001000); } } else { if (Smoker) { Cancer = flip(0.050000); } else { Cancer = flip(0.020000); } } }
+Dyspnoea := 0; if (Cancer) { Dyspnoea = flip(0.650000); } else { Dyspnoea = flip(0.300000); }
+Xray := 0; if (Cancer) { Xray = flip(0.900000); } else { Xray = flip(0.200000); }
+return (Xray && (Dyspnoea && (Cancer && (Smoker && Pollution))));
+}

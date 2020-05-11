@@ -30,7 +30,8 @@ let rec parse_and_print print_parsed print_info lexbuf =
       Format.printf "%s\t%f\n" (print_pretty typ) prob;
     );
   if print_info then Man.print_info compiled.ctx.man;
-  Format.printf "Final compiled size: %d\n" (VarState.state_size [compiled.body.state]);
+  Format.printf "Final compiled size: %d\n"
+    (VarState.state_size [compiled.body.state; VarState.Leaf(VarState.BddLeaf(compiled.body.z))]);
   Format.printf "Live: %d\n" (Man.get_node_count compiled.ctx.man)
 
 let command =

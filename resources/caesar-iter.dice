@@ -9,5 +9,5 @@ fun sendChar(arg: (int(4), int(4))) {
 // sample a uniform random key: A=0, B=1, C=2, D=3
 let key = discrete(0.25, 0.25, 0.25, 0.25) in
 // observe the ciphertext CCCC
-let tmp = iterate(sendChar, (key, int(4, 2)), 4) in
+let tmp = iterate(sendChar, (key, int(4, 2)), 3000) in
 key
