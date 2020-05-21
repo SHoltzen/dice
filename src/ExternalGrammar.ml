@@ -39,6 +39,7 @@ type eexpr =
   | Snd of eexpr
   | Tup of eexpr * eexpr
   | FuncCall of String.t * eexpr List.t
+  | Iter of String.t * eexpr * int
   | True
   | False
 [@@deriving sexp_of]

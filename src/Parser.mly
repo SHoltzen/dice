@@ -10,7 +10,7 @@
 %token LPAREN RPAREN
 %token IF THEN ELSE TRUE FALSE IN INT
 %token SEMICOLON COMMA COLON
-%token LET OBSERVE FLIP LBRACE RBRACE FST SND FUN BOOL
+%token LET OBSERVE FLIP LBRACE RBRACE FST SND FUN BOOL ITERATE
 
 %token <int>    INT_LIT
 %token <float>  FLOAT_LIT
@@ -58,6 +58,7 @@ expr:
     | FLIP LPAREN FLOAT_LIT RPAREN { Flip($3) }
     | OBSERVE expr { Observe($2) }
     | IF expr THEN expr ELSE expr { Ite($2, $4, $6) }
+    | ITERATE LPAREN id=ID COMMA e=expr COMMA k=INT_LIT RPAREN { Iter(id, e, k) }
     | LET ID EQUAL expr IN expr { Let($2, $4, $6) }
 
 typ:

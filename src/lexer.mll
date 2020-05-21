@@ -55,6 +55,7 @@ rule token =
     | "fst"                     { FST }
     | "snd"                     { SND }
     | "in"                      { IN }
+    | "iterate"                 { ITERATE }
     | "observe"                 { OBSERVE }
     | "flip"                    { FLIP }
     | "fun"                     { FUN }
