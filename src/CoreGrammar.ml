@@ -105,6 +105,8 @@ let within_epsilon x y =
   (Float.compare (Float.abs (x -. y)) 0.000001) < 0
   (* Float.abs  < 0.000001 *)
 
+let flip_id = ref 1
+
 let rec from_external_expr (e: ExternalGrammar.eexpr) : expr =
   match e with
   | And(e1, e2) ->
@@ -305,8 +307,10 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
   | Flip(f) ->
     let new_f = Bdd.newvar ctx.man in
     let var_lbl = Bdd.topvar new_f in
+    let var_name = (Format.sprintf "f%d" !flip_id) in
+    flip_id := !flip_id + 1;
     Hashtbl.Poly.add_exn ctx.weights var_lbl (1.0-.f, f);
-    Hashtbl.add_exn ctx.name_map var_lbl (Format.sprintf "f%f" f);
+    Hashtbl.add_exn ctx.name_map var_lbl var_name;
     {state=Leaf(BddLeaf(new_f)); z=Bdd.dtrue ctx.man; flips=[new_f]}
 
   | Observe(g) ->
@@ -412,7 +416,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     {state=Leaf(BddLeaf(!cur)); z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips}
 
   | Plus(e1, e2) -> binop_helper e1 e2 (fun sz a b -> (a + b) mod sz)
-  | Minus(e1, e2) -> binop_helper e1 e2 (fun sz a b -> abs ((a - b) mod sz))
+  | Minus(e1, e2) -> binop_helper e1 e2 (fun sz a b ->  (a + sz - b) mod sz)
   | Mult(e1, e2) -> binop_helper e1 e2 (fun sz a b -> ((a * b) mod sz))
   | Div(e1, e2) -> binop_helper e1 e2 (fun sz a b -> (a / b))
 
