@@ -28,6 +28,15 @@ let rec map_tree (s:'a btree) (f: 'a -> 'b) : 'b btree =
   | Leaf(bdd) -> Leaf(f bdd)
   | Node(l, r) -> Node(map_tree l f, map_tree r f)
 
+
+let rec iter_tree (s:'a btree) (f: 'a -> unit) =
+  match s with
+  | Leaf(bdd) -> f bdd
+  | Node(l, r) ->
+    iter_tree l f;
+    iter_tree r f
+
+
 (** Applies `f` to each BDD in `s` *)
 let rec map_bddtree (s:varstate btree) (f: Bdd.dt -> Bdd.dt) : varstate btree =
   match s with

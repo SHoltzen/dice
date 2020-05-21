@@ -26,7 +26,8 @@ cd mlcuddidil
 
 Once the dependencies are installed, the following build commands are available:
 
-* `make`: builds the `Dice.native` file which is used to evaluate `dice` programs.
+* `make`: builds the `Dice.native` file which is used to evaluate `dice`
+  programs. Run `Dice.native --help` to see options for running `dice`.
 * `make test`: builds the test suite `Test.native`. It is recommended that you build
   and run this test suite to guarantee that your system is properly configured.
 * `make bench`: builds the benchmark suite `Run_bench.native`, which times how long it takes

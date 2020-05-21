@@ -201,6 +201,25 @@ let test_caesar _ =
     key == int(4, 0)" in
   assert_feq 0.25 (parse_and_prob prog)
 
+let test_caesar_iterate _ =
+  let prog = "
+fun sendChar(arg: (int(4), int(4))) {
+  let key = fst arg in
+  let observation = snd arg in
+  let gen = discrete(0.5, 0.25, 0.125, 0.125) in    // sample a FooLang character
+  let enc = key + gen in                            // encrypt the character
+  let tmp = observe observation == enc in
+  (key, observation + int(4, 1))
+}
+// sample a uniform random key: A=0, B=1, C=2, D=3
+let key = discrete(0.25, 0.25, 0.25, 0.25) in
+// observe the ciphertext CCCC
+let tmp = iterate(sendChar, (key, int(4, 2)), 4) in
+key == int(4, 0)
+" in
+  assert_feq 0.25 (parse_and_prob prog)
+
+
 let test_burglary _ =
   let prog = "
     let burglary = flip 0.001 in
@@ -254,7 +273,6 @@ let test_double_flip _ =
     " in
   assert_feq 0.25 (parse_and_prob prog)
 
-
 let test_typecheck_1 _ =
   let prog = "
     let c1 = discrete(0.1, 0.4, 0.5) in
@@ -263,15 +281,12 @@ let test_typecheck_1 _ =
     " in
   assert_feq 1.0 (parse_and_prob prog)
 
-
 let test_mod_sub _ =
   let prog = "
-    let c1 = flip 0.5 in
-    let c2 = flip 0.5 in
-    c1 && c2
-    " in
-  assert_feq 0.25 (parse_and_prob prog)
-
+    let c1 = int(3, 0) in
+    let c2 = int(3, 1) in
+    (c1 - c2) == int(3, 2)" in
+  assert_feq 1.0 (parse_and_prob prog)
 
 let test_coin _ =
   (* equivalent psi program:
@@ -305,6 +320,9 @@ let candy = s2 >= int(51, 15) in
 let tmp = observe candy in
 coin1 == int(51, 10)
 " in assert_feq 0.45 (parse_and_prob prog)
+
+
+
 
 
 let expression_tests =
@@ -352,6 +370,7 @@ let expression_tests =
   "test_burglary">::test_burglary;
   "test_double_flip">::test_double_flip;
   "test_typecheck">::test_typecheck_1;
+  "test_caesar_iterate">::test_caesar_iterate;
 ]
 
 let () =
