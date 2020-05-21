@@ -1,0 +1,25 @@
+def ladder(i1, i2) {
+    if i1 {
+        output := flip(0.5);
+        fail := flip(0.001);
+        if fail {
+            return (false, false);
+        } else {
+            return (output, !output)
+        }
+    } else if i2{
+        output := flip(0.5);
+        return (output, !output)
+    } else {
+        return (false, false);
+    }
+}
+
+def main() {
+    (r1, l1) := ladder(true, false);
+    for x in [0..750) {
+        (r1, l1) = ladder(r1, l1);
+    }
+    return r1;
+}
+

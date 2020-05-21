@@ -246,6 +246,33 @@ let test_alarm _ =
   let prog = In_channel.read_all "resources/alarm_test.dice" in
   assert_feq 0.281037656 (parse_and_prob prog)
 
+let test_double_flip _ =
+  let prog = "
+    let c1 = flip 0.5 in
+    let c2 = flip 0.5 in
+    c1 && c2
+    " in
+  assert_feq 0.25 (parse_and_prob prog)
+
+
+let test_typecheck_1 _ =
+  let prog = "
+    let c1 = discrete(0.1, 0.4, 0.5) in
+    let c2 = int(3, 1) in
+    (c1 == c2) || (c1 != c2)
+    " in
+  assert_feq 1.0 (parse_and_prob prog)
+
+
+let test_mod_sub _ =
+  let prog = "
+    let c1 = flip 0.5 in
+    let c2 = flip 0.5 in
+    c1 && c2
+    " in
+  assert_feq 0.25 (parse_and_prob prog)
+
+
 let test_coin _ =
   (* equivalent psi program:
 def main() {
@@ -323,6 +350,8 @@ let expression_tests =
   "test_alarm">::test_alarm;
   "test_coin">::test_coin;
   "test_burglary">::test_burglary;
+  "test_double_flip">::test_double_flip;
+  "test_typecheck">::test_typecheck_1;
 ]
 
 let () =

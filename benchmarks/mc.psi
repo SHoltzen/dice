@@ -1,0 +1,12 @@
+def main() {
+    r1 := true;
+    for x in [0..1000) {
+        if r1 {
+           r1 = flip(0.13);
+        } else {
+           r1 = flip(0.77);
+        }
+    }
+    return r1;
+}
+
