@@ -8,7 +8,13 @@ open Passes
 open Parser
 
 
-let rec parse_and_print print_parsed print_info print_size skip_table print_marginals lexbuf =
+let get_lexing_position lexbuf =
+  let p = Lexing.lexeme_start_p lexbuf in
+  let line_number = p.Lexing.pos_lnum in
+  let column = p.Lexing.pos_cnum - p.Lexing.pos_bol + 1 in
+  (line_number, column)
+
+let rec parse_and_print print_parsed print_info print_size skip_table print_marginals lexbuf = try
   let parsed = Util.parse_with_error lexbuf in
   if print_parsed then Format.printf "==========Parsed program==========\n%s\n" (ExternalGrammar.string_of_prog parsed);
   let compiled = compile_program (from_external_prog parsed) in
@@ -20,8 +26,8 @@ let rec parse_and_print print_parsed print_info print_size skip_table print_marg
        let prob = (Wmc.wmc (Bdd.dand bdd zbdd) compiled.ctx.weights) /. z in
        (label, prob)) in
    Format.printf "==========Joint Distribution==========\n";
-    Format.printf "Value\tProbability\n";
-    List.iter probs ~f:(fun (typ, prob) ->
+   Format.printf "Value\tProbability\n";
+   List.iter probs ~f:(fun (typ, prob) ->
          let rec print_pretty e =
            match e with
            | `Int(sz, v) -> string_of_int v
@@ -49,7 +55,9 @@ let rec parse_and_print print_parsed print_info print_size skip_table print_marg
        ));
   if print_info then (Format.printf "==========BDD Manager Info=========="; Man.print_info compiled.ctx.man);
   if print_size then (Format.printf "==========Final compiled BDD size: %d\n=========="
-      (VarState.state_size [compiled.body.state; VarState.Leaf(VarState.BddLeaf(compiled.body.z))]))
+                        (VarState.state_size [compiled.body.state; VarState.Leaf(VarState.BddLeaf(compiled.body.z))]))
+  with Util.Syntax_error(s) -> Format.printf "Syntax error: %s" s
+
 
 let command =
   Command.basic

@@ -1,11 +1,9 @@
 build:
-	ocamlbuild -use-ocamlfind -use-menhir  src/Dice.native
+	ocamlbuild -use-ocamlfind src/Dice.native
 clean:
 	ocamlbuild -clean
 bench:
-	ocamlbuild -use-ocamlfind -use-menhir src/Run_bench.native
+	ocamlbuild -use-ocamlfind src/Run_bench.native
 test:
-	ocamlbuild -use-ocamlfind -use-menhir src/Test.native
-top:
-	ocamlbuild -classic-display -no-links -use-ocamlfind -tag thread -pkg threads,utop myutop.top
+	ocamlbuild -use-ocamlfind src/Test.native
 
