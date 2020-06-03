@@ -1,0 +1,3 @@
+description = "The Dice probabilistic programming language"
+version = "dev"
+archive(native) = "Dice.native"
