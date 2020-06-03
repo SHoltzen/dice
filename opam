@@ -18,5 +18,4 @@ depends: [
   "camlidl"
 ]
 build: make
-install: [make "install"]
 dev-repo: "git+https://github.com/SHoltzen/dice.git"
