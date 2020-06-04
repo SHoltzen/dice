@@ -8,13 +8,18 @@ license: "APACHE2.0"
 depends: [
   "menhir" {>= "20200211"}
   "core" {>= "v0.13.0"}
-  "mlcuddidl" 
+  "mlcuddidl"
   "ounit2"
   "ppx_sexp_conv"
   "sexplib"
   "core_bench"
   "ppx_deriving"
 ]
+
+pin-depends: [
+  [ "mlcuddidl-dice" "git+https://github.com/SHoltzen/mlcuddidil.git" ]
+]
+
 build: [
   ["dune" "subst"] {pinned}
   ["dune" "build" "-p" name "-j" jobs]
