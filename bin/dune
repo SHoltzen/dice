@@ -1,5 +1,5 @@
 (executable
- (libraries core cudd sexplib menhirLib ounit diceLib)
+ (libraries core cudd sexplib menhirLib diceLib)
  (name dice)
  (preprocess (pps ppx_jane)))
 
