@@ -1,0 +1,29 @@
+opam-version: "2.0"
+name: "dice"
+version: "~dev"
+         synopsis: "The dice probabilistic programming language"
+maintainer: "Steven Holtzen <sholtzen@cs.ucla.edu>"
+authors: "Steven Holtzen <sholtzen@cs.ucla.edu>"
+license: "APACHE2.0"
+depends: [
+  "menhir" {>= "20200211"}
+  "core" {>= "v0.13.0"}
+  "mlcuddidl"
+  "ounit2"
+  "ppx_sexp_conv"
+  "sexplib"
+  "core_bench"
+  "ppx_deriving"
+]
+
+pin-depends: [
+  [ "mlcuddidl.dev" "git+https://github.com/SHoltzen/mlcuddidil.git" ]
+]
+
+build: [
+  ["dune" "subst"] {pinned}
+  ["dune" "build" "-p" name "-j" jobs]
+]
+
+
+dev-repo: "git+https://github.com/SHoltzen/dice.git"

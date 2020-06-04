@@ -1,40 +1,41 @@
+open DiceLib
 open OUnit2
 open Core
 open Util
 
-let test_1 test_ctx =
+let test_1 _ =
   let prog = "let x = flip 0.4 in x" in
   assert_feq 0.4 (parse_and_prob prog)
 
-let test_not test_ctx =
+let test_not _ =
   let prog = "let x = flip 0.4 in !x" in
   assert_feq 0.6 (parse_and_prob prog)
 
-let test_obs1 test_ctx =
+let test_obs1 _ =
   let prog = "let x = flip 0.4 in let y = flip 0.1 in let z = observe x || y in x" in
   assert_feq (0.4 /. 0.46) (parse_and_prob prog)
 
-let test_obs2 test_ctx =
+let test_obs2 _ =
   let prog = "let x = flip 0.4 in let y = flip 0.1 in let z = observe x || y in !x" in
   assert_feq (0.06 /. 0.46) (parse_and_prob prog)
 
-let test_tup1 test_ctx =
+let test_tup1 _ =
   let prog = "let x = (flip 0.1, flip 0.4) in snd x" in
   assert_feq 0.4 (parse_and_prob prog)
 
-let test_nestedtup test_ctx =
+let test_nestedtup _ =
   let prog = "let x = (flip 0.1, (flip 0.4, flip 0.7)) in fst (snd x)" in
   assert_feq 0.4 (parse_and_prob prog)
 
-let test_nestedtup2 test_ctx =
+let test_nestedtup2 _ =
   let prog = "let x = (flip 0.1, (flip 0.4, flip 0.7)) in ! fst (snd x)" in
   assert_feq 0.6 (parse_and_prob prog)
 
-let test_ite1 test_ctx =
+let test_ite1 _ =
   let prog = "if flip 0.4 then true else false" in
   assert_feq 0.4 (parse_and_prob prog)
 
-let test_ite2 test_ctx =
+let test_ite2 _ =
   let prog = "if flip 0.4 then flip 0.6 else false" in
   assert_feq 0.24 (parse_and_prob prog)
 
@@ -188,33 +189,33 @@ let test_fcall6 _ =
 
 let test_caesar _ =
   let prog = "
-    fun sendChar(key: int(4), observation: int(4)) {
+    fun sendchar(key: int(4), observation: int(4)) {
       let gen = discrete(0.5, 0.25, 0.125, 0.125) in
       let enc = key + gen in
       observe observation == enc
     }
     let key = discrete(0.25, 0.25, 0.25, 0.25) in
-    let tmp = sendChar(key, int(4, 0)) in
-    let tmp = sendChar(key, int(4, 1)) in
-    let tmp = sendChar(key, int(4, 2)) in
-    let tmp = sendChar(key, int(4, 3)) in
+    let tmp = sendchar(key, int(4, 0)) in
+    let tmp = sendchar(key, int(4, 1)) in
+    let tmp = sendchar(key, int(4, 2)) in
+    let tmp = sendchar(key, int(4, 3)) in
     key == int(4, 0)" in
   assert_feq 0.25 (parse_and_prob prog)
 
 let test_caesar_iterate _ =
   let prog = "
-fun sendChar(arg: (int(4), int(4))) {
+fun sendchar(arg: (int(4), int(4))) {
   let key = fst arg in
   let observation = snd arg in
-  let gen = discrete(0.5, 0.25, 0.125, 0.125) in    // sample a FooLang character
+  let gen = discrete(0.5, 0.25, 0.125, 0.125) in    // sample a foolang character
   let enc = key + gen in                            // encrypt the character
   let tmp = observe observation == enc in
   (key, observation + int(4, 1))
 }
-// sample a uniform random key: A=0, B=1, C=2, D=3
+// sample a uniform random key: a=0, b=1, c=2, d=3
 let key = discrete(0.25, 0.25, 0.25, 0.25) in
-// observe the ciphertext CCCC
-let tmp = iterate(sendChar, (key, int(4, 2)), 4) in
+// observe the ciphertext cccc
+let tmp = iterate(sendchar, (key, int(4, 2)), 4) in
 key == int(4, 0)
 " in
   assert_feq 0.25 (parse_and_prob prog)
@@ -233,36 +234,36 @@ let test_burglary _ =
   assert_feq 0.284172 (parse_and_prob prog)
 
 let test_alarm _ =
-  let prog = In_channel.read_all "benchmarks/baselines/alarm.dice" in
+  let prog = In_channel.read_all "../benchmarks/baselines/alarm.dice" in
   assert_feq (2969983.0 /. 992160802.0) (parse_and_prob prog)
 
 let test_murder _ =
-  let prog = In_channel.read_all "benchmarks/baselines/murderMystery.dice" in
+  let prog = In_channel.read_all "../benchmarks/baselines/murderMystery.dice" in
   assert_feq (9.0 /. 569.0) (parse_and_prob prog)
 
 let test_evidence1 _ =
-  let prog = In_channel.read_all "benchmarks/baselines/evidence1.dice" in
+  let prog = In_channel.read_all "../benchmarks/baselines/evidence1.dice" in
   assert_feq (1.0 /. 3.0) (parse_and_prob prog)
 
 let test_evidence2 _ =
-  let prog = In_channel.read_all "benchmarks/baselines/evidence2.dice" in
+  let prog = In_channel.read_all "../benchmarks/baselines/evidence2.dice" in
   assert_feq (2.0 /. 3.0) (parse_and_prob prog)
 
 let test_grass _ =
-  let prog = In_channel.read_all "benchmarks/baselines/grass.dice" in
+  let prog = In_channel.read_all "../benchmarks/baselines/grass.dice" in
   assert_feq (509.0 /. 719.0) (parse_and_prob prog)
 
 let test_cancer _ =
-  let prog = In_channel.read_all "resources/cancer_test.dice" in
+  let prog = In_channel.read_all "../resources/cancer_test.dice" in
   assert_feq (42709.0 /. 200000.0) (parse_and_prob prog)
 
 let test_caesar_2 _ =
-  let prog = In_channel.read_all "resources/caesar_test.dice" in
+  let prog = In_channel.read_all "../resources/caesar_test.dice" in
   assert_feq  (1113032.0 /. 315312455.0) (parse_and_prob prog)
 
 let test_alarm _ =
-  (* the correct answer here is from Ace *)
-  let prog = In_channel.read_all "resources/alarm_test.dice" in
+  (* the correct answer here is from ace *)
+  let prog = In_channel.read_all "../resources/alarm_test.dice" in
   assert_feq 0.281037656 (parse_and_prob prog)
 
 let test_double_flip _ =

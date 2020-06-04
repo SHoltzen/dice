@@ -50,8 +50,8 @@ type func = { name: String.t; args: arg List.t; body: eexpr}
 type program = { functions: func List.t; body: eexpr }
 [@@deriving sexp_of]
 
-let rec string_of_eexpr e =
+let string_of_eexpr e =
   Sexp.to_string_hum (sexp_of_eexpr e)
 
-let rec string_of_prog e =
+let string_of_prog e =
   Sexp.to_string_hum (sexp_of_program e)

@@ -11,11 +11,11 @@ let dump_dot (m: name_map) (b:Bdd.dt) =
     | Some(v) -> v
     | None when Bdd.is_true b ->
       Format.printf "T [shape=box, label=T]\n";
-      Hashtbl.Poly.add_exn seen b "T";
+      Hashtbl.Poly.add_exn seen ~key:b ~data:"T";
       "T"
     | None when Bdd.is_false b ->
       Format.printf "F [shape=box, label=F]\n";
-      Hashtbl.Poly.add_exn seen b "F";
+      Hashtbl.Poly.add_exn seen ~key:b ~data:"F";
       "F"
     | None ->
       (* variable node*)
@@ -33,6 +33,6 @@ let dump_dot (m: name_map) (b:Bdd.dt) =
       Format.printf "%s -> %s\n%s -> %s [style=dashed]\n" name s_thn name s_els;
       name in
   Format.printf "digraph D {\n";
-  let _ = dump_dot_h m b (Hashtbl.Poly.create ()) in
+  let _ : String.t = dump_dot_h m b (Hashtbl.Poly.create ()) in
   Format.printf "}"
 

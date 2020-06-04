@@ -1,3 +1,4 @@
+open DiceLib
 open Core
 open Cudd
 open Wmc
