@@ -15,8 +15,8 @@ see the research article [here](https://arxiv.org/abs/2005.09089). To cite
 # Installation
 
 First install `opam` (version 2.0 or higher) following the instructions
-[here](https://opam.ocaml.org/doc/Install.html). Then, install the following
-dependencies from `opam`:
+[here](https://opam.ocaml.org/doc/Install.html). Then, run the following in your
+terminal:
 
 ```
 opam init   # must be performed before installing opam packages
