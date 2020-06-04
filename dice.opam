@@ -8,7 +8,7 @@ license: "APACHE2.0"
 depends: [
   "menhir" {>= "20200211"}
   "core" {>= "v0.13.0"}
-  "mlcuddidl" { "git+https://github.com/SHoltzen/mlcuddidil.git" }
+  "mlcuddidl" { "git+https://github.com/SHoltzen/mlcddidil.git" }
   "ounit2"
   "ppx_sexp_conv"
   "sexplib"
