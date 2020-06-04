@@ -1,0 +1,26 @@
+def diamondnetwork(i1) {
+    if(!i1) {
+            return false;
+    }
+    i2 := flip(0.5);
+    i3 := !i2;
+    if i2 {
+       fail := flip(0.0001);
+       if fail {
+          return false;
+       } else {
+         return true;
+       }
+    } else {
+      return true;
+    }
+}
+
+def main() {
+    r1 := diamondnetwork(true);
+    for x in [0..10) {
+        r1 := diamondnetwork(r1);
+    }
+    return r1;
+}
+

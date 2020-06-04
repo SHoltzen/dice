@@ -1,0 +1,21 @@
+opam-version: "2.0"
+name: "dice"
+version: "~dev"
+         synopsis: "The dice probabilistic programming language"
+maintainer: "Steven Holtzen <sholtzen@cs.ucla.edu>"
+authors: "Steven Holtzen <sholtzen@cs.ucla.edu>"
+license: "APACHE2.0"
+homepage: ""
+bug-reports: ""
+depends: [
+  "menhir" {>= "20200211"}
+  "core" {>= "v0.13.0"}
+  "ounit"
+  "ppx_sexp_conv"
+  "sexplib"
+  "core_bench"
+  "ppx_deriving"
+  "camlidl"
+]
+build: make
+dev-repo: "git+https://github.com/SHoltzen/dice.git"

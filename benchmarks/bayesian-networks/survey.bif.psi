@@ -1,0 +1,8 @@
+def main(){A := 0; A = categorical([0.300000,0.500000,0.200000]);
+S := 0; S = categorical([0.600000,0.400000]);
+E := 0; if (A == 0) { if (S == 0) { E = categorical([0.750000,0.250000]); } else { E = categorical([0.640000,0.360000]); } } else { if (A == 1) { if (S == 0) { E = categorical([0.720000,0.280000]); } else { E = categorical([0.700000,0.300000]); } } else { if (S == 0) { E = categorical([0.880000,0.120000]); } else { E = categorical([0.900000,0.100000]); } } }
+R := 0; if (E == 0) { R = categorical([0.250000,0.750000]); } else { R = categorical([0.200000,0.800000]); }
+O := 0; if (E == 0) { O = categorical([0.960000,0.040000]); } else { O = categorical([0.920000,0.080000]); }
+T := 0; if (O == 0) { if (R == 0) { T = categorical([0.480000,0.420000,0.100000]); } else { T = categorical([0.580000,0.240000,0.180000]); } } else { if (R == 0) { T = categorical([0.560000,0.360000,0.080000]); } else { T = categorical([0.700000,0.210000,0.090000]); } }
+return T;
+}

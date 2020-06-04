@@ -1,36 +1,42 @@
-`Dice` is a probabilistic programming language focused on *fast exact inference*
-for *discrete* probabilistic programs.
+`dice` is a probabilistic programming language focused on *fast exact inference*
+for *discrete* probabilistic programs. For more information for how `dice` works
+see the research article [here](https://arxiv.org/abs/2005.09089). To cite
+`dice`, please use:
+```
+@article{holtzen2020dice,
+  title={Dice: Compiling Discrete Probabilistic Programs for Scalable Inference},
+  author={Holtzen, Steven and Broeck, Guy Van den and Millstein, Todd},
+  journal={arXiv preprint arXiv:2005.09089},
+  year={2020}
+}
+```
+
 
 # Installation
 
-First install `OCaml` and `opam`:
-
-* On Ubuntu (19.10), use `apt-get install ocaml ocamlbuild opam m4`.
-* On Mac, Homebrew contains the necessary packages: `brew install ocaml opam`.
-
-Then, install the following dependencies from `opam`:
+First install `opam` (version 2.0 or higher) following the instructions
+[here](https://opam.ocaml.org/doc/Install.html). Then, run the following in your
+terminal:
 
 ```
 opam init   # must be performed before installing opam packages
 eval `opam config env`     # optional: add this line to your .bashrc
-opam install ounit core ppx_sexp_conv sexplib core_bench menhir ppx_deriving camlidl
+opam install . --yes
 ```
 
-Next, install the BDD library `mlcuddidl` (by cloning into a separate directory):
+This command will download the necessary dependencies and place the `dice` and
+`dicebench` executables in your path. (If they are not found, try evaluating `opam
+config env` again).
 
-```
-git clone git@github.com:SHoltzen/mlcuddidil.git
-cd mlcuddidil
-./configure && make && make install
-```
+## Building 
 
-Once the dependencies are installed, the following build commands are available:
+First follow the steps for installation. Then, the following build commands are
+available:
 
-* `make`: builds the `Dice.native` file which is used to evaluate `dice` programs.
-* `make test`: builds the test suite `Test.native`. It is recommended that you build
-  and run this test suite to guarantee that your system is properly configured.
-* `make bench`: builds the benchmark suite `Run_bench.native`, which times how long it takes
-  to run each of the programs in the `benchmarks/` directory.
+* `dune build`: builds the project from source in the current directory.
+* `dune exec dice`: runs the `dice` executable.
+* `dune test`: runs the test suite
+* `dune exec dicebench`: runs the benchmark suite.
 
 # Quick Start 
 
@@ -40,7 +46,7 @@ coin `b` has a 80% chance of landing on heads. You flip both coins and observe
 that one of them lands heads-side up. What is the probability that 
 coin `a` landed heads-side up?
 
-We can encode this scenario in `Dice` as the following program:
+We can encode this scenario in `dice` as the following program:
 
 ```
 let a = flip 0.3 in 
@@ -49,7 +55,7 @@ let tmp = observe a || b in
 a
 ```
 
-The syntax of `Dice` is similar to OCaml. Breaking down the elements of this
+The syntax of `dice` is similar to OCaml. Breaking down the elements of this
 program:
 
 * The expression `let x = e1 in e2` creates a local variable `x` with value
@@ -58,15 +64,15 @@ program:
   probability 0.8. This is how we model our coin flips: a value of true 
   represents a coin landing heads-side up in this case.
 * The expression `observe a || b` conditions either `a` or `b` to be true. This
-  expression returns `true`. Dice supports logical conjunction (`||`),
+  expression returns `true`. `dice` supports logical conjunction (`||`),
   conjunction (`&&`), and negation (`!`).
 * The program returns `a`.
 
 You can find this program in `resources/example.dice`, and then you can run it
-by using the `Dice.native` executable:
+by using the `dice` executable:
 
 ```
-> ./Dice.native resources/example.dice
+> dice resources/example.dice
 Value	Probability
 true	0.348837
 false	0.651163
@@ -75,7 +81,7 @@ false	0.651163
 This output shows that `a` has a 34.8837% chance of landing on heads.
 
 ## Datatypes
-In addition to Booleans, `Dice` supports integers and tuples.
+In addition to Booleans, `dice` supports integers and tuples.
 
 ### Tuples
 
@@ -95,7 +101,7 @@ Breaking this program down:
 Running this program:
 
 ```
-> ./Dice.native resources/tuple-ex.dice
+> dice resources/tuple-ex.dice
 Value	Probability
 true	0.800000
 false	0.200000
@@ -103,7 +109,7 @@ false	0.200000
 
 ### Unsigned Integers
 
-`Dice` supports distributions over unsigned integers. An example program:
+`dice` supports distributions over unsigned integers. An example program:
 
 ```
 let x = discrete(0.4, 0.1, 0.5) in 
@@ -113,20 +119,20 @@ x + y
 
 Breaking this program down:
 
-* `discrete(0.4, 0.1, 0.3)` creates a random integer that is 0 with probability 0.4, 
+* `discrete(0.4, 0.1, 0.5)` creates a random integer that is 0 with probability 0.4, 
    1 with probability 0.1, and 2 with probability 0.3.
 * `int(3, 1)` creates an integer constant of size 3 and value 1. All integer
-  constants in `Dice` must specify their size (i.e., an integer of size 3
+  constants in `dice` must specify their size (i.e., an integer of size 3
   supports values between 0 and 2 inclusive).
-* `x + y` adds `x` and `y` together. All integer operations in `Dice` are
+* `x + y` adds `x` and `y` together. All integer operations in `dice` are
   performed modulo the size (i.e., `x + y` is implicitly modulo 3 in this
-  case). `Dice` supports the following integer operations: `+`, `*`, `/`, `-`, 
+  case). `dice` supports the following integer operations: `+`, `*`, `/`, `-`, 
   `==`, `!=`, `<`, `<=`, `>`, `>=`.
 
 Running this program:
 
 ```
-> ./Dice.native resources/int-ex.dice
+> dice resources/int-ex.dice
 Value	Probability
 0	0.500000
 1	0.400000
@@ -135,7 +141,7 @@ Value	Probability
 
 ## Functions
 
-`Dice` supports functions for reusing code. A key feature of `Dice` is that 
+`dice` supports functions for reusing code. A key feature of `dice` is that 
 functions are *compiled once and then reused* during inference.
 
 A simple example program:
@@ -167,7 +173,7 @@ false	0.950000
 
 ## Caesar Cipher
 
-Here is a more complicated example that shows how to use many `Dice` features
+Here is a more complicated example that shows how to use many `dice` features
 together to model a complicated problem.
 We will decrypt text that was
 encrypted using a [Caesar cipher](http://practicalcryptography.com/ciphers/caesar-cipher/). We can decrypt
@@ -185,9 +191,9 @@ text, using knowledge of the underlying frequency of letter usage. Initially we
 assume that all keys are equally likely. Then, we observe some encrypted text:
 say the string `CCCC`. Intuitively, the most likely key should be 2: since `A`
 is the most common letter, the string `CCCC` is most likely the encrypted string
-`AAAA`. Let's use `Dice` to model this.
+`AAAA`. Let's use `dice` to model this.
 
-The following program models this scenario in `Dice`:
+The following program models this scenario in `dice`:
 
 ```
 fun sendChar(key: int(4), observation: int(4)) {
@@ -220,7 +226,7 @@ Next, in the main program body, we sample a uniform random key and encrypt the
 string `CCCC`. Running this program:
 
 ```
-> ./Dice.native resources/caesar-ex.dice
+> dice resources/caesar-ex.dice
 Value	Probability
 0	0.003650
 1	0.058394
@@ -232,16 +238,16 @@ This matches our intuition that `2` is the most likely key.
 
 ## More Examples
 
-More example `Dice` programs can be found in the source directories:
+More example `dice` programs can be found in the source directories:
 
-* The `src/Tests.ml` file contains many test case programs.
+* The `test/Test.ml` file contains many test case programs.
 * The `benchmarks/` directory contains example programs that are run during
   benchmarks.
 
 # Syntax
 
-The parser for `Dice` is written in [menhir](http://gallium.inria.fr/~fpottier/menhir/) and can be found in `src/Parser.mly`. The
-complete syntax for `Dice` in is:
+The parser for `dice` is written in [menhir](http://gallium.inria.fr/~fpottier/menhir/) and can be found in `lib/Parser.mly`. The
+complete syntax for `dice` in is:
 
 ```
 ident := ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*

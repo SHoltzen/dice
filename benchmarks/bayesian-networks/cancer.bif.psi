@@ -1,0 +1,7 @@
+def main(){Pollution := 0; Pollution = categorical([0.500000,0.400000,0.100000]);
+Smoker := 0; Smoker = categorical([0.300000,0.700000]);
+Cancer := 0; if (Pollution == 0) { if (Smoker == 0) { Cancer = categorical([0.030000,0.970000]); } else { Cancer = categorical([0.001000,0.999000]); } } else { if (Pollution == 1) { if (Smoker == 0) { Cancer = categorical([0.030000,0.970000]); } else { Cancer = categorical([0.001000,0.999000]); } } else { if (Smoker == 0) { Cancer = categorical([0.050000,0.950000]); } else { Cancer = categorical([0.020000,0.980000]); } } }
+Dyspnoea := 0; if (Cancer == 0) { Dyspnoea = categorical([0.650000,0.350000]); } else { Dyspnoea = categorical([0.300000,0.700000]); }
+Xray := 0; if (Cancer == 0) { Xray = categorical([0.900000,0.100000]); } else { Xray = categorical([0.200000,0.800000]); }
+return Xray;
+}
