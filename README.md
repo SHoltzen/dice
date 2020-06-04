@@ -1,5 +1,16 @@
 `dice` is a probabilistic programming language focused on *fast exact inference*
-for *discrete* probabilistic programs.
+for *discrete* probabilistic programs. For more information for how `dice` works
+see the research article [here](https://arxiv.org/abs/2005.09089). To cite
+`dice`, please use:
+```
+@article{holtzen2020dice,
+  title={Dice: Compiling Discrete Probabilistic Programs for Scalable Inference},
+  author={Holtzen, Steven and Broeck, Guy Van den and Millstein, Todd},
+  journal={arXiv preprint arXiv:2005.09089},
+  year={2020}
+}
+```
+
 
 # Installation
 
