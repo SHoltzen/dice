@@ -21,7 +21,7 @@ terminal:
 ```
 opam init   # must be performed before installing opam packages
 eval `opam config env`     # optional: add this line to your .bashrc
-opam install . --ignore-pin-depends
+opam install . --yes
 ```
 
 This command will download the necessary dependencies and place the `dice` and
