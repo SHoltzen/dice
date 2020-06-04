@@ -1,4 +1,5 @@
+(data_only_dirs benchmarks)
+
 (env
   (dev
     (flags (:standard -warn-error -A))))
-

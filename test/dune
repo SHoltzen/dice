@@ -1,4 +1,3 @@
-(copy_files ../resources/*)
 
 (test
   (name test)
