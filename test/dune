@@ -2,7 +2,7 @@
 
 (test
   (name test)
-  (libraries diceLib oUnit)
+  (libraries diceLib ounit)
   (deps "../resources/alarm_test.dice"
         "../resources/cancer_test.dice"
         "../resources/caesar_test.dice"
