@@ -17,5 +17,10 @@ depends: [
   "ppx_deriving"
   "camlidl"
 ]
-build: make
+build: [
+  ["dune" "subst"] {pinned}
+  ["dune" "build" "-p" name "-j" jobs]
+]
+
+
 dev-repo: "git+https://github.com/SHoltzen/dice.git"
