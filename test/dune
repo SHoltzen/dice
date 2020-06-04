@@ -1,0 +1,15 @@
+(copy_files ../resources/*)
+
+(test
+  (name test)
+  (libraries diceLib oUnit)
+  (deps "../resources/alarm_test.dice"
+        "../resources/cancer_test.dice"
+        "../resources/caesar_test.dice"
+        "../benchmarks/baselines/alarm.dice"
+        "../benchmarks/baselines/murderMystery.dice"
+        "../benchmarks/baselines/evidence1.dice"
+        "../benchmarks/baselines/evidence2.dice"
+        "../benchmarks/baselines/grass.dice"
+        )
+ )

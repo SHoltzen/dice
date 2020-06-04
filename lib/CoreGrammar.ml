@@ -511,10 +511,10 @@ let print_discrete p =
   let c = compile_program p in
   let discrete = extract_discrete c.body.state in
   let z = Wmc.wmc c.body.z c.ctx.weights in
-  let _ = List.mapi discrete ~f:(fun i itm ->
+  List.iteri discrete ~f:(fun i itm ->
       let prob = Wmc.wmc (Bdd.dand itm c.body.z) c.ctx.weights in
       Format.printf "%d\t%f\n" i (prob /. z);
-    ) in ()
+    )
 
 (** prints the joint probability distribution as a TSV *)
 let get_table p =
