@@ -22,7 +22,7 @@ let rec parse_and_print lexbuf =
   let probs = List.map table ~f:(fun (label, bdd) ->
       let prob = (Wmc.wmc (Bdd.dand bdd zbdd) compiled.ctx.weights) /. z in
       (label, prob)) in
-  Format.printf "Value\tProbability\n";
+  (* Format.printf "Value\tProbability\n"; *)
   (* let rec top i lst acc =
     match lst with
     | [] -> List.rev acc
@@ -33,7 +33,7 @@ let rec parse_and_print lexbuf =
         top (i - 1) tail (head::acc)
   in
   let top_three = top 3 (List.sort (fun (l1, p1) (l2, p2) -> if p1 > p2 then -1 else if p1 < p2 then 1 else 0) probs) [] in *)
-  List.iter probs ~f:(fun (typ, prob) ->
+  (* List.iter probs ~f:(fun (typ, prob) ->
       let rec print_pretty e =
         match e with
         | `Int(sz, v) -> string_of_int v
@@ -42,7 +42,7 @@ let rec parse_and_print lexbuf =
         | `Tup(l, r) -> Format.sprintf "(%s, %s)" (print_pretty l) (print_pretty r)
         | _ -> failwith "ouch" in
       Format.printf "%s\t%f\n" (print_pretty typ) prob;
-    );
+    ); *)
   Format.printf "Final compiled size: %d\n" (VarState.state_size [compiled.body.state])
   (* let prob = CoreGrammar.get_prob (CoreGrammar.from_external_prog parsed) in
    * Format.printf "prob: %f\n" prob *)

@@ -267,7 +267,6 @@ let test_burglary _ =
   assert_feq 0.284172 (parse_optimize_and_prob prog)
 
 let test_alarm _ =
-<<<<<<< HEAD:src/Test.ml
   let prog = In_channel.read_all "benchmarks/baselines/alarm.dice" in
   assert_feq (2969983.0 /. 992160802.0) (parse_and_prob prog);
   assert_feq (2969983.0 /. 992160802.0) (parse_optimize_and_prob prog)
@@ -307,39 +306,6 @@ let test_alarm _ =
   let prog = In_channel.read_all "resources/alarm_test.dice" in
   assert_feq 0.281037656 (parse_and_prob prog);
   assert_feq 0.281037656 (parse_optimize_and_prob prog)
-=======
-  let prog = In_channel.read_all "../benchmarks/baselines/alarm.dice" in
-  assert_feq (2969983.0 /. 992160802.0) (parse_and_prob prog)
-
-let test_murder _ =
-  let prog = In_channel.read_all "../benchmarks/baselines/murderMystery.dice" in
-  assert_feq (9.0 /. 569.0) (parse_and_prob prog)
-
-let test_evidence1 _ =
-  let prog = In_channel.read_all "../benchmarks/baselines/evidence1.dice" in
-  assert_feq (1.0 /. 3.0) (parse_and_prob prog)
-
-let test_evidence2 _ =
-  let prog = In_channel.read_all "../benchmarks/baselines/evidence2.dice" in
-  assert_feq (2.0 /. 3.0) (parse_and_prob prog)
-
-let test_grass _ =
-  let prog = In_channel.read_all "../benchmarks/baselines/grass.dice" in
-  assert_feq (509.0 /. 719.0) (parse_and_prob prog)
-
-let test_cancer _ =
-  let prog = In_channel.read_all "../resources/cancer_test.dice" in
-  assert_feq (42709.0 /. 200000.0) (parse_and_prob prog)
-
-let test_caesar_2 _ =
-  let prog = In_channel.read_all "../resources/caesar_test.dice" in
-  assert_feq  (1113032.0 /. 315312455.0) (parse_and_prob prog)
-
-let test_alarm _ =
-  (* the correct answer here is from ace *)
-  let prog = In_channel.read_all "../resources/alarm_test.dice" in
-  assert_feq 0.281037656 (parse_and_prob prog)
->>>>>>> 503dea1f0f4d4b7100dfd947c9c42d519286fc38:test/Test.ml
 
 let test_double_flip _ =
   let prog = "
