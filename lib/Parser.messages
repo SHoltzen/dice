@@ -1,0 +1,1375 @@
+program: DISCRETE LPAREN FLOAT_LIT COMMA TRUE
+##
+## Ends in an error in state: 52.
+##
+## separated_nonempty_list(COMMA,FLOAT_LIT) -> FLOAT_LIT COMMA . separated_nonempty_list(COMMA,FLOAT_LIT) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## FLOAT_LIT COMMA
+##
+
+Dangling 'discrete' declaration (did you forget a ')'?).
+
+program: DISCRETE LPAREN FLOAT_LIT TRUE
+##
+## Ends in an error in state: 51.
+##
+## separated_nonempty_list(COMMA,FLOAT_LIT) -> FLOAT_LIT . [ RPAREN ]
+## separated_nonempty_list(COMMA,FLOAT_LIT) -> FLOAT_LIT . COMMA separated_nonempty_list(COMMA,FLOAT_LIT) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## FLOAT_LIT
+##
+
+Dangling 'discrete' declaration (did you forget a ')'?).
+
+program: DISCRETE LPAREN TRUE
+##
+## Ends in an error in state: 50.
+##
+## expr -> DISCRETE LPAREN . loption(separated_nonempty_list(COMMA,FLOAT_LIT)) RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## DISCRETE LPAREN
+##
+
+Dangling 'discrete' declaration.
+
+program: DISCRETE TRUE
+##
+## Ends in an error in state: 49.
+##
+## expr -> DISCRETE . LPAREN loption(separated_nonempty_list(COMMA,FLOAT_LIT)) RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## DISCRETE
+##
+
+Dangling 'discrete' declaration: expected arguments.
+
+program: FLIP LPAREN FLOAT_LIT TRUE
+##
+## Ends in an error in state: 45.
+##
+## expr -> FLIP LPAREN FLOAT_LIT . RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## FLIP LPAREN FLOAT_LIT
+##
+
+Dangling 'flip' declaration: expected ')'
+
+program: FLIP LPAREN TRUE
+##
+## Ends in an error in state: 44.
+##
+## expr -> FLIP LPAREN . FLOAT_LIT RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## FLIP LPAREN
+##
+
+Dangling 'flip' declaration: expected argument.
+
+program: FLIP TRUE
+##
+## Ends in an error in state: 43.
+##
+## expr -> FLIP . FLOAT_LIT [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> FLIP . LPAREN FLOAT_LIT RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## FLIP
+##
+
+Dangling 'flip' declaration: expected argument.
+
+program: FST THEN
+##
+## Ends in an error in state: 42.
+##
+## expr -> FST . expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## FST
+##
+
+Dangling 'fst' declaration: expected argument.
+
+program: FST TRUE TRUE
+##
+## Ends in an error in state: 57.
+##
+## expr -> expr . EQUAL_TO expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . PLUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MINUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MULTIPLY expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . DIVIDE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . NEQ expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> FST expr . [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . AND expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . OR expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## FST expr
+##
+
+Parse error.
+
+program: FUN ID LPAREN ID COLON BOOL COMMA TRUE
+##
+## Ends in an error in state: 111.
+##
+## separated_nonempty_list(COMMA,arg) -> arg COMMA . separated_nonempty_list(COMMA,arg) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## arg COMMA
+##
+
+Dangling function declaration.
+
+program: FUN ID LPAREN ID COLON BOOL TRUE
+##
+## Ends in an error in state: 110.
+##
+## separated_nonempty_list(COMMA,arg) -> arg . [ RPAREN ]
+## separated_nonempty_list(COMMA,arg) -> arg . COMMA separated_nonempty_list(COMMA,arg) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## arg
+##
+
+Invalid function declaration.
+
+program: FUN ID LPAREN ID COLON INT LPAREN INT_LIT TRUE
+##
+## Ends in an error in state: 9.
+##
+## typ -> INT LPAREN INT_LIT . RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## INT LPAREN INT_LIT
+##
+
+Dangling function declaration.
+
+program: FUN ID LPAREN ID COLON INT LPAREN TRUE
+##
+## Ends in an error in state: 8.
+##
+## typ -> INT LPAREN . INT_LIT RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## INT LPAREN
+##
+
+Dangling function declaration.
+
+program: FUN ID LPAREN ID COLON INT TRUE
+##
+## Ends in an error in state: 7.
+##
+## typ -> INT . LPAREN INT_LIT RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## INT
+##
+
+Dangling function declaration.
+
+program: FUN ID LPAREN ID COLON LPAREN BOOL COMMA BOOL TRUE
+##
+## Ends in an error in state: 14.
+##
+## typ -> LPAREN typ COMMA typ . RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN typ COMMA typ
+##
+
+Missing argument identifier.
+
+program: FUN ID LPAREN ID COLON LPAREN BOOL COMMA TRUE
+##
+## Ends in an error in state: 13.
+##
+## typ -> LPAREN typ COMMA . typ RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN typ COMMA
+##
+
+Error in function declaration.
+
+program: FUN ID LPAREN ID COLON LPAREN BOOL TRUE
+##
+## Ends in an error in state: 12.
+##
+## typ -> LPAREN typ . COMMA typ RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN typ
+##
+
+Error in function declaration: extra "("
+
+program: FUN ID LPAREN ID COLON LPAREN TRUE
+##
+## Ends in an error in state: 6.
+##
+## typ -> LPAREN . typ COMMA typ RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN
+##
+
+Error in function declaration: extra "("
+
+program: FUN ID LPAREN ID COLON TRUE
+##
+## Ends in an error in state: 5.
+##
+## arg -> ID COLON . typ [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## ID COLON
+##
+
+Dangling function declaration.
+
+program: FUN ID LPAREN ID TRUE
+##
+## Ends in an error in state: 4.
+##
+## arg -> ID . COLON typ [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## ID
+##
+
+Dangling function declaration.
+
+program: FUN ID LPAREN RPAREN LBRACE FALSE RBRACE THEN
+##
+## Ends in an error in state: 117.
+##
+## list(func) -> func . list(func) [ TRUE SND OBSERVE NOT LPAREN LET ITERATE INT IF ID FST FLIP FALSE DISCRETE ]
+##
+## The known suffix of the stack is as follows:
+## func
+##
+
+Invalid function declaration.
+
+program: FUN ID LPAREN RPAREN LBRACE THEN
+##
+## Ends in an error in state: 20.
+##
+## func -> FUN ID LPAREN loption(separated_nonempty_list(COMMA,arg)) RPAREN LBRACE . expr RBRACE [ TRUE SND OBSERVE NOT LPAREN LET ITERATE INT IF ID FUN FST FLIP FALSE DISCRETE ]
+##
+## The known suffix of the stack is as follows:
+## FUN ID LPAREN loption(separated_nonempty_list(COMMA,arg)) RPAREN LBRACE
+##
+
+Dangling function declaration.
+
+program: FUN ID LPAREN RPAREN LBRACE TRUE TRUE
+##
+## Ends in an error in state: 108.
+##
+## expr -> expr . EQUAL_TO expr [ RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . PLUS expr [ RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . MINUS expr [ RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . MULTIPLY expr [ RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . DIVIDE expr [ RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . LTE expr [ RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . GTE expr [ RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . LT expr [ RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . GT expr [ RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . NEQ expr [ RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . AND expr [ RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . OR expr [ RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## func -> FUN ID LPAREN loption(separated_nonempty_list(COMMA,arg)) RPAREN LBRACE expr . RBRACE [ TRUE SND OBSERVE NOT LPAREN LET ITERATE INT IF ID FUN FST FLIP FALSE DISCRETE ]
+##
+## The known suffix of the stack is as follows:
+## FUN ID LPAREN loption(separated_nonempty_list(COMMA,arg)) RPAREN LBRACE expr
+##
+
+Dangling function declaration (did you forget a '}'?)
+
+program: FUN ID LPAREN RPAREN TRUE
+##
+## Ends in an error in state: 19.
+##
+## func -> FUN ID LPAREN loption(separated_nonempty_list(COMMA,arg)) RPAREN . LBRACE expr RBRACE [ TRUE SND OBSERVE NOT LPAREN LET ITERATE INT IF ID FUN FST FLIP FALSE DISCRETE ]
+##
+## The known suffix of the stack is as follows:
+## FUN ID LPAREN loption(separated_nonempty_list(COMMA,arg)) RPAREN
+##
+
+Missing function body (did you forget a '{'?)
+
+program: FUN ID LPAREN TRUE
+##
+## Ends in an error in state: 3.
+##
+## func -> FUN ID LPAREN . loption(separated_nonempty_list(COMMA,arg)) RPAREN LBRACE expr RBRACE [ TRUE SND OBSERVE NOT LPAREN LET ITERATE INT IF ID FUN FST FLIP FALSE DISCRETE ]
+##
+## The known suffix of the stack is as follows:
+## FUN ID LPAREN
+##
+
+Invalid function declaration.
+
+program: FUN ID TRUE
+##
+## Ends in an error in state: 2.
+##
+## func -> FUN ID . LPAREN loption(separated_nonempty_list(COMMA,arg)) RPAREN LBRACE expr RBRACE [ TRUE SND OBSERVE NOT LPAREN LET ITERATE INT IF ID FUN FST FLIP FALSE DISCRETE ]
+##
+## The known suffix of the stack is as follows:
+## FUN ID
+##
+
+Invalid function declaration.
+
+program: FUN TRUE
+##
+## Ends in an error in state: 1.
+##
+## func -> FUN . ID LPAREN loption(separated_nonempty_list(COMMA,arg)) RPAREN LBRACE expr RBRACE [ TRUE SND OBSERVE NOT LPAREN LET ITERATE INT IF ID FUN FST FLIP FALSE DISCRETE ]
+##
+## The known suffix of the stack is as follows:
+## FUN
+##
+
+Invalid function declaration (missing identifier?).
+
+program: ID LPAREN THEN
+##
+## Ends in an error in state: 41.
+##
+## expr -> ID LPAREN . loption(separated_nonempty_list(COMMA,expr)) RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## ID LPAREN
+##
+
+Invalid function call (missing ')'?)
+
+program: ID LPAREN TRUE COMMA THEN
+##
+## Ends in an error in state: 86.
+##
+## separated_nonempty_list(COMMA,expr) -> expr COMMA . separated_nonempty_list(COMMA,expr) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## expr COMMA
+##
+
+Invalid function call (missing ')'?)
+
+program: ID LPAREN TRUE TRUE
+##
+## Ends in an error in state: 85.
+##
+## expr -> expr . EQUAL_TO expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . PLUS expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . MINUS expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . MULTIPLY expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . DIVIDE expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . LTE expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . GTE expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . LT expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . GT expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . NEQ expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . AND expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . OR expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## separated_nonempty_list(COMMA,expr) -> expr . [ RPAREN ]
+## separated_nonempty_list(COMMA,expr) -> expr . COMMA separated_nonempty_list(COMMA,expr) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## expr
+##
+
+Invalid function call (missing ')'?)
+
+program: ID TRUE
+##
+## Ends in an error in state: 40.
+##
+## expr -> ID . [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> ID . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## ID
+##
+
+Invalid function call (missing ')'?)
+
+program: IF THEN
+##
+## Ends in an error in state: 39.
+##
+## expr -> IF . expr THEN expr ELSE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## IF
+##
+
+Invalid 'if' (missing 'then'?).
+
+program: IF TRUE THEN THEN
+##
+## Ends in an error in state: 89.
+##
+## expr -> IF expr THEN . expr ELSE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## IF expr THEN
+##
+
+Invalid 'if' (missing 'then'?)
+
+program: IF TRUE THEN TRUE ELSE THEN
+##
+## Ends in an error in state: 91.
+##
+## expr -> IF expr THEN expr ELSE . expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## IF expr THEN expr ELSE
+##
+
+Use of reserved keyword.
+
+program: IF TRUE THEN TRUE ELSE TRUE TRUE
+##
+## Ends in an error in state: 92.
+##
+## expr -> expr . EQUAL_TO expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . PLUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MINUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MULTIPLY expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . DIVIDE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . NEQ expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . AND expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . OR expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> IF expr THEN expr ELSE expr . [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## IF expr THEN expr ELSE expr
+##
+
+Syntax error (improve me?).
+
+program: IF TRUE THEN TRUE TRUE
+##
+## Ends in an error in state: 90.
+##
+## expr -> expr . EQUAL_TO expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO ELSE DIVIDE AND ]
+## expr -> expr . PLUS expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO ELSE DIVIDE AND ]
+## expr -> expr . MINUS expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO ELSE DIVIDE AND ]
+## expr -> expr . MULTIPLY expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO ELSE DIVIDE AND ]
+## expr -> expr . DIVIDE expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO ELSE DIVIDE AND ]
+## expr -> expr . LTE expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO ELSE DIVIDE AND ]
+## expr -> expr . GTE expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO ELSE DIVIDE AND ]
+## expr -> expr . LT expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO ELSE DIVIDE AND ]
+## expr -> expr . GT expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO ELSE DIVIDE AND ]
+## expr -> expr . NEQ expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO ELSE DIVIDE AND ]
+## expr -> expr . AND expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO ELSE DIVIDE AND ]
+## expr -> expr . OR expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO ELSE DIVIDE AND ]
+## expr -> IF expr THEN expr . ELSE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## IF expr THEN expr
+##
+
+Syntax error (missing 'else'?)
+
+program: IF TRUE TRUE
+##
+## Ends in an error in state: 88.
+##
+## expr -> expr . EQUAL_TO expr [ THEN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . PLUS expr [ THEN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . MINUS expr [ THEN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . MULTIPLY expr [ THEN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . DIVIDE expr [ THEN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . LTE expr [ THEN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . GTE expr [ THEN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . LT expr [ THEN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . GT expr [ THEN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . NEQ expr [ THEN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . AND expr [ THEN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . OR expr [ THEN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> IF expr . THEN expr ELSE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## IF expr
+##
+
+Syntax error (missing 'then'?)
+
+program: INT LPAREN INT_LIT COMMA INT_LIT TRUE
+##
+## Ends in an error in state: 37.
+##
+## expr -> INT LPAREN INT_LIT COMMA INT_LIT . RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## INT LPAREN INT_LIT COMMA INT_LIT
+##
+
+Invalid 'int' declaration (missing ')'?)
+
+program: INT LPAREN INT_LIT COMMA TRUE
+##
+## Ends in an error in state: 36.
+##
+## expr -> INT LPAREN INT_LIT COMMA . INT_LIT RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## INT LPAREN INT_LIT COMMA
+##
+
+Invalid 'int' declaration (missing ')'?)
+
+program: INT LPAREN INT_LIT TRUE
+##
+## Ends in an error in state: 35.
+##
+## expr -> INT LPAREN INT_LIT . COMMA INT_LIT RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## INT LPAREN INT_LIT
+##
+
+Invalid 'int' declaration.
+
+program: INT LPAREN TRUE
+##
+## Ends in an error in state: 34.
+##
+## expr -> INT LPAREN . INT_LIT COMMA INT_LIT RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## INT LPAREN
+##
+
+Invalid 'int' declaration.
+
+program: INT TRUE
+##
+## Ends in an error in state: 33.
+##
+## expr -> INT . LPAREN INT_LIT COMMA INT_LIT RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## INT
+##
+
+Invalid 'int' declaration.
+Note: Int literals are not currently supported; the syntax for 'int' is 'int(size, value)'.
+
+program: ITERATE LPAREN ID COMMA THEN
+##
+## Ends in an error in state: 32.
+##
+## expr -> ITERATE LPAREN ID COMMA . expr COMMA INT_LIT RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## ITERATE LPAREN ID COMMA
+##
+
+Invalid 'iterate' syntax (missing ')'?).
+
+program: ITERATE LPAREN ID COMMA TRUE COMMA INT_LIT TRUE
+##
+## Ends in an error in state: 95.
+##
+## expr -> ITERATE LPAREN ID COMMA expr COMMA INT_LIT . RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## ITERATE LPAREN ID COMMA expr COMMA INT_LIT
+##
+
+Invalid 'iterate' syntax (missing ')'?).
+
+program: ITERATE LPAREN ID COMMA TRUE COMMA TRUE
+##
+## Ends in an error in state: 94.
+##
+## expr -> ITERATE LPAREN ID COMMA expr COMMA . INT_LIT RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## ITERATE LPAREN ID COMMA expr COMMA
+##
+
+Invalid 'iterate' syntax (missing ')'?).
+
+program: ITERATE LPAREN ID COMMA TRUE TRUE
+##
+## Ends in an error in state: 93.
+##
+## expr -> expr . EQUAL_TO expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . PLUS expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . MINUS expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . MULTIPLY expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . DIVIDE expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . LTE expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . GTE expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . LT expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . GT expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . NEQ expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . AND expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . OR expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> ITERATE LPAREN ID COMMA expr . COMMA INT_LIT RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## ITERATE LPAREN ID COMMA expr
+##
+
+Invalid 'iterate' syntax (missing ')'?).
+
+program: ITERATE LPAREN ID TRUE
+##
+## Ends in an error in state: 31.
+##
+## expr -> ITERATE LPAREN ID . COMMA expr COMMA INT_LIT RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## ITERATE LPAREN ID
+##
+
+Invalid 'iterate' syntax (missing ')'?).
+
+program: ITERATE LPAREN TRUE
+##
+## Ends in an error in state: 30.
+##
+## expr -> ITERATE LPAREN . ID COMMA expr COMMA INT_LIT RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## ITERATE LPAREN
+##
+
+Invalid 'iterate' syntax (missing ')'?).
+
+program: ITERATE TRUE
+##
+## Ends in an error in state: 29.
+##
+## expr -> ITERATE . LPAREN ID COMMA expr COMMA INT_LIT RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## ITERATE
+##
+
+Invalid 'iterate' syntax (missing ')'?).
+
+program: LET ID EQUAL THEN
+##
+## Ends in an error in state: 28.
+##
+## expr -> LET ID EQUAL . expr IN expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## LET ID EQUAL
+##
+
+Invalid 'let' syntax (missing 'in'?).
+
+program: LET ID EQUAL TRUE IN THEN
+##
+## Ends in an error in state: 98.
+##
+## expr -> LET ID EQUAL expr IN . expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## LET ID EQUAL expr IN
+##
+
+Invalid 'let' syntax.
+
+program: LET ID EQUAL TRUE IN TRUE TRUE
+##
+## Ends in an error in state: 99.
+##
+## expr -> expr . EQUAL_TO expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . PLUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MINUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MULTIPLY expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . DIVIDE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . NEQ expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . AND expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . OR expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> LET ID EQUAL expr IN expr . [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## LET ID EQUAL expr IN expr
+##
+
+Dangling expression after 'let'.
+
+program: LET ID EQUAL TRUE TRUE
+##
+## Ends in an error in state: 97.
+##
+## expr -> expr . EQUAL_TO expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . PLUS expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . MINUS expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . MULTIPLY expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . DIVIDE expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . LTE expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . GTE expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . LT expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . GT expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . NEQ expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . AND expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . OR expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> LET ID EQUAL expr . IN expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## LET ID EQUAL expr
+##
+
+Invalid 'let' syntax (missing 'in'?)
+
+program: LET ID TRUE
+##
+## Ends in an error in state: 27.
+##
+## expr -> LET ID . EQUAL expr IN expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## LET ID
+##
+
+Invalid 'let' syntax (missing '='?)
+
+program: LET TRUE
+##
+## Ends in an error in state: 26.
+##
+## expr -> LET . ID EQUAL expr IN expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## LET
+##
+
+Dangling 'let'.
+
+program: LPAREN THEN
+##
+## Ends in an error in state: 25.
+##
+## expr -> LPAREN . expr RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> LPAREN . expr COMMA expr RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN
+##
+
+Dangling '(' (missing ')'?)
+
+program: LPAREN TRUE COMMA THEN
+##
+## Ends in an error in state: 102.
+##
+## expr -> LPAREN expr COMMA . expr RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN expr COMMA
+##
+
+Invalid tuple declaration (missing ')'?)
+
+program: LPAREN TRUE COMMA TRUE TRUE
+##
+## Ends in an error in state: 103.
+##
+## expr -> expr . EQUAL_TO expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . PLUS expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . MINUS expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . MULTIPLY expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . DIVIDE expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . LTE expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . GTE expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . LT expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . GT expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . NEQ expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> LPAREN expr COMMA expr . RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . AND expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+## expr -> expr . OR expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE AND ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN expr COMMA expr
+##
+
+Invalid tuple declaration (missing ')'?)
+
+program: LPAREN TRUE TRUE
+##
+## Ends in an error in state: 100.
+##
+## expr -> LPAREN expr . RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . EQUAL_TO expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . PLUS expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . MINUS expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . MULTIPLY expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . DIVIDE expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . LTE expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . GTE expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . LT expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . GT expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . NEQ expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> LPAREN expr . COMMA expr RPAREN [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . AND expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+## expr -> expr . OR expr [ RPAREN PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN expr
+##
+
+Invalid tuple declaration (missing ')'?)
+
+program: NOT THEN
+##
+## Ends in an error in state: 24.
+##
+## expr -> NOT . expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## NOT
+##
+
+Invalid 'not' (mistaken keyword usage? See reserved keywords.).
+
+program: NOT TRUE TRUE
+##
+## Ends in an error in state: 105.
+##
+## expr -> expr . EQUAL_TO expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . PLUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MINUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MULTIPLY expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . DIVIDE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . NEQ expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . AND expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . OR expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> NOT expr . [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## NOT expr
+##
+
+Dangling expression after 'not'.
+
+program: OBSERVE THEN
+##
+## Ends in an error in state: 23.
+##
+## expr -> OBSERVE . expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## OBSERVE
+##
+
+Invalid 'observe' (mistaken keyword usage? See reserved keywords.)
+
+program: OBSERVE TRUE TRUE
+##
+## Ends in an error in state: 106.
+##
+## expr -> expr . EQUAL_TO expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . PLUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MINUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MULTIPLY expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . DIVIDE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . NEQ expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . AND expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . OR expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> OBSERVE expr . [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## OBSERVE expr
+##
+
+Dangling expression after 'observe'.
+
+program: SND THEN
+##
+## Ends in an error in state: 22.
+##
+## expr -> SND . expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## SND
+##
+
+Invalid 'snd' (mistaken keyword usage? See reserved keywords.)
+
+program: SND TRUE TRUE
+##
+## Ends in an error in state: 107.
+##
+## expr -> expr . EQUAL_TO expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . PLUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MINUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MULTIPLY expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . DIVIDE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . NEQ expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> SND expr . [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . AND expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . OR expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## SND expr
+##
+
+Dangling expression after 'snd'.
+
+program: THEN
+##
+## Ends in an error in state: 0.
+##
+## program' -> . program [ # ]
+##
+## The known suffix of the stack is as follows:
+##
+##
+
+Invalid program: missing main body.
+
+program: TRUE AND THEN
+##
+## Ends in an error in state: 80.
+##
+## expr -> expr AND . expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## expr AND
+##
+
+Invalid 'and' (mistaken keyword usage? See reserved keywords.)
+
+program: TRUE AND TRUE TRUE
+##
+## Ends in an error in state: 81.
+##
+## expr -> expr . EQUAL_TO expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . PLUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MINUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MULTIPLY expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . DIVIDE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . NEQ expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . AND expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr AND expr . [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . OR expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## expr AND expr
+##
+
+Dangling expression after 'and'.
+
+program: TRUE DIVIDE THEN
+##
+## Ends in an error in state: 62.
+##
+## expr -> expr DIVIDE . expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## expr DIVIDE
+##
+
+Invalid '/' (mistaken keyword usage? See reserved keywords.)
+
+program: TRUE EQUAL_TO THEN
+##
+## Ends in an error in state: 70.
+##
+## expr -> expr EQUAL_TO . expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## expr EQUAL_TO
+##
+
+Invalid argument for '='.
+
+program: TRUE EQUAL_TO TRUE TRUE
+##
+## Ends in an error in state: 71.
+##
+## expr -> expr . EQUAL_TO expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr EQUAL_TO expr . [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . PLUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MINUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MULTIPLY expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . DIVIDE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . NEQ expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . AND expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . OR expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## expr EQUAL_TO expr
+##
+
+Invalid '='.
+
+program: TRUE GT THEN
+##
+## Ends in an error in state: 78.
+##
+## expr -> expr GT . expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## expr GT
+##
+
+Invalid argument for '>'.
+
+program: TRUE GT TRUE TRUE
+##
+## Ends in an error in state: 79.
+##
+## expr -> expr . EQUAL_TO expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . PLUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MINUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MULTIPLY expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . DIVIDE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr GT expr . [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . NEQ expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . AND expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . OR expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## expr GT expr
+##
+
+Dangling expression after '>'.
+
+program: TRUE GTE THEN
+##
+## Ends in an error in state: 76.
+##
+## expr -> expr GTE . expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## expr GTE
+##
+
+Invalid or missing argument for '>='.
+
+program: TRUE GTE TRUE TRUE
+##
+## Ends in an error in state: 77.
+##
+## expr -> expr . EQUAL_TO expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . PLUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MINUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MULTIPLY expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . DIVIDE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr GTE expr . [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . NEQ expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . AND expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . OR expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## expr GTE expr
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+program: TRUE LT THEN
+##
+## Ends in an error in state: 74.
+##
+## expr -> expr LT . expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## expr LT
+##
+
+Dangling expression after '>='.
+
+program: TRUE LT TRUE TRUE
+##
+## Ends in an error in state: 75.
+##
+## expr -> expr . EQUAL_TO expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . PLUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MINUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MULTIPLY expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . DIVIDE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr LT expr . [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . NEQ expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . AND expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . OR expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## expr LT expr
+##
+
+Dangling expression after '<'.
+
+program: TRUE LTE THEN
+##
+## Ends in an error in state: 72.
+##
+## expr -> expr LTE . expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## expr LTE
+##
+
+Invalid or missing argument for '<='.
+
+program: TRUE LTE TRUE TRUE
+##
+## Ends in an error in state: 73.
+##
+## expr -> expr . EQUAL_TO expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . PLUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MINUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MULTIPLY expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . DIVIDE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr LTE expr . [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . NEQ expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . AND expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . OR expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## expr LTE expr
+##
+
+Dangling expression after '<='.
+
+program: TRUE MINUS THEN
+##
+## Ends in an error in state: 68.
+##
+## expr -> expr MINUS . expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## expr MINUS
+##
+
+Invalid or missing argument for '-'.
+
+program: TRUE MINUS TRUE TRUE
+##
+## Ends in an error in state: 69.
+##
+## expr -> expr . EQUAL_TO expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . PLUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MINUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr MINUS expr . [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MULTIPLY expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . DIVIDE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . NEQ expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . AND expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . OR expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## expr MINUS expr
+##
+
+Dangling expression after '-'.
+
+program: TRUE MULTIPLY THEN
+##
+## Ends in an error in state: 60.
+##
+## expr -> expr MULTIPLY . expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## expr MULTIPLY
+##
+
+Invalid or missing argument for '*'.
+
+program: TRUE NEQ THEN
+##
+## Ends in an error in state: 66.
+##
+## expr -> expr NEQ . expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## expr NEQ
+##
+
+Invalid or missing argument for '!='.
+
+program: TRUE NEQ TRUE TRUE
+##
+## Ends in an error in state: 67.
+##
+## expr -> expr . EQUAL_TO expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . PLUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MINUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MULTIPLY expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . DIVIDE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . NEQ expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr NEQ expr . [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . AND expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . OR expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## expr NEQ expr
+##
+
+Dangling expression after '!='.
+
+program: TRUE OR THEN
+##
+## Ends in an error in state: 64.
+##
+## expr -> expr OR . expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## expr OR
+##
+
+Invalid or missing argument for '||'.
+
+program: TRUE OR TRUE TRUE
+##
+## Ends in an error in state: 65.
+##
+## expr -> expr . EQUAL_TO expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . PLUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MINUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MULTIPLY expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . DIVIDE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . NEQ expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . AND expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . OR expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr OR expr . [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## expr OR expr
+##
+
+Dangling expression after '||'.
+
+program: TRUE PLUS THEN
+##
+## Ends in an error in state: 58.
+##
+## expr -> expr PLUS . expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## expr PLUS
+##
+
+Invalid or missing argument for '+'.
+
+program: TRUE PLUS TRUE TRUE
+##
+## Ends in an error in state: 59.
+##
+## expr -> expr . EQUAL_TO expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . PLUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr PLUS expr . [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MINUS expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . MULTIPLY expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . DIVIDE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GTE expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . LT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . GT expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . NEQ expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . AND expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+## expr -> expr . OR expr [ THEN RPAREN RBRACE PLUS OR NEQ MULTIPLY MINUS LTE LT IN GTE GT EQUAL_TO EOF ELSE DIVIDE COMMA AND ]
+##
+## The known suffix of the stack is as follows:
+## expr PLUS expr
+##
+
+Dangling expression after '+'.
+
+program: TRUE TRUE
+##
+## Ends in an error in state: 115.
+##
+## expr -> expr . EQUAL_TO expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO EOF DIVIDE AND ]
+## expr -> expr . PLUS expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO EOF DIVIDE AND ]
+## expr -> expr . MINUS expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO EOF DIVIDE AND ]
+## expr -> expr . MULTIPLY expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO EOF DIVIDE AND ]
+## expr -> expr . DIVIDE expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO EOF DIVIDE AND ]
+## expr -> expr . LTE expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO EOF DIVIDE AND ]
+## expr -> expr . GTE expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO EOF DIVIDE AND ]
+## expr -> expr . LT expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO EOF DIVIDE AND ]
+## expr -> expr . GT expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO EOF DIVIDE AND ]
+## expr -> expr . NEQ expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO EOF DIVIDE AND ]
+## expr -> expr . AND expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO EOF DIVIDE AND ]
+## expr -> expr . OR expr [ PLUS OR NEQ MULTIPLY MINUS LTE LT GTE GT EQUAL_TO EOF DIVIDE AND ]
+## program -> list(func) expr . EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## list(func) expr
+##
+
+Dangling expression.

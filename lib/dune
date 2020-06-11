@@ -1,0 +1,10 @@
+(menhir
+ (modules Parser)
+ (flags "--table"))
+
+(ocamllex lexer)
+
+(library
+ (libraries core cudd sexplib menhirLib ounit2)
+ (name diceLib)
+ (preprocess (pps ppx_jane)))
