@@ -267,43 +267,43 @@ let test_burglary _ =
   assert_feq 0.284172 (parse_optimize_and_prob prog)
 
 let test_alarm _ =
-  let prog = In_channel.read_all "benchmarks/baselines/alarm.dice" in
+  let prog = In_channel.read_all "../benchmarks/baselines/alarm.dice" in
   assert_feq (2969983.0 /. 992160802.0) (parse_and_prob prog);
   assert_feq (2969983.0 /. 992160802.0) (parse_optimize_and_prob prog)
 
 let test_murder _ =
-  let prog = In_channel.read_all "benchmarks/baselines/murderMystery.dice" in
+  let prog = In_channel.read_all "../benchmarks/baselines/murderMystery.dice" in
   assert_feq (9.0 /. 569.0) (parse_and_prob prog);
   assert_feq (9.0 /. 569.0) (parse_optimize_and_prob prog)
 
 let test_evidence1 _ =
-  let prog = In_channel.read_all "benchmarks/baselines/evidence1.dice" in
+  let prog = In_channel.read_all "../benchmarks/baselines/evidence1.dice" in
   assert_feq (1.0 /. 3.0) (parse_and_prob prog);
   assert_feq (1.0 /. 3.0) (parse_optimize_and_prob prog)
 
 let test_evidence2 _ =
-  let prog = In_channel.read_all "benchmarks/baselines/evidence2.dice" in
+  let prog = In_channel.read_all "../benchmarks/baselines/evidence2.dice" in
   assert_feq (2.0 /. 3.0) (parse_and_prob prog);
   assert_feq (2.0 /. 3.0) (parse_optimize_and_prob prog)
 
 let test_grass _ =
-  let prog = In_channel.read_all "benchmarks/baselines/grass.dice" in
+  let prog = In_channel.read_all "../benchmarks/baselines/grass.dice" in
   assert_feq (509.0 /. 719.0) (parse_and_prob prog);
   assert_feq (509.0 /. 719.0) (parse_optimize_and_prob prog)
 
 let test_cancer _ =
-  let prog = In_channel.read_all "resources/cancer_test.dice" in
+  let prog = In_channel.read_all "../resources/cancer_test.dice" in
   assert_feq (42709.0 /. 200000.0) (parse_and_prob prog);
   assert_feq (42709.0 /. 200000.0) (parse_optimize_and_prob prog)
 
 let test_caesar_2 _ =
-  let prog = In_channel.read_all "resources/caesar_test.dice" in
-  assert_feq (1113032.0 /. 315312455.0) (parse_and_prob prog);
-  assert_feq (1113032.0 /. 315312455.0) (parse_optimize_and_prob prog)
+  let prog = In_channel.read_all "../resources/caesar_test.dice" in
+  assert_feq  (1113032.0 /. 315312455.0) (parse_and_prob prog);
+  assert_feq  (1113032.0 /. 315312455.0) (parse_optimize_and_prob prog)
 
 let test_alarm _ =
-  (* the correct answer here is from Ace *)
-  let prog = In_channel.read_all "resources/alarm_test.dice" in
+  (* the correct answer here is from ace *)
+  let prog = In_channel.read_all "../resources/alarm_test.dice" in
   assert_feq 0.281037656 (parse_and_prob prog);
   assert_feq 0.281037656 (parse_optimize_and_prob prog)
 
@@ -313,7 +313,8 @@ let test_double_flip _ =
     let c2 = flip 0.5 in
     c1 && c2
     " in
-  assert_feq 0.25 (parse_and_prob prog)
+  assert_feq 0.25 (parse_and_prob prog);
+  assert_feq 0.25 (parse_optimize_and_prob prog)
 
 let test_typecheck_1 _ =
   let prog = "
@@ -321,14 +322,16 @@ let test_typecheck_1 _ =
     let c2 = int(3, 1) in
     (c1 == c2) || (c1 != c2)
     " in
-  assert_feq 1.0 (parse_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog);
+  assert_feq 1.0 (parse_optimize_and_prob prog)
 
 let test_mod_sub _ =
   let prog = "
     let c1 = int(3, 0) in
     let c2 = int(3, 1) in
     (c1 - c2) == int(3, 2)" in
-  assert_feq 1.0 (parse_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog);
+  assert_feq 1.0 (parse_optimize_and_prob prog)
 
 let test_coin _ =
   (* equivalent psi program:

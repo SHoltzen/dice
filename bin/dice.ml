@@ -7,7 +7,7 @@ open Lexing
 open Lexer
 open Passes
 open Parser
-
+open Optimization
 
 let get_lexing_position lexbuf =
   let p = Lexing.lexeme_start_p lexbuf in
@@ -15,11 +15,12 @@ let get_lexing_position lexbuf =
   let column = p.Lexing.pos_cnum - p.Lexing.pos_bol + 1 in
   (line_number, column)
 
-let rec parse_and_print print_parsed print_info print_size skip_table print_marginals lexbuf = try
-  let parsed = Util.parse_with_error lexbuf in
+let rec parse_and_print print_parsed print_info print_size optimize skip_table print_marginals lexbuf = try
+  let parsed = if optimize then Optimization.optimize (Util.parse_with_error lexbuf) else Util.parse_with_error lexbuf in
   if print_parsed then Format.printf "==========Parsed program==========\n%s\n" (ExternalGrammar.string_of_prog parsed);
   let compiled = compile_program (from_external_prog parsed) in
   let zbdd = compiled.body.z in
+  (* dump_dot compiled.ctx.name_map (extract_bdd compiled.body.state); *)
   let z = Wmc.wmc zbdd compiled.ctx.weights in
   if not skip_table then
   (let table = VarState.get_table compiled.body.state in
@@ -71,13 +72,14 @@ let command =
      and print_info = flag "-show-info" no_arg ~doc:" print BDD info and statistics"
      and print_size = flag "-show-size" no_arg ~doc:" show the size of the final compiled BDD"
      and print_parsed = flag "-show-parsed" no_arg ~doc:" print parsed dice program"
+     and optimize = flag "-optimize" no_arg ~doc:" optimize dice program before compilation"
      and skip_table = flag "-skip-table" no_arg ~doc:" skip printing the joint probability distribution"
      and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order"
      in fun () ->
        let inx = In_channel.create fname in
        let lexbuf = Lexing.from_channel inx in
        lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = fname };
-       parse_and_print print_parsed print_info print_size skip_table print_marginals lexbuf
+       parse_and_print print_parsed print_info print_size optimize skip_table print_marginals lexbuf
     )
 
 let () =
