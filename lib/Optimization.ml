@@ -201,6 +201,18 @@ let rec downPass (e: ExternalGrammar.eexpr)
     | [] -> inner
     | (v, expr)::tail -> 
       add_lets tail (Let(v, expr, inner))
+
+  and has_flip (e: ExternalGrammar.eexpr) : bool =
+    match e with
+    | Flip(f) -> true
+    | Ite(g, thn, els) -> (has_flip g) || (has_flip thn) || (has_flip els)
+    | Let(_, e1, e2)
+    | And(e1, e2)
+    | Or(e1, e2) | Plus(e1, e2) | Eq(e1, e2) | Minus(e1, e2) 
+    | Neq(e1, e2) | Div(e1, e2) | Mult(e1, e2) | Lt(e1, e2) 
+    | Gt(e1, e2) | Lte(e1, e2) | Gte(e1, e2) | Tup(e1, e2) -> (has_flip e1) || (has_flip e2)
+    | Snd(e1) | Fst(e1) | Not(e1) | Observe(e1) -> (has_flip e1)
+    | _ -> false
   in 
 
   match e with
@@ -223,11 +235,12 @@ let rec downPass (e: ExternalGrammar.eexpr)
         let upper_flips = List.map (fun (v, f, gl) -> f) fl in
         let new_flips = find_no_match node_list upper_flips in
         let lower_flips = find_match (List.rev_append llist rlist) upper_flips in
+        let pull_g = has_flip g in
 
         (* add guard to appropriate fl *)
         let gv = (Printf.sprintf "_%d" i) in
-        let fl2 = if lower_flips = [] then fl else update_fl fl (gv, g) lower_flips [] in
-        let i2 = if lower_flips = [] then i else i+1 in
+        let fl2 = if not pull_g || lower_flips = [] then fl else update_fl fl (gv, g) lower_flips [] in
+        let i2 = if not pull_g || lower_flips = [] then i else i+1 in
         
         if new_flips = [] then
           if lower_flips = [] then
@@ -236,15 +249,18 @@ let rec downPass (e: ExternalGrammar.eexpr)
             (* Pass flips down *)
             let (thn_expr, thn_i, thn_vf, thn_fl) = downPass thn fl2 i2 left in
             let (els_expr, els_i, els_vf, els_fl) = downPass els fl2 thn_i right in
-            Ite(Ident(gv), thn_expr, els_expr), els_i, [], (merge_fl thn_fl els_fl [])
+            let new_g = if pull_g then Ident(gv) else g in
+            Ite(new_g, thn_expr, els_expr), els_i, [], (merge_fl thn_fl els_fl [])
         else
-          let new_fl = get_fl (i2 + 1) new_flips [(gv, g)] [] in
+          let ggl = if pull_g then [(gv,g)] else [] in
+          let i3 = if pull_g then i2 + 1 else i2 in
+          let new_fl = get_fl i3 new_flips ggl [] in
           let new_v = List.map (fun (v,f,gl) -> v) new_fl in
           let pass_down_fl = new_fl@fl2 in
-          let i3 = i2 + 1 + (List.length new_fl) in
+          let i4 = i3 + (List.length new_fl) in
 
           (* Pass flips down *)
-          let (thn_expr, thn_i, thn_vf, thn_fl) = downPass thn pass_down_fl i3 left in
+          let (thn_expr, thn_i, thn_vf, thn_fl) = downPass thn pass_down_fl i4 left in
           let (els_expr, els_i, els_vf, els_fl) = downPass els pass_down_fl thn_i right in
 
           (* add flips in lexical order *)
@@ -252,7 +268,9 @@ let rec downPass (e: ExternalGrammar.eexpr)
           (* printFL fl3; *)
           let to_add, pass_up_fl = collapse_fl fl3 new_v [] [] [] in
           (* printEL to_add; *)
-          let new_expr = add_lets to_add (Ite(Ident(gv), thn_expr, els_expr)) in
+
+          let new_g = if pull_g then Ident(gv) else g in
+          let new_expr = add_lets to_add (Ite(new_g, thn_expr, els_expr)) in
           new_expr, els_i, [], pass_up_fl
 
       | _ -> e, i, List.map (fun (v, f, gl) -> (v,f)) fl, fl)
@@ -263,13 +281,7 @@ let rec downPass (e: ExternalGrammar.eexpr)
       let (n2, i2, vf2, fl2) = downPass e2 fl1 i1 t2 in
       (Let(v, n1, n2), i2, vf2, fl2)
     | _ -> e, i, List.map (fun (v, f, gl) -> (v,f)) fl, fl)
-  | And(e1, e2) ->
-    (match t with
-    | Branch(t1, t2) -> 
-      let (n1, i1, vf1, fl1) = downPass e1 fl i t1 in
-      let (n2, i2, vf2, fl2) = downPass e2 fl1 i1 t2 in
-      (And(n1, n2), i2, vf2, fl2)
-    | _ -> e, i, List.map (fun (v, f, gl) -> (v,f)) fl, fl)
+  | And(e1, e2)
   | Or(e1, e2) | Plus(e1, e2) | Eq(e1, e2) | Minus(e1, e2) 
   | Neq(e1, e2) | Div(e1, e2) | Mult(e1, e2) | Lt(e1, e2) 
   | Gt(e1, e2) | Lte(e1, e2) | Gte(e1, e2) | Tup(e1, e2) -> e, i, List.map (fun (v, f, gl) -> (v,f)) fl, fl
