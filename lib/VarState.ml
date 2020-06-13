@@ -1,7 +1,6 @@
 open Core
 open Cudd
 
-(** The result of compiling an expression. A pair (value, normalizing constant) *)
 type varstate =
     BddLeaf of Bdd.dt
   | IntLeaf of Bdd.dt List.t
@@ -28,14 +27,12 @@ let rec map_tree (s:'a btree) (f: 'a -> 'b) : 'b btree =
   | Leaf(bdd) -> Leaf(f bdd)
   | Node(l, r) -> Node(map_tree l f, map_tree r f)
 
-
 let rec iter_tree (s:'a btree) (f: 'a -> unit) =
   match s with
   | Leaf(bdd) -> f bdd
   | Node(l, r) ->
     iter_tree l f;
     iter_tree r f
-
 
 (** Applies `f` to each BDD in `s` *)
 let rec map_bddtree (s:varstate btree) (f: Bdd.dt -> Bdd.dt) : varstate btree =
@@ -96,21 +93,3 @@ let state_size (states : varstate btree List.t) =
   List.fold states ~init:0 ~f:(fun acc i -> fold_bddtree i acc (fun acc bdd ->
       acc + (helper bdd)))
 
-(** [model_count] computes number of distinct models for the states in [states] *)
-let model_count num_vars (states : varstate btree List.t) =
-  let seen = Hashtbl.Poly.create () in
-  let rec helper (bdd : Bdd.dt) cur_level =
-    match Hashtbl.Poly.find seen bdd with
-    | Some(v) -> v
-    | None ->
-      let v = (match Bdd.inspect bdd with
-       | Bool(true) -> Int.pow 2 (Int.abs (num_vars - cur_level))
-       | Bool(false) -> 0
-       | Ite(level, l, r) ->
-         (Int.pow 2 (Int.abs (level - cur_level))) * ((helper l cur_level) + (helper r level))) in
-      Hashtbl.Poly.add_exn seen bdd v;
-      v in
-  List.fold states ~init:0 ~f:(fun acc i -> fold_bddtree i acc (fun acc bdd ->
-      match Bdd.is_cst bdd with
-      | true -> acc + 1
-      | false -> acc + (helper bdd 0)))

@@ -3,7 +3,6 @@
 open DiceLib
 open Core
 open Util
-open Lexing
 open Lexer
 
 let run_benches () =
@@ -19,7 +18,7 @@ let run_benches () =
                       | Parser.Error ->
                         fprintf stderr "%a: syntax error\n" print_position buf;
                         failwith (Format.sprintf "Error parsing %s" contents) in
-                    (parsed, CoreGrammar.compile_program (CoreGrammar.from_external_prog parsed))
+                    (parsed, Compiler.compile_program (Passes.from_external_prog parsed))
                   ))) in
   print_endline (Format.sprintf "Benchmark\tTime (s)\t#Paths (log10)\tBDD Size");
   List.iter benches ~f:(fun (name, bench) ->
@@ -56,10 +55,10 @@ let bench_caesar inline_functions =
   let lst = [1; 100; 250; 500; 1000; 2500; 5000; 10000] in
   List.iter lst ~f:(fun len ->
       let t0 = Unix.gettimeofday () in
-      let caesar = gen_caesar (List.init len ~f:(fun i -> Random.int_incl 0 25)) in
+      let caesar = gen_caesar (List.init len ~f:(fun _ -> Random.int_incl 0 25)) in
       let res = (if inline_functions then Passes.inline_functions caesar else caesar)
-                |> CoreGrammar.from_external_prog
-                |> CoreGrammar.compile_program in
+                |> Passes.from_external_prog
+                |> Compiler.compile_program in
       let sz = Cudd.Bdd.size res.body.z in
       let t1 = Unix.gettimeofday () in
       let numpaths = Passes.num_paths caesar in
@@ -94,10 +93,10 @@ let bench_caesar_error inline_functions =
   let lst = [1; 100; 250; 500; 1000; 2500; 5000; 10000] in
   List.iter lst ~f:(fun len ->
       let t0 = Unix.gettimeofday () in
-      let caesar = gen_caesar_error (List.init len ~f:(fun i -> Random.int_incl 0 25)) in
+      let caesar = gen_caesar_error (List.init len ~f:(fun _ -> Random.int_incl 0 25)) in
       let res = (if inline_functions then Passes.inline_functions caesar else caesar)
-                |> CoreGrammar.from_external_prog
-                |> CoreGrammar.compile_program in
+                |> Passes.from_external_prog
+                |> Compiler.compile_program in
       let sz = Cudd.Bdd.size res.body.z in
       let t1 = Unix.gettimeofday () in
       let numpaths = Passes.num_paths caesar in
@@ -118,7 +117,7 @@ fun diamond(s1: bool) {
 }
 " in
   let ln = ref "let s = true in" in
-  for x = 1 to n do
+  for _ = 1 to n do
       ln := Format.sprintf "%s\nlet s = diamond(s) in" !ln;
     done;
   prog := Format.sprintf "%s%s\ns" !prog !ln;
@@ -131,8 +130,8 @@ let bench_diamond inline_functions =
       let caesar = gen_diamond (len + 1) in
       let inlined = if inline_functions then Passes.inline_functions caesar else caesar in
       let t0 = Unix.gettimeofday () in
-      let res = CoreGrammar.from_external_prog inlined
-                |> CoreGrammar.compile_program in
+      let res = Passes.from_external_prog inlined
+                |> Compiler.compile_program in
       let sz = VarState.state_size [res.body.state] in
       let t1 = Unix.gettimeofday () in
       let numpaths = Passes.num_paths caesar in
@@ -155,7 +154,7 @@ fun ladder(s1: bool, s2: bool) {
 }
       let x = (true, false) in
 " in
-  for x = 1 to n do
+  for _ = 1 to n do
       let new_ln = Format.sprintf "let x = ladder(fst x, snd x) in" in
       prog := Format.sprintf "%s\n%s" !prog new_ln;
   done;
@@ -169,8 +168,8 @@ let bench_ladder inline_functions =
       let caesar = gen_ladder (len + 1) in
       let inlined = if inline_functions then Passes.inline_functions caesar else caesar in
       let t0 = Unix.gettimeofday () in
-      let res = CoreGrammar.from_external_prog inlined
-                |> CoreGrammar.compile_program in
+      let res = Passes.from_external_prog inlined
+                |> Compiler.compile_program in
       let sz = VarState.state_size [res.body.state] in
       let t1 = Unix.gettimeofday () in
       let numpaths = Passes.num_paths caesar in

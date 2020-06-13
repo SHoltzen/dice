@@ -1,12 +1,7 @@
 open DiceLib
 open Core
 open Cudd
-open Wmc
-open CoreGrammar
-open Lexing
-open Lexer
 open Passes
-open Parser
 
 
 let get_lexing_position lexbuf =
@@ -15,10 +10,10 @@ let get_lexing_position lexbuf =
   let column = p.Lexing.pos_cnum - p.Lexing.pos_bol + 1 in
   (line_number, column)
 
-let rec parse_and_print print_parsed print_info print_size skip_table print_marginals lexbuf = try
+let parse_and_print print_parsed print_info print_size skip_table print_marginals lexbuf = try
   let parsed = Util.parse_with_error lexbuf in
   if print_parsed then Format.printf "==========Parsed program==========\n%s\n" (ExternalGrammar.string_of_prog parsed);
-  let compiled = compile_program (from_external_prog parsed) in
+  let compiled = Compiler.compile_program (from_external_prog parsed) in
   let zbdd = compiled.body.z in
   let z = Wmc.wmc zbdd compiled.ctx.weights in
   if not skip_table then
@@ -31,7 +26,7 @@ let rec parse_and_print print_parsed print_info print_size skip_table print_marg
    List.iter probs ~f:(fun (typ, prob) ->
          let rec print_pretty e =
            match e with
-           | `Int(sz, v) -> string_of_int v
+           | `Int(_, v) -> string_of_int v
            | `True -> "true"
            | `False -> "false"
            | `Tup(l, r) -> Format.sprintf "(%s, %s)" (print_pretty l) (print_pretty r)

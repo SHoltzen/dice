@@ -1,13 +1,12 @@
 open Core
 open Lexing
 open Lexer
-open Parser
 
 let eps = 0.00001
 
 let assert_feq f1 f2 =
   OUnit2.assert_equal ~cmp:(fun x y ->
-      (Float.compare (Float.abs (f1 -. f2)) eps) < 0) f1 f2
+      (Float.compare (Float.abs (x -. y)) eps) < 0) f1 f2
     ~printer:string_of_float
 
 let print_position outx lexbuf =
@@ -30,13 +29,7 @@ let parse_and_prob ?debug txt =
    | Some(true)->
      Format.printf "Program: %s\n" (ExternalGrammar.string_of_prog parsed);
    | _ -> ());
-  CoreGrammar.get_prob (CoreGrammar.from_external_prog parsed)
-
-(** [dir_is_empty dir] is true, if [dir] contains no files except
- * "." and ".."
- *)
-let dir_is_empty dir =
-  Array.length (Sys.readdir dir) = 0
+  Compiler.get_prob (Passes.from_external_prog parsed)
 
 (** [dir_contents] returns the paths of all regular files that are
  * contained in [dir]. Each file is a path starting with [dir].
@@ -74,7 +67,7 @@ let get_parse_error env =
     | lazy Nil -> "Invalid syntax"
     | lazy (Cons (I.Element (state, _, _, _), _)) ->
         try (Parser_messages.message (I.number state)) with
-        | Not_found -> "invalid syntax (no specific message for this eror)"
+        | _ -> "invalid syntax (no specific message for this eror)"
 
 exception Syntax_error of string
 

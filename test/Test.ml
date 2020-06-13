@@ -177,7 +177,7 @@ let test_fcall6 _ =
     let tmp = foo((f1, flip 0.1)) in f1" in
   assert_feq (0.4 /. 0.46) (parse_and_prob prog)
 
-let test_fcall6 _ =
+let test_fcall7 _ =
   let prog = "
     fun foo(test1: int(3)) {
       let k = observe !(test1 == int(3, 0)) in
@@ -261,7 +261,7 @@ let test_caesar_2 _ =
   let prog = In_channel.read_all "../resources/caesar_test.dice" in
   assert_feq  (1113032.0 /. 315312455.0) (parse_and_prob prog)
 
-let test_alarm _ =
+let test_alarm_2 _ =
   (* the correct answer here is from ace *)
   let prog = In_channel.read_all "../resources/alarm_test.dice" in
   assert_feq 0.281037656 (parse_and_prob prog)
@@ -323,9 +323,6 @@ coin1 == int(51, 10)
 " in assert_feq 0.45 (parse_and_prob prog)
 
 
-
-
-
 let expression_tests =
 "suite">:::
 [
@@ -354,8 +351,10 @@ let expression_tests =
   "test_fcall4">::test_fcall4;
   "test_fcall5">::test_fcall5;
   "test_fcall6">::test_fcall6;
+  "test_fcall7">::test_fcall7;
   "test_caesar">::test_caesar;
   "test_alarm">::test_alarm;
+  "test_alarm_2">::test_alarm_2;
   "test_murder">::test_murder;
   "test_evidence1">::test_evidence1;
   "test_evidence2">::test_evidence2;
