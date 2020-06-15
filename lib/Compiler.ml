@@ -4,10 +4,6 @@ open Wmc
 open VarState
 open CoreGrammar
 
-let within_epsilon x y =
-  (Float.compare (Float.abs (x -. y)) 0.000001) < 0
-  (* Float.abs  < 0.000001 *)
-
 let flip_id = ref 1
 
 (** Result of compiling an expression *)
@@ -54,31 +50,11 @@ let rec gen_sym_type ctx (t:typ) : varstate btree =
   match t with
   | TBool ->
     let bdd = Bdd.newvar ctx.man in Leaf(BddLeaf(bdd))
-  | TInt(sz) ->
-    let bdds = List.init sz ~f:(fun _ -> Bdd.newvar ctx.man) in
-    Leaf(IntLeaf(bdds))
   | TTuple(t1, t2) ->
     let s1 = gen_sym_type ctx t1 and s2 = gen_sym_type ctx t2 in
     Node(s1, s2)
 
 let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled_expr =
-  (* helper function for implementing binary operations
-      [op] : size -> a -> b -> pos, defines the binary operation being implemented *)
-  let binop_helper e1 e2 (op: int -> int -> int -> int) =
-    let c1 = compile_expr ctx tenv env e1 in
-    let c2 = compile_expr ctx tenv env e2 in
-    let l1 = extract_discrete c1.state and l2 = extract_discrete c2.state in
-    (if (List.length l1 <> List.length l2) then
-        failwith (Format.sprintf "Type error: '%s' and '%s' are different types." (string_of_expr e1) (string_of_expr e2)));
-    let len = List.length l1 in
-    let init_l = Array.init len ~f:(fun _ -> Bdd.dfalse ctx.man) in
-    List.iteri l1 ~f:(fun outer_i outer_itm ->
-        List.iteri l2 ~f:(fun inner_i inner_itm ->
-            let cur_pos = op len outer_i inner_i in
-            let cur_arrv = Array.get init_l cur_pos in
-            Array.set init_l cur_pos (Bdd.dor cur_arrv (Bdd.dand inner_itm outer_itm));
-          ));
-    {state=Leaf(IntLeaf(Array.to_list init_l)); z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips} in
   let r = match e with
   | And(e1, e2) ->
     let c2 = compile_expr ctx tenv env e2 in
@@ -206,67 +182,6 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
        let c2 = compile_expr ctx tenv env' e2 in
        {state=c2.state; z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips})
 
-  | Discrete(l) ->
-    (* first construct a list of all the properly parameterized flips *)
-    let flips = ref [] in
-    let (bdd_l, _) = List.fold ~init:([], 1.0) l ~f:(fun (cur_l, cur_z) param ->
-        let new_param = param /. cur_z in
-        (* optimize: remove unnecessary flips if they are constant parameters *)
-        (match new_param with
-         | _ when Float.is_nan new_param || within_epsilon new_param 0.0 ->
-           List.append cur_l [Bdd.dfalse ctx.man], cur_z
-         | _ when within_epsilon new_param 1.0 ->
-           List.append cur_l [Bdd.dtrue ctx.man], cur_z
-         | _ ->
-           let new_f = Bdd.newvar ctx.man in
-           flips := List.append !flips [new_f];
-           let var_lbl = Bdd.topvar new_f in
-           let new_z = cur_z -. param in
-           Hashtbl.Poly.add_exn ctx.weights ~key:var_lbl ~data:(1.0-.new_param, new_param);
-           Hashtbl.add_exn ctx.name_map ~key:var_lbl ~data:(Format.sprintf "i%f" param);
-           (List.append cur_l [new_f], new_z))
-      ) in
-    (* convert the flip list into logical formulae *)
-    let (l', _) = List.fold bdd_l ~init:([], Bdd.dtrue ctx.man) ~f:(fun (cur_l, cur_guard) flip ->
-        let new_guard = Bdd.dand (Bdd.dnot flip) cur_guard in
-        let cur_bdd = Bdd.dand cur_guard flip in
-        (List.append cur_l [cur_bdd], new_guard)
-      ) in
-    {state=Leaf(IntLeaf(l')); z=Bdd.dtrue ctx.man; flips = !flips}
-
-  | Int(sz, value) ->
-    let l = List.init sz ~f:(fun i ->
-        if i = value then Bdd.dtrue ctx.man else Bdd.dfalse ctx.man) in
-    {state=Leaf(IntLeaf(l)); z=Bdd.dtrue ctx.man; flips=[]}
-
-  | Eq(e1, e2) ->
-    let c1 = compile_expr ctx tenv env e1 in
-    let c2 = compile_expr ctx tenv env e2 in
-    let l1 = extract_discrete c1.state and l2 = extract_discrete c2.state in
-    let zipped = try List.zip_exn l1 l2
-            with _ -> failwith (Format.sprintf "Type error: length mismatch between %s and %s"
-                                  (string_of_expr e1) (string_of_expr e2)) in
-    let bdd = List.fold zipped ~init:(Bdd.dfalse ctx.man) ~f:(fun acc (l, r) ->
-        Bdd.dor acc (Bdd.dand l r)
-      ) in
-    {state=Leaf(BddLeaf(bdd)); z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips}
-
-  | Lt(e1, e2) ->
-    let c1 = compile_expr ctx tenv env e1 in
-    let c2 = compile_expr ctx tenv env e2 in
-    let l1 = extract_discrete c1.state and l2 = extract_discrete c2.state in
-    let cur = ref (Bdd.dfalse ctx.man) in
-    List.iteri l1 ~f:(fun o_idx o_bdd ->
-        List.iteri l2 ~f:(fun i_idx i_bdd ->
-            if o_idx < i_idx then cur := Bdd.dor !cur (Bdd.dand o_bdd i_bdd) else ();
-          ));
-    {state=Leaf(BddLeaf(!cur)); z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips}
-
-  | Plus(e1, e2) -> binop_helper e1 e2 (fun sz a b -> (a + b) mod sz)
-  | Minus(e1, e2) -> binop_helper e1 e2 (fun sz a b ->  (a + sz - b) mod sz)
-  | Mult(e1, e2) -> binop_helper e1 e2 (fun sz a b -> ((a * b) mod sz))
-  | Div(e1, e2) -> binop_helper e1 e2 (fun sz a b -> (a / b) mod sz)
-
   | FuncCall(name, args) ->
     let func = try Hashtbl.Poly.find_exn ctx.funcs name
       with _ -> failwith (Format.sprintf "Could not find function '%s'." name) in
@@ -353,4 +268,81 @@ let get_prob p =
   let z = Wmc.wmc c.body.z c.ctx.weights in
   let prob = Wmc.wmc (Bdd.dand (extract_bdd c.body.state) c.body.z) c.ctx.weights in
   prob /. z
+
+
+module I = Parser.MenhirInterpreter
+open Lexing
+open Lexer
+
+
+exception Syntax_error of string
+
+
+let print_position outx lexbuf =
+  let pos = lexbuf.lex_curr_p in
+  fprintf outx "%s:%d:%d" pos.pos_fname
+    pos.pos_lnum (pos.pos_cnum - pos.pos_bol + 1)
+
+
+
+(** [parse_and_prob] parses and computes the probability for string [txt] *)
+let parse_and_prob ?debug txt =
+  let buf = Lexing.from_string txt in
+  let parsed = try Parser.program Lexer.token buf with
+  | SyntaxError msg ->
+    fprintf stderr "%a: %s\n" print_position buf msg;
+    failwith (Format.sprintf "Error parsing %s" txt)
+  | Parser.Error ->
+    fprintf stderr "%a: syntax error\n" print_position buf;
+    failwith (Format.sprintf "Error parsing %s" txt) in
+  (match debug with
+   | Some(true)->
+     Format.printf "Program: %s\n" (ExternalGrammar.string_of_prog parsed);
+   | _ -> ());
+  get_prob (Passes.from_external_prog parsed)
+
+
+let get_lexing_position lexbuf =
+  let p = Lexing.lexeme_start_p lexbuf in
+  let line_number = p.Lexing.pos_lnum in
+  let column = p.Lexing.pos_cnum - p.Lexing.pos_bol + 1 in
+  (line_number, column)
+
+
+let get_parse_error env =
+    match I.stack env with
+    | lazy Nil -> "Invalid syntax"
+    | lazy (Cons (I.Element (state, _, _, _), _)) ->
+        try (Parser_messages.message (I.number state)) with
+        | _ -> "invalid syntax (no specific message for this eror)"
+
+
+(** [parse_with_error] parses [lexbuf] as a program or fails with a syntax error *)
+let parse_with_error lexbuf =
+  let rec helper lexbuf checkpoint =
+    match checkpoint with
+    | I.InputNeeded _env ->
+      (* The parser needs a token. Request one from the lexer,
+         and offer it to the parser, which will produce a new
+         checkpoint. Then, repeat. *)
+      let token = Lexer.token lexbuf in
+      let startp = lexbuf.lex_start_p
+      and endp = lexbuf.lex_curr_p in
+      let checkpoint = I.offer checkpoint (token, startp, endp) in
+      helper lexbuf checkpoint
+    | I.Shifting _
+    | I.AboutToReduce _ ->
+      let checkpoint = I.resume checkpoint in
+      helper lexbuf checkpoint
+    | I.HandlingError _env ->
+      (* The parser has suspended itself because of a syntax error. Stop. *)
+      let line, pos = get_lexing_position lexbuf in
+      let err = get_parse_error _env in
+      raise (Syntax_error (Format.sprintf "Error at line %d, position %d: %s\n%!" line pos err))
+    | I.Accepted v -> v
+    | I.Rejected ->
+      (* The parser rejects this input. This cannot happen, here, because
+         we stop as soon as the parser reports [HandlingError]. *)
+      assert false in
+  helper lexbuf (Parser.Incremental.program lexbuf.lex_curr_p)
 

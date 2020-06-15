@@ -11,7 +11,7 @@ let get_lexing_position lexbuf =
   (line_number, column)
 
 let parse_and_print print_parsed print_info print_size skip_table print_marginals lexbuf = try
-  let parsed = Util.parse_with_error lexbuf in
+  let parsed = Compiler.parse_with_error lexbuf in
   if print_parsed then Format.printf "==========Parsed program==========\n%s\n" (ExternalGrammar.string_of_prog parsed);
   let compiled = Compiler.compile_program (from_external_prog parsed) in
   let zbdd = compiled.body.z in
@@ -52,7 +52,7 @@ let parse_and_print print_parsed print_info print_size skip_table print_marginal
   if print_info then (Format.printf "==========BDD Manager Info=========="; Man.print_info compiled.ctx.man);
   if print_size then (Format.printf "==========Final compiled BDD size: %d\n=========="
                         (VarState.state_size [compiled.body.state; VarState.Leaf(VarState.BddLeaf(compiled.body.z))]))
-  with Util.Syntax_error(s) -> Format.printf "Syntax error: %s" s
+  with Compiler.Syntax_error(s) -> Format.printf "Syntax error: %s" s
 
 
 let command =

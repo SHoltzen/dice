@@ -3,6 +3,7 @@
 open DiceLib
 open Core
 open Util
+open Compiler
 open Lexer
 
 let run_benches () =

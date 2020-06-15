@@ -9,14 +9,6 @@ type expr =
   | Snd of expr
   | Tup of expr * expr
   | Ite of expr * expr * expr
-  | Discrete of float List.t
-  | Eq of expr * expr
-  | Lt of expr * expr
-  | Int of int * int  (* sz, v *)
-  | Plus of expr * expr
-  | Minus of expr * expr
-  | Mult of expr * expr
-  | Div of expr * expr
   | True
   | False
   | Flip of float
@@ -32,7 +24,6 @@ and fcall = {
 
 type typ =
     TBool
-  | TInt of int (* sz *)
   | TTuple of typ * typ
 [@@deriving sexp_of]
 
@@ -61,7 +52,6 @@ let rec type_of env e : typ =
     let t1 = type_of env e1 in
     let t2 = type_of env e2 in
     TTuple(t1 ,t2)
-  | Int(sz, _) -> TInt(sz)
   | Let(x, e1, e2) ->
     let te1 = type_of env e1 in
     type_of (Map.Poly.set env ~key:x ~data:te1) e2
@@ -70,13 +60,6 @@ let rec type_of env e : typ =
     (* let t2 = type_of env els in *)
     (* assert (t1 == t2); *)
     t1
-  | Eq(_, _) | Lt(_, _) -> TBool
-  | Plus(s1, _) | Minus(s1, _) | Mult(s1, _) | Div(s1, _) ->
-    let t1 = type_of env s1 in
-    (* let t2 = type_of env s2 in *)
-    (* assert (t1 == t2); *)
-    t1
-  | Discrete(l) -> TInt(List.length l)
   | FuncCall(id, _) ->
     (try Map.Poly.find_exn env id
     with _ -> failwith (Format.sprintf "Could not find function '%s' during typechecking" id))
@@ -96,7 +79,6 @@ let type_of_fun env f : typ =
       Map.Poly.add_exn acc ~key:name ~data:typ
     ) in
   type_of new_env f.body
-
 
 type program = {
   functions: func List.t;

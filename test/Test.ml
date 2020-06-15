@@ -2,6 +2,8 @@ open DiceLib
 open OUnit2
 open Core
 open Util
+open Compiler
+
 
 let test_1 _ =
   let prog = "let x = flip 0.4 in x" in
