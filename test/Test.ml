@@ -46,19 +46,19 @@ let test_ite3 _ =
   assert_feq 0.0 (parse_and_prob prog)
 
 let test_int1 _ =
-  let prog = "let x = discrete(0.1, 0.4, 0.5) in x == int(3, 1)" in
+  let prog = "let x = discrete(0.1, 0.4, 0.5) in x == int(2, 1)" in
   assert_feq 0.4 (parse_and_prob prog)
 
 let test_int2 _ =
-  let prog = "let x = discrete(0.1, 0.4, 0.5) in let z = observe ! (x == int(3, 0)) in x == int(3, 1)" in
+  let prog = "let x = discrete(0.1, 0.4, 0.5) in let z = observe ! (x == int(2, 0)) in x == int(2, 1)" in
   assert_feq (0.4 /. 0.9) (parse_and_prob prog)
 
 let test_int3 _ =
-  let prog = "let x = discrete(0.1, 0.4, 0.5) in let z = observe ! (x == int(3, 0) || x == int(3,1)) in x == int(3, 2)" in
+  let prog = "let x = discrete(0.1, 0.4, 0.5) in let z = observe ! (x == int(2, 0) || x == int(2,1)) in x == int(2, 2)" in
   assert_feq 1.0 (parse_and_prob prog)
 
 let test_int4 _ =
-  let prog = "let x = discrete(0.1, 0.4, 0.5) in let z = observe ! (x == int(3, 1)) in x == int(3, 2)" in
+  let prog = "let x = discrete(0.1, 0.4, 0.5) in let z = observe ! (x == int(2, 1)) in x == int(2, 2)" in
   assert_feq (0.5 /. 0.6) (parse_and_prob prog)
 
 let test_add1 _ =

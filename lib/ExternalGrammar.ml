@@ -9,6 +9,7 @@ type typ =
     TBool
   | TInt of int (* sz *)
   | TTuple of typ * typ
+  | Func of typ List.t * typ
 [@@deriving sexp_of]
 
 type arg = String.t * typ
@@ -55,3 +56,6 @@ let string_of_eexpr e =
 
 let string_of_prog e =
   Sexp.to_string_hum (sexp_of_program e)
+
+(** type environment *)
+type tenv = (String.t, typ) Core.Map.Poly.t

@@ -3,6 +3,12 @@
 open Core
 open Util
 
+let n = ref 0
+
+let fresh () =
+  n := !n + 1;
+  (Format.sprintf "$%d" !n)
+
 let inline_functions (p: ExternalGrammar.program) =
   let open ExternalGrammar in
   let function_map = List.fold p.functions ~init:(Map.Poly.empty) ~f:(fun acc f ->
@@ -114,25 +120,6 @@ let int_to_bin final_sz d =
   let padding = List.init (final_sz - List.length r) ~f:(fun _ -> 0) in
   padding @ r
 
-(* (\** given a bit size and a little-endian vector of bits, produces all integers
- *     contain that leading bit sequence.
- * 
- *     Ex:
- *     bin_sequence 4 [1] = [1; 3; 5; 7; 9; 11; 13; 15]
- *     bin_sequence 4 [0] = [0; 2; 4; 6; 8; 10; 12; 14]
- *     bin_sequence 4 [1; 1] = 3; 5; 7; 11; 15]
- * *\)
- * let bin_sequence sz (fixed : int List.t) =
- *   assert (sz >= List.length fixed);
- *   let top = all_binary (sz - (List.length fixed)) in
- *   let l = List.map top ~f:(fun i -> i @ fixed) in
- *   (\* convert l into integers *\)
- *   List.sort ~compare:Int.compare (List.map l ~f:bin_to_int) *)
-
-(* (\** true if the ith bit of d is 1 *\)
- * let is_bit_1 i d =
- *   ((d lsr i) land 1) = 1 *)
-
 (** builds a list of all assignments to `l`, a list of (expr, bdd) *)
 let rec all_assignments mgr l =
   let open Cudd in
@@ -204,46 +191,110 @@ let rec gen_discrete (l: float List.t) =
   let inner_body = mk_dfs_tuple (List.map bits ~f:fst) in
   List.fold assgn ~init:inner_body ~f:(fun acc (Ident(name), body) -> Let(name, body, acc))
 
-let rec from_external_expr (e: ExternalGrammar.eexpr) : CoreGrammar.expr =
-  let open CoreGrammar in
+
+let rec type_of (env: ExternalGrammar.tenv) (e: ExternalGrammar.eexpr) : ExternalGrammar.typ =
+  match e with
+  | And(_, _) | Or(_, _) | Not(_) | True | False | Flip(_) | Observe(_) -> TBool
+  | Ident(s) -> (try Map.Poly.find_exn env s
+    with _ -> failwith (Format.sprintf "Could not find variable %s during typechecking" s))
+  | Fst(e1) ->
+    (match type_of env e1 with
+     | TTuple(l, _) -> l
+     | _ -> failwith "Type error: expected tuple")
+  | Snd(e1) ->
+    (match type_of env e1 with
+     | TTuple(_, r) -> r
+     | _ -> failwith "Type error: expected tuple")
+  | Tup(e1, e2) ->
+    let t1 = type_of env e1 in
+    let t2 = type_of env e2 in
+    TTuple(t1 ,t2)
+  | Int(sz, v) -> TInt(num_binary_digits sz)
+  | Discrete(l) -> TInt(num_binary_digits (List.length l))
+  | Eq(_, _) | Lt(_, _) | Gt(_, _) | Lte(_, _) | Gte(_,_) | Neq(_, _) -> TBool
+  | Plus(l,_) | Minus(l,_) | Mult(l,_) | Div(l,_) ->
+    type_of env l
+  | Let(x, e1, e2) ->
+    let te1 = type_of env e1 in
+    type_of (Map.Poly.set env ~key:x ~data:te1) e2
+  | Ite(_, thn, _) ->
+    let t1 = type_of env thn in
+    (* let t2 = type_of env els in *)
+    (* assert (t1 == t2); *)
+    t1
+  | FuncCall(id, _) ->
+    (try Map.Poly.find_exn env id
+    with _ -> failwith (Format.sprintf "Could not find function '%s' during typechecking" id))
+
+let rec nth_snd i inner =
+  match i with
+    0 -> inner
+  | n -> CoreGrammar.Snd (nth_snd (n-1) inner)
+
+let rec and_of_l l =
+  match l with
+  | [] -> CoreGrammar.True
+  | [x] -> x
+  | x::xs -> CoreGrammar.And(x, and_of_l xs)
+
+let rec from_external_expr_h (tenv: ExternalGrammar.tenv) (e: ExternalGrammar.eexpr) : CoreGrammar.expr =
   match e with
   | And(e1, e2) ->
-    let s1 = from_external_expr e1 in
-    let s2 = from_external_expr e2 in And(s1, s2)
+    let s1 = from_external_expr_h tenv e1 in
+    let s2 = from_external_expr_h tenv e2 in And(s1, s2)
   | Or(e1, e2) ->
-    let s1 = from_external_expr e1 in
-    let s2 = from_external_expr e2 in Or(s1, s2)
+    let s1 = from_external_expr_h tenv e1 in
+    let s2 = from_external_expr_h tenv e2 in Or(s1, s2)
   | Plus(e1, e2) -> failwith "not implemented +"
-  | Eq(e1, e2) -> failwith "not implemented ="
-  | Neq(e1, e2) -> from_external_expr(Not(Eq(e1, e2)))
+  | Eq(e1, e2) ->
+    let t1 = type_of tenv e1 in
+    let t2 = type_of tenv e2 in
+    let sz = (match (t1, t2) with
+        | ExternalGrammar.TInt(a), ExternalGrammar.TInt(b) when a = b -> a
+        | _ -> failwith (Format.sprintf "Type error at %s" (ExternalGrammar.string_of_eexpr e))) in
+    let n1 = fresh () and n2 = fresh () in
+    let inner = List.init sz ~f:(fun idx ->
+        if idx = sz-1 then
+          CoreGrammar.Eq( nth_snd idx (Ident(n1)),
+                          nth_snd idx (Ident(n2))) else
+          CoreGrammar.Eq(Fst (nth_snd idx (Ident(n1))),
+                         Fst(nth_snd idx (Ident(n2))))
+      ) |> and_of_l in
+    Let(n1, from_external_expr_h tenv e1, Let(n2, from_external_expr_h tenv e2, inner))
+  | Neq(e1, e2) -> from_external_expr_h tenv (Not (Eq (e1, e2)))
   | Minus(e1, e2) -> failwith "not implemented -"
   | Mult(e1, e2) -> failwith "not implemented *"
   | Div(e1, e2) -> failwith "not implemented /"
   | Lt(e1, e2) -> failwith "not implemented <"
-  | Lte(e1, e2) -> from_external_expr(Or(Lt(e1, e2), Eq(e1, e2)))
-  | Gt(e1, e2) -> from_external_expr(Not(Lte(e1, e2)))
-  | Gte(e1, e2) -> from_external_expr(Not(Lt(e1, e2)))
-  | Not(e) -> Not(from_external_expr e)
+  | Lte(e1, e2) -> from_external_expr_h tenv (Or(Lt(e1, e2), Eq(e1, e2)))
+  | Gt(e1, e2) -> from_external_expr_h tenv (Not(Lte(e1, e2)))
+  | Gte(e1, e2) -> from_external_expr_h tenv (Not(Lt(e1, e2)))
+  | Not(e) -> Not(from_external_expr_h tenv e)
   | Flip(f) -> Flip(f)
   | Ident(s) -> Ident(s)
   | Discrete(l) -> gen_discrete l
-  | Int(_, v) ->
-    let bits = int_to_bin (num_binary_digits v) v
-               |> List.map ~f:(fun i -> if i = 1 then True else False) in
+  | Int(sz, v) ->
+    let bits = int_to_bin sz v
+               |> List.map ~f:(fun i -> if i = 1 then CoreGrammar.True else CoreGrammar.False) in
     mk_dfs_tuple bits
   | True -> True
   | False -> False
-  | Observe(e) -> Observe(from_external_expr e)
-  | Let(x, e1, e2) -> Let(x, from_external_expr e1, from_external_expr e2)
-  | Ite(g, thn, els) -> Ite(from_external_expr g, from_external_expr thn, from_external_expr els)
-  | Snd(e) -> Snd(from_external_expr e)
-  | Fst(e) -> Fst(from_external_expr e)
-  | Tup(e1, e2) -> Tup(from_external_expr e1, from_external_expr e2)
-  | FuncCall(id, args) -> FuncCall(id, List.map args ~f:(fun i -> from_external_expr i))
+  | Observe(e) -> Observe(from_external_expr_h tenv e)
+  | Let(x, e1, e2) ->
+    let t = type_of tenv e1 in
+    let tenv' = Map.Poly.set tenv ~key:x ~data:t in
+    Let(x, from_external_expr_h tenv e1, from_external_expr_h tenv' e2)
+  | Ite(g, thn, els) -> Ite(from_external_expr_h tenv g, from_external_expr_h tenv thn, from_external_expr_h tenv els)
+  | Snd(e) -> Snd(from_external_expr_h tenv e)
+  | Fst(e) -> Fst(from_external_expr_h tenv e)
+  | Tup(e1, e2) -> Tup(from_external_expr_h tenv e1, from_external_expr_h tenv e2)
+  | FuncCall(id, args) -> FuncCall(id, List.map args ~f:(fun i -> from_external_expr_h tenv i))
   | Iter(f, init, k) ->
-    let e = from_external_expr init in
+    let e = from_external_expr_h tenv init in
     List.fold (List.init k ~f:(fun _ -> ()))  ~init:e
       ~f:(fun acc _ -> FuncCall(f, [acc]))
+
+let from_external_expr (e: ExternalGrammar.eexpr) : CoreGrammar.expr = from_external_expr_h Map.Poly.empty e
 
 let rec from_external_typ (t:ExternalGrammar.typ) : CoreGrammar.typ =
   match t with

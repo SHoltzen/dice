@@ -3,6 +3,7 @@ open Core
 type expr =
   | And of expr * expr
   | Or of expr * expr
+  | Eq of expr * expr
   | Not of expr
   | Ident of String.t
   | Fst of expr
@@ -85,4 +86,7 @@ type program = {
   body: expr;
 }
 [@@deriving sexp_of]
+
+let string_of_prog e =
+  Sexp.to_string_hum (sexp_of_program e)
 

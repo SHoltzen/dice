@@ -4,6 +4,7 @@
 type expr =
   | And of expr * expr
   | Or of expr * expr
+  | Eq of expr * expr
   | Not of expr
   | Ident of String.t
   | Fst of expr
@@ -23,7 +24,6 @@ and fcall = {
 }
 [@@deriving sexp_of]
 
-val string_of_expr : expr -> String.t
 
 type typ =
     TBool
@@ -55,3 +55,6 @@ type tenv = (String.t, typ) Core.Map.Poly.t
 
 val type_of : tenv -> expr -> typ
 val type_of_fun : tenv -> func -> typ
+
+val string_of_expr : expr -> String.t
+val string_of_prog : program -> String.t

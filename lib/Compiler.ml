@@ -70,6 +70,14 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     let z = Bdd.dand c1.z c2.z in
     {state=v; z=z; flips=List.append c1.flips c2.flips}
 
+  | Eq(e1, e2) ->
+    let c2 = compile_expr ctx tenv env e2 in
+    let c1 = compile_expr ctx tenv env e1 in
+    let v = Leaf(BddLeaf(Bdd.eq (extract_bdd c1.state) (extract_bdd c2.state))) in
+    let z = Bdd.dand c1.z c2.z in
+    {state=v; z=z; flips=List.append c1.flips c2.flips}
+
+
   | Not(e) ->
     let c = compile_expr ctx tenv env e in
     let v = Bdd.dnot (extract_bdd c.state) in
@@ -295,11 +303,13 @@ let parse_and_prob ?debug txt =
   | Parser.Error ->
     fprintf stderr "%a: syntax error\n" print_position buf;
     failwith (Format.sprintf "Error parsing %s" txt) in
+  let transformed = Passes.from_external_prog parsed in
   (match debug with
    | Some(true)->
      Format.printf "Program: %s\n" (ExternalGrammar.string_of_prog parsed);
+     Format.printf "After passes: %s\n" (CoreGrammar.string_of_prog transformed);
    | _ -> ());
-  get_prob (Passes.from_external_prog parsed)
+  get_prob transformed
 
 
 let get_lexing_position lexbuf =
