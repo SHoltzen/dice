@@ -9,41 +9,92 @@ type typ =
     TBool
   | TInt of int (* sz *)
   | TTuple of typ * typ
-  | Func of typ List.t * typ
+  | TFunc of typ List.t * typ
 [@@deriving sexp_of]
 
 type arg = String.t * typ
 [@@deriving sexp_of]
 
-type eexpr =
-    And of eexpr * eexpr
-  | Or of eexpr * eexpr
-  | Not of eexpr
-  | Ite of eexpr * eexpr * eexpr
-  | Flip of float
-  | Let of String.t * eexpr * eexpr
-  | Observe of eexpr
-  | Ident of String.t
-  | Discrete of float List.t
-  | Int of int * int (* value, size *)
-  | Eq of eexpr * eexpr
-  | Plus of eexpr * eexpr
-  | Minus of eexpr * eexpr
-  | Mult of eexpr * eexpr
-  | Div of eexpr * eexpr
-  | Lte of eexpr * eexpr
-  | Lt of eexpr * eexpr
-  | Gte of eexpr * eexpr
-  | Gt of eexpr * eexpr
-  | Neq of eexpr * eexpr
-  | Fst of eexpr
-  | Snd of eexpr
-  | Tup of eexpr * eexpr
-  | FuncCall of String.t * eexpr List.t
-  | Iter of String.t * eexpr * int
-  | True
-  | False
+(* this syntax is a bit weird; it is necessary because Lexing.position does not
+   by default derive sexp. *)
+type lexing_position =
+  Lexing.position =
+  { pos_fname : string
+  ; pos_lnum : int
+  ; pos_bol : int
+  ; pos_cnum : int
+  }
+[@@deriving sexp]
+
+
+type source = {startpos: lexing_position; endpos: lexing_position}
 [@@deriving sexp_of]
+
+type eexpr =
+    And of source * eexpr * eexpr
+  | Or of source * eexpr * eexpr
+  | Iff of source * eexpr * eexpr
+  | Not of source * eexpr
+  | Ite of source * eexpr * eexpr * eexpr
+  | Flip of source * float
+  | Let of source * String.t * eexpr * eexpr
+  | Observe of source * eexpr
+  | Ident of source * String.t
+  | Discrete of source * float List.t
+  | Int of source * int * int (* value, size *)
+  | Eq of source * eexpr * eexpr
+  | Plus of source * eexpr * eexpr
+  | Minus of source * eexpr * eexpr
+  | Mult of source * eexpr * eexpr
+  | Div of source * eexpr * eexpr
+  | Lte of source * eexpr * eexpr
+  | Lt of source * eexpr * eexpr
+  | Gte of source * eexpr * eexpr
+  | Gt of source * eexpr * eexpr
+  | Neq of source * eexpr * eexpr
+  | Fst of source * eexpr
+  | Snd of source * eexpr
+  | Tup of source * eexpr * eexpr
+  | FuncCall of source * String.t * eexpr List.t
+  | Iter of source * String.t * eexpr * int
+  | True of source
+  | False of source
+[@@deriving sexp_of]
+
+exception Type_error of String.t
+
+let get_src e =
+  match e with
+  | And(s, _, _)
+  | Or(s, _, _)
+  | Plus(s, _, _)
+  | Eq(s, _, _)
+  | Neq(s, _, _)
+  | Minus(s, _, _)
+  | Mult(s, _, _)
+  | Div(s, _, _)
+  | Lt(s, _, _)
+  | Lte(s, _, _)
+  | Gt(s, _, _)
+  | Int(s, _, _)
+  | Iff(s, _, _)
+  | Gte(s, _, _) -> s
+  | Not(s, _) -> s
+  | Flip(s, _) -> s
+  | Ident(s, _) -> s
+  | Discrete(s, _) -> s
+  | True(s) -> s
+  | False(s) -> s
+  | Observe(s, _) -> s
+  | Let(s, _, _, _) -> s
+  | Ite(s, _, _, _) -> s
+  | Snd(s, _) -> s
+  | Fst(s, _) -> s
+  | Tup(s, _, _) -> s
+  | Iter(s, _, _, _) -> s
+  | FuncCall(s, _, _) -> s
+
+
 
 type func = { name: String.t; args: arg List.t; body: eexpr}
 [@@deriving sexp_of]
@@ -56,6 +107,9 @@ let string_of_eexpr e =
 
 let string_of_prog e =
   Sexp.to_string_hum (sexp_of_program e)
+
+let string_of_typ t =
+  Sexp.to_string_hum (sexp_of_typ t)
 
 (** type environment *)
 type tenv = (String.t, typ) Core.Map.Poly.t
