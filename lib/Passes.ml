@@ -3,6 +3,7 @@
 open Core
 open Util
 module EG = ExternalGrammar
+module CG = CoreGrammar
 
 let n = ref 0
 
@@ -129,7 +130,7 @@ let int_to_bin final_sz d =
 (** builds a list of all assignments to `l`, a list of (expr, bdd) *)
 let rec all_assignments mgr l =
   let open Cudd in
-  let open CoreGrammar in
+  let open CG in
   match l with
   | [] -> [True, Bdd.dtrue mgr]
   | (cur_constraint, cur_bdd)::xs ->
@@ -152,7 +153,7 @@ let rec mk_dfs_tuple l =
   | [] -> failwith "cannot call with empty list"
   | [x] -> x
   | x::xs ->
-    CoreGrammar.Tup(x, mk_dfs_tuple xs)
+    CG.Tup(x, mk_dfs_tuple xs)
 
 let type_eq t1 t2 =
   let open EG in
@@ -215,10 +216,10 @@ let rec type_of (env: EG.tenv) (e: EG.eexpr) : tast =
     if (type_eq t typ) then (t, e) else
       raise (EG.Type_error(Format.sprintf "Type error at line %d column %d: expected %s, got %s"
                                       src.pos_lnum src.pos_cnum (EG.string_of_typ typ) (EG.string_of_typ t))) in
-  let expect_compatible_int f src e1 e2 : tast =
+  let expect_compatible_int (f: tast -> tast -> ast) src e1 e2 =
     let (t1, s1) = type_of env e1 and (t2, s2) = type_of env e2 in
     match (t1, t2) with
-    | (TInt(d1), TInt(d2)) when d1 = d2 -> (TBool, f (t1, s1) (t1, s2))
+    | (TInt(d1), TInt(d2)) when d1 = d2 -> (d1, f (t1, s1) (t1, s2))
     | (_, _) ->
       raise (EG.Type_error(Format.sprintf "Type error at line %d column %d: expected compatible integer types, got %s and %s"
                              src.pos_lnum src.pos_cnum (EG.string_of_typ t1) (EG.string_of_typ t2)))  in
@@ -269,17 +270,30 @@ let rec type_of (env: EG.tenv) (e: EG.eexpr) : tast =
     let t2 = type_of env e2 in
     (TTuple(fst t1, fst t2), Tup(s, t1, t2))
   | Int(src, sz, v) -> (TInt(sz), Int(src, sz, v))
-  | Discrete(src, l) -> (TInt(num_binary_digits ((List.length l) - 1)), Discrete(src, l))
-  | Eq(s, e1, e2) -> expect_compatible_int (fun s1 s2 -> Eq(s, s1, s2)) s.startpos e1 e2
-  | Lt(s, e1, e2) -> expect_compatible_int (fun e1 e2 -> Lt(s, e1, e2)) s.startpos e1 e2
-  | Gt(s, e1, e2) -> expect_compatible_int (fun e1 e2 -> Gt(s, e1, e2)) s.startpos e1 e2
-  | Lte(s, e1, e2) -> expect_compatible_int (fun e1 e2 -> Lte(s, e1, e2)) s.startpos e1 e2
-  | Gte(s, e1, e2) -> expect_compatible_int (fun e1 e2 -> Gte(s, e1, e2)) s.startpos e1 e2
-  | Neq(s, e1, e2) -> expect_compatible_int (fun e1 e2 -> Neq(s, e1, e2)) s.startpos e1 e2
-  | Plus(s, e1, e2) -> expect_compatible_int (fun e1 e2 -> Plus(s, e1, e2)) s.startpos e1 e2
-  | Minus(s, e1, e2) -> expect_compatible_int (fun e1 e2 -> Minus(s, e1, e2)) s.startpos e1 e2
-  | Mult(s, e1, e2) -> expect_compatible_int (fun e1 e2 -> Mult(s, e1, e2)) s.startpos e1 e2
-  | Div(s, e1, e2) -> expect_compatible_int (fun e1 e2 -> Div(s, e1, e2)) s.startpos e1 e2
+  | Discrete(src, l) ->
+    let sum = List.fold l ~init:0.0 ~f:(fun acc i -> acc +. i) in
+    if not (Util.within_epsilon sum 1.0) then
+      raise (Type_error (Format.sprintf "Type error at line %d column %d: discrete parameters must sum to 1, got %f"
+                           src.startpos.pos_lnum src.startpos.pos_cnum sum))
+    else (TInt(num_binary_digits ((List.length l) - 1)), Discrete(src, l))
+  | Eq(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun s1 s2 -> Eq(s, s1, s2)) s.startpos e1 e2))
+  | Lt(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun e1 e2 -> Lt(s, e1, e2)) s.startpos e1 e2))
+  | Gt(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun e1 e2 -> Gt(s, e1, e2)) s.startpos e1 e2))
+  | Lte(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun e1 e2 -> Lte(s, e1, e2)) s.startpos e1 e2))
+  | Gte(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun e1 e2 -> Gte(s, e1, e2)) s.startpos e1 e2))
+  | Neq(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun e1 e2 -> Neq(s, e1, e2)) s.startpos e1 e2))
+  | Plus(s, e1, e2) ->
+    let sz, res = expect_compatible_int (fun e1 e2 -> Plus(s, e1, e2)) s.startpos e1 e2 in
+    (TInt(sz), res)
+  | Minus(s, e1, e2) ->
+    let sz, res = expect_compatible_int (fun e1 e2 -> Minus(s, e1, e2)) s.startpos e1 e2 in
+    (TInt(sz), res)
+  | Mult(s, e1, e2) ->
+    let sz, res = expect_compatible_int (fun e1 e2 -> Mult(s, e1, e2)) s.startpos e1 e2 in
+    (TInt(sz), res)
+  | Div(s, e1, e2) ->
+    let sz, res = expect_compatible_int (fun e1 e2 -> Div(s, e1, e2)) s.startpos e1 e2 in
+    (TInt(sz), res)
   | Let(slet, x, e1, e2) ->
     let r1 = type_of env e1 in
     let r2 = type_of (Map.Poly.set env ~key:x ~data:(fst r1)) e2 in
@@ -328,20 +342,16 @@ let rec type_of (env: EG.tenv) (e: EG.eexpr) : tast =
     (* TODO check arg validity*)
     (tres, initbody)
 
-let rec nth_snd i inner =
-  match i with
-    0 -> inner
-  | n -> CoreGrammar.Snd (nth_snd (n-1) inner)
 
 let rec and_of_l l =
   match l with
-  | [] -> CoreGrammar.True
+  | [] -> CG.True
   | [x] -> x
-  | x::xs -> CoreGrammar.And(x, and_of_l xs)
+  | x::xs -> CG.And(x, and_of_l xs)
 
 let rec gen_discrete (l: float List.t) =
   let open Cudd in
-  let open CoreGrammar in
+  let open CG in
   (* first generate the ADD *)
   let mgr = Man.make_d () in
   (* list of bits in little-endian order *)
@@ -382,11 +392,43 @@ let rec gen_discrete (l: float List.t) =
   let inner_body = mk_dfs_tuple (List.map bits ~f:fst) in
   List.fold assgn ~init:inner_body ~f:(fun acc (Ident(name), body) -> Let(name, body, acc))
 
-(* let gen_adder (t: typ) a b =
- *   match t with
- *   | (TBool, TBool) -> *)
 
-let rec from_external_expr_h (tenv: EG.tenv) ((t, e): tast) : CoreGrammar.expr =
+let rec nth_snd i inner =
+  match i with
+    0 -> inner
+  | n -> CG.Snd (nth_snd (n-1) inner)
+
+let nth_bit sz n e : CG.expr = if n = sz-1 then nth_snd n (e) else Fst(nth_snd n (e))
+
+let gen_adder sz a b : CG.expr =
+  let a_name = fresh () in
+  let b_name = fresh () in
+  let tmp_a = CG.Ident(a_name) in
+  let tmp_b = CG.Ident(b_name) in
+  let carryname = Format.sprintf "carry%s" (fresh ()) in
+  let outputname = Format.sprintf "output%s" (fresh ()) in
+  let halfout = (Format.sprintf "%s_0" outputname, CG.Xor(nth_bit sz (sz-1) tmp_a, nth_bit sz (sz-1) tmp_b)) in
+  let halfcarry = (Format.sprintf "%s_0" carryname, CG.And(nth_bit sz (sz-1) tmp_a, nth_bit sz (sz-1) tmp_b)) in
+  (* very finnicky business in here ... generate a sequence of full adders
+     that feed one into the next *)
+  let fulladders = List.init (sz - 1) ~f:(fun bit ->
+      let curidx = bit + 1 in
+      let curbit = sz - bit - 2 in
+      let curout = Format.sprintf "%s_%d" outputname curidx in
+      let curinput_a = nth_bit sz curbit tmp_a in
+      let curinput_b = nth_bit sz curbit tmp_b in
+      let prevcarry = Format.sprintf "%s_%d" carryname (curidx - 1) in
+      let curcarry = Format.sprintf "%s_%d" carryname curidx in
+      [(curout, CG.Xor(Ident(prevcarry), CG.Xor(curinput_a, curinput_b)));
+       (curcarry, CG.Or(CG.And(Ident(prevcarry), curinput_a),
+                        CG.Or(CG.And(Ident(prevcarry), curinput_b), CG.And(curinput_a, curinput_b))))]
+    ) |> List.concat in
+  let full_l = [(a_name, a); (b_name, b); halfout; halfcarry] @ fulladders in
+  let output_list = List.init sz ~f:(fun idx -> CG.Ident(Format.sprintf "%s_%d" outputname (sz - 1 - idx))) in
+  let inner = mk_dfs_tuple output_list in
+  List.fold_right full_l ~init:inner ~f:(fun (name, e) acc -> CG.Let(name, e, acc))
+
+let rec from_external_expr_h (tenv: EG.tenv) ((t, e): tast) : CG.expr =
   match e with
   | And(_, e1, e2) ->
     let s1 = from_external_expr_h tenv e1 in
@@ -397,18 +439,18 @@ let rec from_external_expr_h (tenv: EG.tenv) ((t, e): tast) : CoreGrammar.expr =
   | Iff(_, e1, e2) ->
     let s1 = from_external_expr_h tenv e1 in
     let s2 = from_external_expr_h tenv e2 in Eq(s1, s2)
-  | Plus(_, e1, e2) -> failwith "not impl"
+  | Plus(_, e2, e1) ->
+    let sz = (match t with
+        | TInt(sz) -> sz
+        | _ -> failwith "Internal Error: unreachable") in
+    gen_adder sz (from_external_expr_h tenv e1) (from_external_expr_h tenv e2)
   | Eq(_, (t1, e1), (t2, e2)) ->
     let sz = (match (t1, t2) with
         | EG.TInt(a), EG.TInt(b) when a = b -> a
         | _ -> failwith "Internal Error: Unreachable") in
     let n1 = fresh () and n2 = fresh () in
     let inner = List.init sz ~f:(fun idx ->
-        if idx = sz-1 then
-          CoreGrammar.Eq( nth_snd idx (Ident(n1)),
-                          nth_snd idx (Ident(n2))) else
-          CoreGrammar.Eq(Fst (nth_snd idx (Ident(n1))),
-                         Fst(nth_snd idx (Ident(n2))))
+        CG.Eq(nth_bit sz idx (Ident(n1)), nth_bit sz idx (Ident(n2)))
       ) |> and_of_l in
     Let(n1, from_external_expr_h tenv (t1, e1), Let(n2, from_external_expr_h tenv (t2, e2), inner))
   | Neq(s, e1, e2) -> from_external_expr_h tenv (TBool, Not(s, (TBool, Eq(s, e1, e2))))
@@ -425,7 +467,7 @@ let rec from_external_expr_h (tenv: EG.tenv) ((t, e): tast) : CoreGrammar.expr =
   | Discrete(s, l) -> gen_discrete l
   | Int(s, sz, v) ->
     let bits = int_to_bin sz v
-               |> List.map ~f:(fun i -> if i = 1 then CoreGrammar.True else CoreGrammar.False) in
+               |> List.map ~f:(fun i -> if i = 1 then CG.True else CG.False) in
     mk_dfs_tuple bits
   | True(_) -> True
   | False(_) -> False
@@ -445,26 +487,26 @@ let rec from_external_expr_h (tenv: EG.tenv) ((t, e): tast) : CoreGrammar.expr =
       ~f:(fun acc _ -> FuncCall(f, [acc]))
   | IntConst(_, _) -> failwith "not implemented"
 
-let from_external_expr (e: EG.eexpr) : CoreGrammar.expr =
+let from_external_expr (e: EG.eexpr) : CG.expr =
   let typedast = type_of (Map.Poly.empty) e in
   from_external_expr_h Map.Poly.empty typedast
 
-let rec from_external_typ (t:EG.typ) : CoreGrammar.typ =
+let rec from_external_typ (t:EG.typ) : CG.typ =
   match t with
     TBool -> TBool
   | TInt(sz) -> failwith "not implemented"
   | TTuple(t1, t2) -> TTuple(from_external_typ t1, from_external_typ t2)
 
-let from_external_arg (a:EG.arg) : CoreGrammar.arg =
+let from_external_arg (a:EG.arg) : CG.arg =
   let (name, t) = a in
   (name, from_external_typ t)
 
-let from_external_func (f: EG.func) : CoreGrammar.func =
+let from_external_func (f: EG.func) : CG.func =
   {name = f.name;
    args = List.map f.args ~f:from_external_arg;
    body = from_external_expr f.body}
 
-let from_external_prog (p: EG.program) : CoreGrammar.program =
+let from_external_prog (p: EG.program) : CG.program =
   {functions = List.map p.functions ~f:from_external_func; body = from_external_expr p.body}
 
 

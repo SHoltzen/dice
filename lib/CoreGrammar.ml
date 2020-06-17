@@ -39,7 +39,7 @@ type tenv = (String.t, typ) Map.Poly.t
 
 let rec type_of env e : typ =
   match e with
-  | And(_, _) | Or(_, _) | Not(_) | True | False | Flip(_) | Observe(_) -> TBool
+  | And(_, _) | Xor(_, _) | Eq(_, _) | Or(_, _) | Not(_) | True | False | Flip(_) | Observe(_) -> TBool
   | Ident(s) -> (try Map.Poly.find_exn env s
     with _ -> failwith (Format.sprintf "Could not find variable %s during typechecking" s))
   | Fst(e1) ->

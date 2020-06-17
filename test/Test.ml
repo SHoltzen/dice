@@ -66,24 +66,24 @@ let test_add1 _ =
   assert_feq 1.0 (parse_and_prob prog)
 
 let test_add2 _ =
-  let prog = "let x = discrete(0.1, 0.4, 0.5) + int(3, 1) in x == int(3, 1)" in
+  let prog = "let x = discrete(0.1, 0.4, 0.5) + int(2, 1) in x == int(2, 1)" in
   assert_feq 0.1 (parse_and_prob prog)
 
 let test_add3 _ =
-  let prog = "let x = discrete(0.1, 0.4, 0.5) + discrete(1.0, 0.0, 0.0) in x == int(3, 1)" in
+  let prog = "let x = discrete(0.1, 0.4, 0.5) + discrete(1.0, 0.0, 0.0) in x == int(2, 1)" in
   assert_feq 0.4 (parse_and_prob prog)
 
 let test_add4 _ =
-  let prog = "let x = discrete(0.2, 0.2, 0.2, 0.2, 0.2) + discrete(0.2, 0.2, 0.2, 0.2, 0.2) in x == int(5, 1)" in
-  assert_feq 0.2 (parse_and_prob prog)
+  let prog = "let x = discrete(0.25, 0.25, 0.25, 0.25) + discrete(0.25, 0.25, 0.25, 0.25) in x == int(2, 1)" in
+  assert_feq 0.25 (parse_and_prob prog)
 
 let test_add5 _ =
   let prog = "
    let x = discrete(0.3, 0.1, 0.2, 0.2, 0.2) in
    let y = discrete(0.1, 0.3, 0.2, 0.2, 0.2) in
    let sum = x + y in
-   let z = observe x == int(5, 1) in
-   sum == int(5, 1)" in
+   let z = observe x == int(3, 1) in
+   sum == int(3, 1)" in
   assert_feq 0.1 (parse_and_prob prog)
 
 let test_op1 _ =

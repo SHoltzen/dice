@@ -21,8 +21,9 @@ let parse_and_print ~print_parsed ~print_info ~print_internal ~print_size ~skip_
   if not skip_table then
   (let table = VarState.get_table compiled.body.state in
    let probs = List.map table ~f:(fun (label, bdd) ->
-       let prob = (Wmc.wmc (Bdd.dand bdd zbdd) compiled.ctx.weights) /. z in
-       (label, prob)) in
+       if Util.within_epsilon z 0.0 then (label, 0.0) else
+         let prob = (Wmc.wmc (Bdd.dand bdd zbdd) compiled.ctx.weights) /. z in
+         (label, prob)) in
    Format.printf "==========Joint Distribution==========\n";
    Format.printf "Value\tProbability\n";
    List.iter probs ~f:(fun (typ, prob) ->
