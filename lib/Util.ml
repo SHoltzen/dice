@@ -29,6 +29,3 @@ let dir_contents dir =
        | _ -> loop (f::result) fs)
     | []    -> result
   in loop [] [dir]
-
-
-

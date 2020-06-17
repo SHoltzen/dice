@@ -432,6 +432,38 @@ let gen_adder sz a b : CG.expr =
   let inner = mk_dfs_tuple output_list in
   List.fold_right full_l ~init:inner ~f:(fun (name, e) acc -> CG.Let(name, e, acc))
 
+(* generates a subtractor circuit for a - b *)
+let gen_subtractor sz a b : CG.expr =
+  let a_name = fresh () in
+  let b_name = fresh () in
+  let tmp_a = CG.Ident(a_name) in
+  let tmp_b = CG.Ident(b_name) in
+  let borrowname = Format.sprintf "borrow%s" (fresh ()) in
+  let outputname = Format.sprintf "output%s" (fresh ()) in
+  let halfout = (Format.sprintf "%s_0" outputname, CG.Xor(nth_bit sz (sz-1) tmp_a, nth_bit sz (sz-1) tmp_b)) in
+  let halfborrow = (Format.sprintf "%s_0" borrowname, CG.And(Not(nth_bit sz (sz-1) tmp_a), nth_bit sz (sz-1) tmp_b)) in
+  (* very finnicky business in here ... generate a sequence of full adders
+     that feed one into the next *)
+  let fulladders = List.init (sz - 1) ~f:(fun bit ->
+      let curidx = bit + 1 in
+      let curbit = sz - bit - 2 in
+      let curout = Format.sprintf "%s_%d" outputname curidx in
+      let curinput_a = nth_bit sz curbit tmp_a in
+      let curinput_b = nth_bit sz curbit tmp_b in
+      let prevborrow = Format.sprintf "%s_%d" borrowname (curidx - 1) in
+      let curborrow = Format.sprintf "%s_%d" borrowname curidx in
+      [(curout, CG.Xor(Ident(prevborrow), CG.Xor(curinput_a, curinput_b)));
+       (curborrow, CG.Or(CG.And(Ident(prevborrow), Not(curinput_a)),
+                        CG.Or(CG.And(Ident(prevborrow), curinput_b), CG.And(Not(curinput_a), curinput_b))))]
+    ) |> List.concat in
+  let full_l = [(a_name, a); (b_name, b); halfout; halfborrow] @ fulladders in
+  let output_list = List.init sz ~f:(fun idx -> CG.Ident(Format.sprintf "%s_%d" outputname (sz - 1 - idx))) in
+  let inner = mk_dfs_tuple output_list in
+  List.fold_right full_l ~init:inner ~f:(fun (name, e) acc -> CG.Let(name, e, acc))
+
+
+
+
 let rec from_external_expr_h (tenv: EG.tenv) ((t, e): tast) : CG.expr =
   match e with
   | And(_, e1, e2) ->
@@ -448,6 +480,11 @@ let rec from_external_expr_h (tenv: EG.tenv) ((t, e): tast) : CG.expr =
         | TInt(sz) -> sz
         | _ -> failwith "Internal Error: unreachable") in
     gen_adder sz (from_external_expr_h tenv e1) (from_external_expr_h tenv e2)
+  | Minus(_, e1, e2) ->
+    let sz = (match t with
+        | TInt(sz) -> sz
+        | _ -> failwith "Internal Error: unreachable") in
+    gen_subtractor sz (from_external_expr_h tenv e1) (from_external_expr_h tenv e2)
   | Eq(_, (t1, e1), (t2, e2)) ->
     let sz = (match (t1, t2) with
         | EG.TInt(a), EG.TInt(b) when a = b -> a
@@ -458,7 +495,6 @@ let rec from_external_expr_h (tenv: EG.tenv) ((t, e): tast) : CG.expr =
       ) |> and_of_l in
     Let(n1, from_external_expr_h tenv (t1, e1), Let(n2, from_external_expr_h tenv (t2, e2), inner))
   | Neq(s, e1, e2) -> from_external_expr_h tenv (TBool, Not(s, (TBool, Eq(s, e1, e2))))
-  | Minus(s, e1, e2) -> failwith "not implemented -"
   | Mult(s, e1, e2) -> failwith "not implemented *"
   | Div(s, e1, e2) -> failwith "not implemented /"
   | Lt(_, (t1, e1), (t2, e2)) ->

@@ -91,6 +91,23 @@ let test_add6 _ =
 + discrete(0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125) in x == int(3, 1)" in
   assert_feq 0.125 (parse_and_prob prog)
 
+let test_sub1 _ =
+  let prog = "let x = int(3, 0) - int(3, 1) in x == int(3, 7)" in
+  assert_feq 1.0 (parse_and_prob prog)
+
+let test_sub2 _ =
+  let prog = "let x = discrete(0.1, 0.4, 0.5) - int(2, 1) in x == int(2, 1)" in
+  assert_feq 0.5 (parse_and_prob prog)
+
+let test_sub3 _ =
+  let prog = "let x = discrete(0.1, 0.4, 0.5) - discrete(0.0, 1.0, 0.0) in x == int(2, 1)" in
+  assert_feq 0.5 (parse_and_prob prog)
+
+let test_sub4 _ =
+  let prog = "let x = discrete(0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125)
+- discrete(0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125) in x == int(3, 1)" in
+  assert_feq 0.125 (parse_and_prob prog)
+
 
 let test_op1 _ =
   let prog = "
@@ -127,6 +144,7 @@ let test_op5 _ =
    let tmp = observe (x + y) < int(4, 2) in
    x == y" in
   assert_feq (5.0 /. 23.0) (parse_and_prob prog)
+
 
 let test_fcall1 _ =
   let prog = "
@@ -335,12 +353,16 @@ let expression_tests =
 "suite">:::
 [
   "test_1">::test_1;
+
   "test_not">::test_not;
+
   "test_obs1">::test_obs1;
   "test_obs2">::test_obs2;
   "test_tup1">::test_tup1;
+
   "test_nestedtup">::test_nestedtup;
   "test_nestedtup2">::test_nestedtup2;
+
   "test_ite1">::test_ite1;
   "test_ite2">::test_ite2;
   "test_ite3">::test_ite3;
@@ -352,8 +374,12 @@ let expression_tests =
   "test_add2">::test_add2;
   "test_add3">::test_add3;
   "test_add4">::test_add4;
-  "test_add5">::test_add5;
-  "test_add6">::test_add6;
+
+  "test_sub1">::test_sub1;
+  "test_sub2">::test_sub2;
+  "test_sub3">::test_sub3;
+  "test_sub4">::test_sub4;
+
   "test_fcall1">::test_fcall1;
   "test_fcall2">::test_fcall2;
   "test_fcall3">::test_fcall3;
@@ -361,6 +387,7 @@ let expression_tests =
   "test_fcall5">::test_fcall5;
   "test_fcall6">::test_fcall6;
   "test_fcall7">::test_fcall7;
+
   "test_caesar">::test_caesar;
   "test_alarm">::test_alarm;
   "test_alarm_2">::test_alarm_2;
