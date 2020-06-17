@@ -22,6 +22,10 @@ let inline_functions (p: EG.program) =
     | Or(s, e1, e2) ->
       let s1 = helper e1 in
       let s2 = helper e2 in Or(s, s1, s2)
+    | Iff(s, e1, e2) ->
+      let s1 = helper e1 in
+      let s2 = helper e2 in Eq(s, s1, s2)
+    | IntConst(_, _) -> e
     | Plus(s, e1, e2) -> Plus(s, helper e1, helper e2)
     | Eq(s, e1, e2) -> Eq(s, helper e1, helper e2)
     | Neq(s, e1, e2) -> Neq(s, helper e1, helper e2)
@@ -71,7 +75,7 @@ let num_paths (p: EG.program) : LogProbability.t =
     | Lte(_,e1, e2)
     | Gte(_,e1, e2)
     | Tup(_,e1, e2)
-    | Let(_,_, e1, e2)->
+    | Let(_,_, e1, e2) ->
       let s1 = helper e1 in
       let s2 = helper e2 in LogProbability.mult s1 s2
     | Not(_,e) -> helper e
@@ -90,6 +94,7 @@ let num_paths (p: EG.program) : LogProbability.t =
     | Snd(_,e) | Fst(_, e) -> helper e
     | _ -> failwith "unreachable, functions inlined" in
   helper inlined.body
+
 
 let num_binary_digits d = int_of_float (floor (Util.log2 (float_of_int (d)))) + 1
 
@@ -149,6 +154,191 @@ let rec mk_dfs_tuple l =
   | x::xs ->
     CoreGrammar.Tup(x, mk_dfs_tuple xs)
 
+let type_eq t1 t2 =
+  let open EG in
+  match (t1, t2) with
+  | (TBool, TBool) -> true
+  | (TInt(d1), TInt(d2)) when d1 = d2 -> true
+  | _ -> false
+
+type source = EG.source
+[@@deriving sexp_of]
+
+type ast =
+    And of source * tast * tast
+  | Or of source * tast * tast
+  | Iff of source * tast * tast
+  | IntConst of source * int
+  | Not of source * tast
+  | Ite of source * tast * tast * tast
+  | Flip of source * float
+  | Let of source * String.t * tast * tast
+  | Observe of source * tast
+  | Ident of source * String.t
+  | Discrete of source * float List.t
+  | Int of source * int * int (* value, size *)
+  | Eq of source * tast * tast
+  | Plus of source * tast * tast
+  | Minus of source * tast * tast
+  | Mult of source * tast * tast
+  | Div of source * tast * tast
+  | Lte of source * tast * tast
+  | Lt of source * tast * tast
+  | Gte of source * tast * tast
+  | Gt of source * tast * tast
+  | Neq of source * tast * tast
+  | Fst of source * tast
+  | Snd of source * tast
+  | Tup of source * tast * tast
+  | FuncCall of source * String.t * tast List.t
+  | Iter of source * String.t * tast * int
+  | True of source
+  | False of source
+and
+  tast = EG.typ * ast
+[@@deriving sexp_of]
+
+type arg = EG.arg
+[@@deriving sexp_of]
+
+type func = { name: String.t; args: arg List.t; body: tast}
+[@@deriving sexp_of]
+
+type program = { functions: func List.t; body: tast }
+[@@deriving sexp_of]
+
+
+let rec type_of (env: EG.tenv) (e: EG.eexpr) : tast =
+  let open EG in
+  let expect_t e (src: EG.lexing_position) typ : tast =
+    let (t, e) = type_of env e in
+    if (type_eq t typ) then (t, e) else
+      raise (EG.Type_error(Format.sprintf "Type error at line %d column %d: expected %s, got %s"
+                                      src.pos_lnum src.pos_cnum (EG.string_of_typ typ) (EG.string_of_typ t))) in
+  let expect_compatible_int f src e1 e2 : tast =
+    let (t1, s1) = type_of env e1 and (t2, s2) = type_of env e2 in
+    match (t1, t2) with
+    | (TInt(d1), TInt(d2)) when d1 = d2 -> (TBool, f (t1, s1) (t1, s2))
+    | (_, _) ->
+      raise (EG.Type_error(Format.sprintf "Type error at line %d column %d: expected compatible integer types, got %s and %s"
+                             src.pos_lnum src.pos_cnum (EG.string_of_typ t1) (EG.string_of_typ t2)))  in
+  match e with
+  | And(s, e1, e2) ->
+    let s1 = expect_t e1 s.startpos TBool in
+    let s2 = expect_t e2 s.startpos TBool in
+    (TBool, And(s, s1, s2))
+  | Or(s, e1, e2) ->
+    let s1 = expect_t e1 s.startpos TBool in
+    let s2 = expect_t e2 s.startpos TBool in
+    (TBool, Or(s, s1, s2))
+  | Iff(s, e1, e2) ->
+    let s1 = expect_t e1 s.startpos TBool in
+    let s2 = expect_t e2 s.startpos TBool in
+    (TBool, Iff(s, s1, s2))
+  | Not(s, e1) ->
+    let s1 = expect_t e1 s.startpos TBool in
+    (TBool, Not(s, s1))
+  | Observe(s, e1) ->
+    let s1 = expect_t e1 s.startpos TBool in
+    (TBool, Observe(s, s1))
+  | True(s) -> (TBool, True(s))
+  | False(s) -> (TBool, False(s))
+  | Flip(s, f) -> (TBool, Flip(s,f))
+  | Ident(src, s) ->
+    let t = (try Map.Poly.find_exn env s
+     with _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: \
+                                         Could not find variable '%s' during typechecking"
+                                    src.startpos.pos_lnum src.startpos.pos_cnum s))) in
+    (t, Ident(src, s))
+  | Fst(s, e1) ->
+    let (t, s1) = type_of env e1 in
+    let t' = (match t with
+     | TTuple(l, _) -> l
+     | t -> raise (Type_error (Format.sprintf "Type error at line %d column %d: expected tuple, got %s"
+                                 s.startpos.pos_lnum s.startpos.pos_cnum (string_of_typ t)))) in
+    (t', Fst(s, (t, s1)))
+  | Snd(s, e1) ->
+    let s1 = type_of env e1 in
+    let t = (match fst s1 with
+     | TTuple(_, r) -> r
+     | t -> raise (Type_error (Format.sprintf "Type error at line %d column %d: expected tuple, got %s"
+                                 s.startpos.pos_lnum s.startpos.pos_cnum (string_of_typ t)))) in
+    (t, Snd(s, s1))
+  | Tup(s, e1, e2) ->
+    let t1 = type_of env e1 in
+    let t2 = type_of env e2 in
+    (TTuple(fst t1, fst t2), Tup(s, t1, t2))
+  | Int(src, sz, v) -> (TInt(sz), Int(src, sz, v))
+  | Discrete(src, l) -> (TInt(num_binary_digits (List.length l)), Discrete(src, l))
+  | Eq(s, e1, e2) -> expect_compatible_int (fun s1 s2 -> Eq(s, s1, s2)) s.startpos e1 e2
+  | Lt(s, e1, e2) -> expect_compatible_int (fun e1 e2 -> Lt(s, e1, e2)) s.startpos e1 e2
+  | Gt(s, e1, e2) -> expect_compatible_int (fun e1 e2 -> Gt(s, e1, e2)) s.startpos e1 e2
+  | Lte(s, e1, e2) -> expect_compatible_int (fun e1 e2 -> Lte(s, e1, e2)) s.startpos e1 e2
+  | Gte(s, e1, e2) -> expect_compatible_int (fun e1 e2 -> Gte(s, e1, e2)) s.startpos e1 e2
+  | Neq(s, e1, e2) -> expect_compatible_int (fun e1 e2 -> Neq(s, e1, e2)) s.startpos e1 e2
+  | Plus(s, e1, e2) -> expect_compatible_int (fun e1 e2 -> Plus(s, e1, e2)) s.startpos e1 e2
+  | Minus(s, e1, e2) -> expect_compatible_int (fun e1 e2 -> Minus(s, e1, e2)) s.startpos e1 e2
+  | Mult(s, e1, e2) -> expect_compatible_int (fun e1 e2 -> Mult(s, e1, e2)) s.startpos e1 e2
+  | Div(s, e1, e2) -> expect_compatible_int (fun e1 e2 -> Div(s, e1, e2)) s.startpos e1 e2
+  | Let(slet, x, e1, e2) ->
+    let r1 = type_of env e1 in
+    let r2 = type_of (Map.Poly.set env ~key:x ~data:(fst r1)) e2 in
+    (fst r2, Let(slet, x, r1, r2))
+  | Ite(s, g, thn, els) ->
+    let sg = expect_t g ((EG.get_src g).startpos) TBool in
+    let (t1, thnbody) = type_of env thn and (t2, elsbody) = type_of env els in
+    if not (type_eq t1 t2) then
+      raise (Type_error (Format.sprintf "Type error at line %d column %d: expected equal types \
+                                         from branches of if-statement, got %s and %s"
+                           s.startpos.pos_lnum s.startpos.pos_cnum (string_of_typ t1) (string_of_typ t2)))
+    else (t1, Ite(s, sg, (t1, thnbody), (t2, elsbody)))
+  | FuncCall(s, id, args) ->
+    let res = try Map.Poly.find_exn env id
+      with _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: could not find function \
+                                                   '%s' during typechecking"
+                                     s.startpos.pos_lnum s.startpos.pos_cnum id)) in
+    let (targ, tres) = (match res with
+        | TFunc(targ, tres) -> targ, tres
+        | _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: non-function type found for \
+                                                   '%s' during typechecking, found %s "
+                                     s.startpos.pos_lnum s.startpos.pos_cnum id (string_of_typ res)))) in
+    let zipped = try List.zip_exn args targ
+      with _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: could incompatible argument length, expected \
+                                                   %d arguments and got %d arguments"
+                                     s.startpos.pos_lnum s.startpos.pos_cnum (List.length targ) (List.length args))) in
+    let arg' = List.mapi zipped ~f:(fun idx (arg, typ) ->
+        let (found_t, body) = type_of env arg in
+        if (type_eq found_t typ) then (found_t, body) else
+          raise (Type_error (Format.sprintf "Type error in argument %d at line %d column %d: expected type %s, got %s"
+                               s.startpos.pos_lnum s.startpos.pos_cnum (idx + 1) (string_of_typ typ) (string_of_typ found_t)))
+      ) in
+    (tres, FuncCall(s, id, arg'))
+  | IntConst(_, _) -> failwith "Internal Error: unstripped int const"
+  | Iter(s, id, init, _) ->
+    let res = try Map.Poly.find_exn env id
+      with _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: could not find function \
+                                                   '%s' during typechecking"
+                                     s.startpos.pos_lnum s.startpos.pos_cnum id)) in
+    let (targ, tres) = (match res with
+        | TFunc(targ, tres) -> targ, tres
+        | _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: non-function type found for \
+                                                   '%s' during typechecking, found %s "
+                                     s.startpos.pos_lnum s.startpos.pos_cnum id (string_of_typ res)))) in
+    let (tinit, initbody) = type_of env init in
+    (* TODO check arg validity*)
+    (tres, initbody)
+
+let rec nth_snd i inner =
+  match i with
+    0 -> inner
+  | n -> CoreGrammar.Snd (nth_snd (n-1) inner)
+
+let rec and_of_l l =
+  match l with
+  | [] -> CoreGrammar.True
+  | [x] -> x
+  | x::xs -> CoreGrammar.And(x, and_of_l xs)
+
 let rec gen_discrete (l: float List.t) =
   let open Cudd in
   let open CoreGrammar in
@@ -192,140 +382,24 @@ let rec gen_discrete (l: float List.t) =
   let inner_body = mk_dfs_tuple (List.map bits ~f:fst) in
   List.fold assgn ~init:inner_body ~f:(fun acc (Ident(name), body) -> Let(name, body, acc))
 
-let type_eq t1 t2 =
-  let open EG in
-  match (t1, t2) with
-  | (TBool, TBool) -> true
-  | (TInt(d1), TInt(d2)) when d1 = d2 -> true
-  | _ -> false
 
 
-let rec type_of (env: EG.tenv) (e: EG.eexpr) : EG.typ =
-  let open EG in
-  let expect_t e (src: EG.lexing_position) typ =
-    let t = type_of env e in
-    if (type_eq t typ) then () else
-      raise (EG.Type_error(Format.sprintf "Type error at line %d column %d: expected %s, got %s"
-                                      src.pos_lnum src.pos_cnum (EG.string_of_typ typ) (EG.string_of_typ t))) in
-  let expect_compatible_int src e1 e2 =
-    let t1 = type_of env e1 and t2 = type_of env e2 in
-    match (t1, t2) with
-    | (TInt(d1), TInt(d2)) when d1 = d2 -> ()
-    | (_, _) ->
-      raise (EG.Type_error(Format.sprintf "Type error at line %d column %d: expected compatible integer types, got %s and %s"
-                             src.pos_lnum src.pos_cnum (EG.string_of_typ t1) (EG.string_of_typ t2)))  in
+let rec from_external_expr_h (tenv: EG.tenv) ((t, e): tast) : CoreGrammar.expr =
   match e with
-  | And(s, e1, e2)
-  | Or(s, e1, e2)
-  | Iff(s, e1, e2) ->
-    expect_t e1 s.startpos TBool;
-    expect_t e2 s.startpos TBool;
-    TBool
-  | Not(s, e1)
-  | Observe(s, e1) ->
-    expect_t e1 s.startpos TBool;
-    TBool
-  | True(_)
-  | False(_)
-  | Flip(_, _) -> TBool
-  | Ident(src, s) ->
-    (try Map.Poly.find_exn env s
-     with _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: \
-                                         Could not find variable '%s' during typechecking"
-                           src.startpos.pos_lnum src.startpos.pos_cnum s)))
-  | Fst(s, e1) ->
-    (match type_of env e1 with
-     | TTuple(l, _) -> l
-     | t -> raise (Type_error (Format.sprintf "Type error at line %d column %d: expected tuple, got %s"
-                              s.startpos.pos_lnum s.startpos.pos_cnum (string_of_typ t))))
-  | Snd(s, e1) ->
-    (match type_of env e1 with
-     | TTuple(_, r) -> r
-     | t -> raise (Type_error (Format.sprintf "Type error at line %d column %d: expected tuple, got %s"
-                              s.startpos.pos_lnum s.startpos.pos_cnum (string_of_typ t))))
-  | Tup(_, e1, e2) ->
-    let t1 = type_of env e1 in
-    let t2 = type_of env e2 in
-    TTuple(t1 ,t2)
-  | Int(_, sz, _) -> TInt(sz)
-  | Discrete(_, l) -> TInt(num_binary_digits (List.length l))
-  | Eq(s, e1, e2)
-  | Lt(s, e1, e2)
-  | Gt(s, e1, e2)
-  | Lte(s, e1, e2)
-  | Gte(s, e1, e2)
-  | Neq(s, e1, e2) ->
-    expect_compatible_int s.startpos e1 e2;
-    TBool
-  | Plus(s, e1, e2)
-  | Minus(s, e1, e2)
-  | Mult(s, e1, e2)
-  | Div(s, e1, e2) ->
-    expect_compatible_int s.startpos e1 e2;
-    type_of env e1
-  | Let(_, x, e1, e2) ->
-    let te1 = type_of env e1 in
-    type_of (Map.Poly.set env ~key:x ~data:te1) e2
-  | Ite(s, g, thn, els) ->
-    expect_t g ((EG.get_src g).startpos) TBool;
-    let t1 = type_of env thn and t2 = type_of env els in
-    if not (type_eq t1 t2) then
-      raise (Type_error (Format.sprintf "Type error at line %d column %d: expected equal types \
-                                         from branches of if-statement, got %s and %s"
-                           s.startpos.pos_lnum s.startpos.pos_cnum (string_of_typ t1) (string_of_typ t2)))
-    else t1
-  | FuncCall(s, id, args) ->
-    let res = try Map.Poly.find_exn env id
-      with _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: could not find function \
-                                                   '%s' during typechecking"
-                                     s.startpos.pos_lnum s.startpos.pos_cnum id)) in
-    let (targ, tres) = (match res with
-        | TFunc(targ, tres) -> targ, tres
-        | _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: non-function type found for \
-                                                   '%s' during typechecking, found %s "
-                                     s.startpos.pos_lnum s.startpos.pos_cnum id (string_of_typ res)))) in
-    let zipped = try List.zip_exn args targ
-      with _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: could incompatible argument length, expected \
-                                                   %d arguments and got %d arguments"
-                                     s.startpos.pos_lnum s.startpos.pos_cnum (List.length targ) (List.length args))) in
-    List.iteri zipped ~f:(fun idx (arg, typ) ->
-        let found_t = type_of env arg in
-        if not (type_eq found_t typ) then
-          raise (Type_error (Format.sprintf "Type error in argument %d at line %d column %d: expected type %s, got %s"
-                               s.startpos.pos_lnum s.startpos.pos_cnum (idx + 1) (string_of_typ typ) (string_of_typ found_t)))
-      );
-    tres
-  | Iter(s, id, init, _) ->
-    (try Map.Poly.find_exn env id
-    with _ -> failwith (Format.sprintf "Could not find function '%s' during typechecking" id))
-
-
-let rec nth_snd i inner =
-  match i with
-    0 -> inner
-  | n -> CoreGrammar.Snd (nth_snd (n-1) inner)
-
-let rec and_of_l l =
-  match l with
-  | [] -> CoreGrammar.True
-  | [x] -> x
-  | x::xs -> CoreGrammar.And(x, and_of_l xs)
-
-let rec from_external_expr_h (tenv: EG.tenv) (e: EG.eexpr) : CoreGrammar.expr =
-  match e with
-  | And(s, e1, e2) ->
+  | And(_, e1, e2) ->
     let s1 = from_external_expr_h tenv e1 in
     let s2 = from_external_expr_h tenv e2 in And(s1, s2)
-  | Or(s, e1, e2) ->
+  | Or(_, e1, e2) ->
     let s1 = from_external_expr_h tenv e1 in
     let s2 = from_external_expr_h tenv e2 in Or(s1, s2)
-  | Plus(s, e1, e2) -> failwith "not implemented +"
-  | Eq(s, e1, e2) ->
-    let t1 = type_of tenv e1 in
-    let t2 = type_of tenv e2 in
+  | Iff(_, e1, e2) ->
+    let s1 = from_external_expr_h tenv e1 in
+    let s2 = from_external_expr_h tenv e2 in Eq(s1, s2)
+  | Plus(_, e1, e2) -> failwith "not implemented +"
+  | Eq(_, (t1, e1), (t2, e2)) ->
     let sz = (match (t1, t2) with
         | EG.TInt(a), EG.TInt(b) when a = b -> a
-        | _ -> failwith (Format.sprintf "Type error at %s" (EG.string_of_eexpr e))) in
+        | _ -> failwith "Internal Error: Unreachable") in
     let n1 = fresh () and n2 = fresh () in
     let inner = List.init sz ~f:(fun idx ->
         if idx = sz-1 then
@@ -334,15 +408,15 @@ let rec from_external_expr_h (tenv: EG.tenv) (e: EG.eexpr) : CoreGrammar.expr =
           CoreGrammar.Eq(Fst (nth_snd idx (Ident(n1))),
                          Fst(nth_snd idx (Ident(n2))))
       ) |> and_of_l in
-    Let(n1, from_external_expr_h tenv e1, Let(n2, from_external_expr_h tenv e2, inner))
-  | Neq(s, e1, e2) -> from_external_expr_h tenv (Not(s,Eq(s, e1, e2)))
+    Let(n1, from_external_expr_h tenv (t1, e1), Let(n2, from_external_expr_h tenv (t2, e2), inner))
+  | Neq(s, e1, e2) -> from_external_expr_h tenv (TBool, Not(s, (TBool, Eq(s, e1, e2))))
   | Minus(s, e1, e2) -> failwith "not implemented -"
   | Mult(s, e1, e2) -> failwith "not implemented *"
   | Div(s, e1, e2) -> failwith "not implemented /"
   | Lt(s, e1, e2) -> failwith "not implemented <"
-  | Lte(s, e1, e2) -> from_external_expr_h tenv (Or(s, Lt(s, e1, e2), Eq(s, e1, e2)))
-  | Gt(s, e1, e2) -> from_external_expr_h tenv (Not(s, Lte(s, e1, e2)))
-  | Gte(s, e1, e2) -> from_external_expr_h tenv (Not(s, Lt(s, e1, e2)))
+  | Lte(s, e1, e2) -> from_external_expr_h tenv (TBool, Or(s, (TBool, Lt(s, e1, e2)), (TBool, Eq(s, e1, e2))))
+  | Gt(s, e1, e2) -> from_external_expr_h tenv (TBool, Not(s, (TBool, Lte(s, e1, e2))))
+  | Gte(s, e1, e2) -> from_external_expr_h tenv (TBool, Not(s, (TBool, Lt(s, e1, e2))))
   | Not(s, e) -> Not(from_external_expr_h tenv e)
   | Flip(s, f) -> Flip(f)
   | Ident(src, s) -> Ident(s)
@@ -356,7 +430,6 @@ let rec from_external_expr_h (tenv: EG.tenv) (e: EG.eexpr) : CoreGrammar.expr =
   | Observe(s, e) ->
     Observe(from_external_expr_h tenv e)
   | Let(s, x, e1, e2) ->
-    let t = type_of tenv e1 in
     let tenv' = Map.Poly.set tenv ~key:x ~data:t in
     Let(x, from_external_expr_h tenv e1, from_external_expr_h tenv' e2)
   | Ite(s, g, thn, els) -> Ite(from_external_expr_h tenv g, from_external_expr_h tenv thn, from_external_expr_h tenv els)
@@ -368,8 +441,11 @@ let rec from_external_expr_h (tenv: EG.tenv) (e: EG.eexpr) : CoreGrammar.expr =
     let e = from_external_expr_h tenv init in
     List.fold (List.init k ~f:(fun _ -> ()))  ~init:e
       ~f:(fun acc _ -> FuncCall(f, [acc]))
+  | IntConst(_, _) -> failwith "not implemented"
 
-let from_external_expr (e: EG.eexpr) : CoreGrammar.expr = from_external_expr_h Map.Poly.empty e
+let from_external_expr (e: EG.eexpr) : CoreGrammar.expr =
+  let typedast = type_of (Map.Poly.empty) e in
+  from_external_expr_h Map.Poly.empty typedast
 
 let rec from_external_typ (t:EG.typ) : CoreGrammar.typ =
   match t with

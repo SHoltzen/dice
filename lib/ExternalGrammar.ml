@@ -34,6 +34,7 @@ type eexpr =
     And of source * eexpr * eexpr
   | Or of source * eexpr * eexpr
   | Iff of source * eexpr * eexpr
+  | IntConst of source * int
   | Not of source * eexpr
   | Ite of source * eexpr * eexpr * eexpr
   | Flip of source * float
@@ -61,7 +62,55 @@ type eexpr =
   | False of source
 [@@deriving sexp_of]
 
+type func = { name: String.t; args: arg List.t; body: eexpr}
+[@@deriving sexp_of]
+
+type program = { functions: func List.t; body: eexpr }
+[@@deriving sexp_of]
+
+
+
 exception Type_error of String.t
+
+let rec traverse f e =
+  match e with
+  | And(s, e1, e2) ->
+    let s1 = traverse f e1 in
+    let s2 = traverse f e2 in f (And(s, s1, s2))
+  | Or(s, e1, e2) ->
+    let s1 = traverse f e1 in
+    let s2 = traverse f e2 in f (Or(s, s1, s2))
+  | Iff(s, e1, e2) ->
+    let s1 = traverse f e1 in
+    let s2 = traverse f e2 in f (Iff(s, s1, s2))
+  | Plus(s, e1, e2) -> f (Plus(s, traverse  f  e1, traverse  f  e2))
+  | Eq(s, e1, e2) -> f (Eq(s, traverse  f  e1, traverse  f  e2))
+  | Neq(s, e1, e2) -> f (Neq(s, traverse  f  e1, traverse  f  e2))
+  | Minus(s, e1, e2) -> f (Minus(s, traverse f e1, traverse f e2))
+  | Mult(s, e1, e2) -> f (Mult(s, traverse f e1, traverse f e2))
+  | Div(s, e1, e2) -> f (Div(s, traverse  f  e1, traverse  f  e2))
+  | Lt(s, e1, e2) -> f (Lt(s, traverse  f  e1, traverse  f  e2))
+  | Lte(s, e1, e2) -> traverse f (Or(s, Lt(s, e1, e2), Eq(s, e1, e2)))
+  | Gt(s, e1, e2) -> traverse f (Not(s, Lte(s, e1, e2)))
+  | Gte(s, e1, e2) -> traverse f (Not(s, Lt(s, e1, e2)))
+  | Not(s, e) -> f (Not(s, traverse  f  e))
+  | IntConst(_, _)
+  | Flip(_, _)
+  | Ident(_, _)
+  | Discrete(_, _)
+  | Int(_, _, _)
+  | True(_)
+  | False(_) -> f e
+  | Observe(s, g) -> f (Observe(s, traverse f g))
+  | Let(s, x, e1, e2) -> f (Let(s, x, traverse  f  e1, traverse f e2))
+  | Ite(s, g, thn, els) -> f (Ite(s, traverse f g, traverse f thn, traverse f els))
+  | Snd(s, e) -> f (Snd(s, traverse f e))
+  | Fst(s, e) -> f (Fst(s, traverse f e))
+  | Tup(s, e1, e2) -> f (Tup(s, traverse f e1, traverse f e2))
+  | Iter(s, func, init, k) ->
+    f (Iter(s, func, traverse f init, k))
+  | FuncCall(s, id, args) -> f (FuncCall(s, id, (List.map args ~f:f)))
+
 
 let get_src e =
   match e with
@@ -79,6 +128,7 @@ let get_src e =
   | Int(s, _, _)
   | Iff(s, _, _)
   | Gte(s, _, _) -> s
+  | IntConst(s, _) -> s
   | Not(s, _) -> s
   | Flip(s, _) -> s
   | Ident(s, _) -> s
@@ -95,12 +145,6 @@ let get_src e =
   | FuncCall(s, _, _) -> s
 
 
-
-type func = { name: String.t; args: arg List.t; body: eexpr}
-[@@deriving sexp_of]
-
-type program = { functions: func List.t; body: eexpr }
-[@@deriving sexp_of]
 
 let string_of_eexpr e =
   Sexp.to_string_hum (sexp_of_eexpr e)
