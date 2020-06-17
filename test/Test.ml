@@ -212,19 +212,19 @@ let test_caesar _ =
 
 let test_caesar_iterate _ =
   let prog = "
-fun sendchar(arg: (int(4), int(4))) {
+fun sendchar(arg: (int(2), int(2))) {
   let key = fst arg in
   let observation = snd arg in
   let gen = discrete(0.5, 0.25, 0.125, 0.125) in    // sample a foolang character
   let enc = key + gen in                            // encrypt the character
   let tmp = observe observation == enc in
-  (key, observation + int(4, 1))
+  (key, observation + int(2, 1))
 }
 // sample a uniform random key: a=0, b=1, c=2, d=3
 let key = discrete(0.25, 0.25, 0.25, 0.25) in
 // observe the ciphertext cccc
-let tmp = iterate(sendchar, (key, int(4, 2)), 4) in
-key == int(4, 0)
+let tmp = iterate(sendchar, (key, int(2, 2)), 4) in
+key == int(2, 0)
 " in
   assert_feq 0.25 (parse_and_prob prog)
 

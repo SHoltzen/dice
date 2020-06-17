@@ -274,7 +274,9 @@ let rec type_of (env: EG.tenv) (e: EG.eexpr) : tast =
   | Int(src, sz, v) -> (TInt(sz), Int(src, sz, v))
   | Discrete(src, l) ->
     let sum = List.fold l ~init:0.0 ~f:(fun acc i -> acc +. i) in
-    if not (Util.within_epsilon sum 1.0) then
+    let within_epsilon x y =
+      (Float.compare (Float.abs (x -. y)) 0.0001) < 0 in
+    if not (within_epsilon sum 1.0) then
       raise (Type_error (Format.sprintf "Type error at line %d column %d: discrete parameters must sum to 1, got %f"
                            src.startpos.pos_lnum src.startpos.pos_cnum sum))
     else (TInt(num_binary_digits ((List.length l) - 1)), Discrete(src, l))
