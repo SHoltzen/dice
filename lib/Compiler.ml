@@ -125,14 +125,14 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     let c = compile_expr ctx tenv env e in
     let v' = (match c.state with
      | Node(l, _) -> l
-     | _ -> failwith "calling `fst` on non-tuple") in
+     | _ -> failwith (Format.sprintf "Internal Failure: calling `fst` on non-tuple at %s" (string_of_expr e))) in
     {state=v'; z=c.z; flips=c.flips}
 
   | Snd(e) ->
     let c = compile_expr ctx tenv env e in
     let v' = (match c.state with
      | Node(_, r) -> r
-     | _ -> failwith "calling `snd` on non-tuple") in
+     | _ -> failwith (Format.sprintf "Internal Failure: calling `snd` on non-tuple at %s" (string_of_expr e))) in
     {state=v'; z=c.z; flips=c.flips}
 
   | Flip(f) ->

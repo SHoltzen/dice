@@ -279,7 +279,7 @@ let test_double_flip _ =
 let test_typecheck_1 _ =
   let prog = "
     let c1 = discrete(0.1, 0.4, 0.5) in
-    let c2 = int(3, 1) in
+    let c2 = int(2, 1) in
     (c1 == c2) || (c1 != c2)
     " in
   assert_feq 1.0 (parse_and_prob prog)
@@ -315,13 +315,13 @@ def main() {
   return coin1 == 10;
 }
   *)
-  let prog = "let coin1 = if flip 0.5 then int(51, 10) else int(51, 25) in
-let coin2 = if flip 0.5 then int(51, 10) else int(51, 25) in
-let s1 = if flip(0.8) then coin1 else int(51, 0) in
+  let prog = "let coin1 = if flip 0.5 then int(6, 10) else int(6, 25) in
+let coin2 = if flip 0.5 then int(6, 10) else int(6, 25) in
+let s1 = if flip(0.8) then coin1 else int(6, 0) in
 let s2 = if flip 0.8 then coin2 + s1 else s1 in
-let candy = s2 >= int(51, 15) in
+let candy = s2 >= int(6, 15) in
 let tmp = observe candy in
-coin1 == int(51, 10)
+coin1 == int(6, 10)
 " in assert_feq 0.45 (parse_and_prob prog)
 
 

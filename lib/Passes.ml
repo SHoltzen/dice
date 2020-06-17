@@ -269,7 +269,7 @@ let rec type_of (env: EG.tenv) (e: EG.eexpr) : tast =
     let t2 = type_of env e2 in
     (TTuple(fst t1, fst t2), Tup(s, t1, t2))
   | Int(src, sz, v) -> (TInt(sz), Int(src, sz, v))
-  | Discrete(src, l) -> (TInt(num_binary_digits (List.length l)), Discrete(src, l))
+  | Discrete(src, l) -> (TInt(num_binary_digits ((List.length l) - 1)), Discrete(src, l))
   | Eq(s, e1, e2) -> expect_compatible_int (fun s1 s2 -> Eq(s, s1, s2)) s.startpos e1 e2
   | Lt(s, e1, e2) -> expect_compatible_int (fun e1 e2 -> Lt(s, e1, e2)) s.startpos e1 e2
   | Gt(s, e1, e2) -> expect_compatible_int (fun e1 e2 -> Gt(s, e1, e2)) s.startpos e1 e2
@@ -382,7 +382,9 @@ let rec gen_discrete (l: float List.t) =
   let inner_body = mk_dfs_tuple (List.map bits ~f:fst) in
   List.fold assgn ~init:inner_body ~f:(fun acc (Ident(name), body) -> Let(name, body, acc))
 
-
+(* let gen_adder (t: typ) a b =
+ *   match t with
+ *   | (TBool, TBool) -> *)
 
 let rec from_external_expr_h (tenv: EG.tenv) ((t, e): tast) : CoreGrammar.expr =
   match e with
@@ -395,7 +397,7 @@ let rec from_external_expr_h (tenv: EG.tenv) ((t, e): tast) : CoreGrammar.expr =
   | Iff(_, e1, e2) ->
     let s1 = from_external_expr_h tenv e1 in
     let s2 = from_external_expr_h tenv e2 in Eq(s1, s2)
-  | Plus(_, e1, e2) -> failwith "not implemented +"
+  | Plus(_, e1, e2) -> failwith "not impl"
   | Eq(_, (t1, e1), (t2, e2)) ->
     let sz = (match (t1, t2) with
         | EG.TInt(a), EG.TInt(b) when a = b -> a

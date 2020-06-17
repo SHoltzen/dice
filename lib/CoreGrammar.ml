@@ -4,6 +4,7 @@ type expr =
   | And of expr * expr
   | Or of expr * expr
   | Eq of expr * expr
+  | Xor of expr * expr
   | Not of expr
   | Ident of String.t
   | Fst of expr
