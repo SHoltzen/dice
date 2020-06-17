@@ -110,7 +110,7 @@ let test_op3 _ =
   let prog = "
    let x = discrete(0.1, 0.2, 0.3, 0.4) in
    let y = discrete(0.4, 0.3, 0.2, 0.1) in
-   (x + y) < int(4, 2)" in
+   (x + y) < int(2, 2)" in
   assert_feq (23.0 /. 50.0) (parse_and_prob prog)
 
 let test_op4 _ =
@@ -197,17 +197,17 @@ let test_fcall7 _ =
 
 let test_caesar _ =
   let prog = "
-    fun sendchar(key: int(4), observation: int(4)) {
+    fun sendchar(key: int(2), observation: int(2)) {
       let gen = discrete(0.5, 0.25, 0.125, 0.125) in
       let enc = key + gen in
       observe observation == enc
     }
     let key = discrete(0.25, 0.25, 0.25, 0.25) in
-    let tmp = sendchar(key, int(4, 0)) in
-    let tmp = sendchar(key, int(4, 1)) in
-    let tmp = sendchar(key, int(4, 2)) in
-    let tmp = sendchar(key, int(4, 3)) in
-    key == int(4, 0)" in
+    let tmp = sendchar(key, int(2, 0)) in
+    let tmp = sendchar(key, int(2, 1)) in
+    let tmp = sendchar(key, int(2, 2)) in
+    let tmp = sendchar(key, int(2, 3)) in
+    key == int(2, 0)" in
   assert_feq 0.25 (parse_and_prob prog)
 
 let test_caesar_iterate _ =

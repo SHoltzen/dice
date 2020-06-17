@@ -459,7 +459,18 @@ let rec from_external_expr_h (tenv: EG.tenv) ((t, e): tast) : CG.expr =
   | Minus(s, e1, e2) -> failwith "not implemented -"
   | Mult(s, e1, e2) -> failwith "not implemented *"
   | Div(s, e1, e2) -> failwith "not implemented /"
-  | Lt(s, e1, e2) -> failwith "not implemented <"
+  | Lt(_, (t1, e1), (t2, e2)) ->
+    let sz = (match (t1, t2) with
+        | EG.TInt(a), EG.TInt(b) when a = b -> a
+        | _ -> failwith "Internal Error: Unreachable") in
+    let n1 = fresh () and n2 = fresh () in
+    let rec h idx : CG.expr =
+      if idx = sz then False
+      else Ite(And(nth_bit sz idx (Ident(n1)), Not(nth_bit sz idx (Ident n2))),
+               False,
+               Ite(And(Not(nth_bit sz idx (Ident(n1))), nth_bit sz idx (Ident n2)), True,
+               h (idx + 1))) in
+    Let(n1, from_external_expr_h tenv (t1, e1), Let(n2, from_external_expr_h tenv (t2, e2), h 0))
   | Lte(s, e1, e2) -> from_external_expr_h tenv (TBool, Or(s, (TBool, Lt(s, e1, e2)), (TBool, Eq(s, e1, e2))))
   | Gt(s, e1, e2) -> from_external_expr_h tenv (TBool, Not(s, (TBool, Lte(s, e1, e2))))
   | Gte(s, e1, e2) -> from_external_expr_h tenv (TBool, Not(s, (TBool, Lt(s, e1, e2))))
