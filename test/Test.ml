@@ -86,6 +86,12 @@ let test_add5 _ =
    sum == int(3, 1)" in
   assert_feq 0.1 (parse_and_prob prog)
 
+let test_add6 _ =
+  let prog = "let x = discrete(0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125)
++ discrete(0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125) in x == int(3, 1)" in
+  assert_feq 0.125 (parse_and_prob prog)
+
+
 let test_op1 _ =
   let prog = "
    let x = discrete(0.1, 0.2, 0.3, 0.4) in
@@ -181,12 +187,12 @@ let test_fcall6 _ =
 
 let test_fcall7 _ =
   let prog = "
-    fun foo(test1: int(3)) {
-      let k = observe !(test1 == int(3, 0)) in
+    fun foo(test1: int(2)) {
+      let k = observe !(test1 == int(2, 0)) in
       false
     }
     let f1 = discrete(0.1, 0.4, 0.5) in
-    let tmp = foo(f1) in f1 == int(3, 1)" in
+    let tmp = foo(f1) in f1 == int(2, 1)" in
   assert_feq (0.4 /. 0.9) (parse_and_prob prog)
 
 let test_caesar _ =
@@ -347,6 +353,7 @@ let expression_tests =
   "test_add3">::test_add3;
   "test_add4">::test_add4;
   "test_add5">::test_add5;
+  "test_add6">::test_add6;
   "test_fcall1">::test_fcall1;
   "test_fcall2">::test_fcall2;
   "test_fcall3">::test_fcall3;

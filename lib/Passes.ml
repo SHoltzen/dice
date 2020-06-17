@@ -155,10 +155,12 @@ let rec mk_dfs_tuple l =
   | x::xs ->
     CG.Tup(x, mk_dfs_tuple xs)
 
-let type_eq t1 t2 =
+let rec type_eq t1 t2 =
   let open EG in
   match (t1, t2) with
   | (TBool, TBool) -> true
+  | ((TTuple(ll, lr), TTuple(rl, rr))) ->
+    (type_eq ll rl) && (type_eq lr rr)
   | (TInt(d1), TInt(d2)) when d1 = d2 -> true
   | _ -> false
 
@@ -487,26 +489,48 @@ let rec from_external_expr_h (tenv: EG.tenv) ((t, e): tast) : CG.expr =
       ~f:(fun acc _ -> FuncCall(f, [acc]))
   | IntConst(_, _) -> failwith "not implemented"
 
-let from_external_expr (e: EG.eexpr) : CG.expr =
-  let typedast = type_of (Map.Poly.empty) e in
-  from_external_expr_h Map.Poly.empty typedast
+let from_external_expr (env: EG.tenv) (e: EG.eexpr) : (EG.typ * CG.expr) =
+  let (typ, e) = type_of env e in
+  (typ, from_external_expr_h Map.Poly.empty (typ, e))
 
 let rec from_external_typ (t:EG.typ) : CG.typ =
   match t with
     TBool -> TBool
-  | TInt(sz) -> failwith "not implemented"
+  | TInt(sz) ->
+    let l = List.init sz ~f:(fun _ -> CG.TBool) in
+    let rec mk_dfs_typ l =
+      match l with
+      | [] -> failwith "Internal Error: Invalid int type"
+      | [x] -> x
+      | x::xs ->
+        CG.TTuple(x, mk_dfs_typ xs) in
+    mk_dfs_typ l
   | TTuple(t1, t2) -> TTuple(from_external_typ t1, from_external_typ t2)
+  | _ -> failwith "Internal Error: unreachable"
 
 let from_external_arg (a:EG.arg) : CG.arg =
   let (name, t) = a in
   (name, from_external_typ t)
 
-let from_external_func (f: EG.func) : CG.func =
-  {name = f.name;
-   args = List.map f.args ~f:from_external_arg;
-   body = from_external_expr f.body}
+let from_external_func (tenv: EG.tenv) (f: EG.func) : (EG.typ * CG.func) =
+  (* add the arguments to the type environment *)
+  let tenvwithargs = List.fold f.args ~init:tenv ~f:(fun acc (name, typ) ->
+      Map.Poly.set acc ~key:name ~data:typ
+    ) in
+  let (t, conv) = from_external_expr tenvwithargs f.body in
+  (* convert arguments *)
+  let args = List.map f.args ~f:from_external_arg in
+  (TFunc(List.map f.args ~f:snd, t), {name = f.name;
+       args = args;
+       body = conv})
 
 let from_external_prog (p: EG.program) : CG.program =
-  {functions = List.map p.functions ~f:from_external_func; body = from_external_expr p.body}
+  let (tenv, functions) = List.fold p.functions ~init:(Map.Poly.empty, []) ~f:(fun (tenv, flst) i ->
+      let (t, conv) = from_external_func tenv i in
+      let tenv' = Map.Poly.set tenv ~key:i.name ~data:t in
+      (tenv', flst @ [conv])
+    ) in
+  let (_, convbody) = from_external_expr tenv p.body in
+  {functions = functions; body = convbody}
 
 
