@@ -471,9 +471,6 @@ let gen_subtractor sz a b : CG.expr =
   let inner = mk_dfs_tuple output_list in
   List.fold_right full_l ~init:inner ~f:(fun (name, e) acc -> CG.Let(name, e, acc))
 
-
-
-
 let rec from_external_expr_h (mgr: Cudd.Man.dt) (tenv: EG.tenv) ((t, e): tast) : CG.expr =
   match e with
   | And(_, e1, e2) ->

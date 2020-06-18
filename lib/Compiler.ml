@@ -22,6 +22,7 @@ type compile_context = {
   name_map: (int, String.t) Hashtbl.Poly.t; (* map from variable identifiers to names, for debugging *)
   weights: weight; (* map from variables to weights *)
   lazy_eval: bool; (* true if lazy let evaluation *)
+  free_stack: Bdd.dt Stack.t;
   funcs: (String.t, compiled_func) Hashtbl.Poly.t;
 }
 
@@ -40,16 +41,24 @@ let new_context ~lazy_eval () =
   let names = Hashtbl.Poly.create () in
   {man = man;
    name_map = names;
+   free_stack = Stack.create ();
    weights = weights;
    funcs = Hashtbl.Poly.create ();
    lazy_eval = lazy_eval}
 
+let new_var ctx =
+  match Stack.pop ctx.free_stack with
+  | None -> Bdd.newvar ctx.man
+  | Some(a) -> a
+
+let free_var ctx var =
+  Stack.push ctx.free_stack var
 
 (** generates a symbolic representation for a variable of the given type *)
 let rec gen_sym_type ctx (t:typ) : Bdd.dt btree =
   match t with
   | TBool ->
-    let bdd = Bdd.newvar ctx.man in Leaf(bdd)
+    let bdd = new_var ctx in Leaf(bdd)
   | TTuple(t1, t2) ->
     let s1 = gen_sym_type ctx t1 and s2 = gen_sym_type ctx t2 in
     Node(s1, s2)
@@ -114,7 +123,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     {state=v'; z=c.z; flips=c.flips}
 
   | Flip(f) ->
-    let new_f = Bdd.newvar ctx.man in
+    let new_f = new_var ctx in
     let var_lbl = Bdd.topvar new_f in
     let var_name = (Format.sprintf "f%d" !flip_id) in
     flip_id := !flip_id + 1;
@@ -139,6 +148,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     let swap_bdd = List.to_array (collect_leaves c1.state) in
     let final_state = map_tree c2.state (fun bdd -> Bdd.labeled_vector_compose bdd swap_bdd swap_idx) in
     let final_z = Bdd.labeled_vector_compose c2.z swap_bdd swap_idx in
+    let _v = map_tree tmp (fun i -> free_var ctx i) in
     {state=final_state; z=Bdd.dand c1.z final_z; flips=List.append c1.flips c2.flips}
 
   | FuncCall(name, args) ->
@@ -147,7 +157,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     let cargs = List.map args ~f:(compile_expr ctx tenv env) in
     (* set up the flip refreshing permutation *)
     let new_flips = List.map func.body.flips ~f:(fun f ->
-        let newv = Bdd.newvar ctx.man in
+        let newv = new_var ctx in
         let lvl = Bdd.topvar newv in
         (match Hashtbl.Poly.find ctx.weights (Bdd.topvar f) with
          | Some(v) -> Hashtbl.Poly.add_exn ctx.weights ~key:lvl ~data:v
