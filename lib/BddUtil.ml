@@ -20,7 +20,7 @@ let dump_dot (m: name_map) (b:Bdd.dt) =
     | None ->
       (* variable node*)
       let idx = Bdd.topvar b in
-      let name = string_of_int (Hashtbl.hash b) in
+      let name = Format.sprintf "idx%d_%d" (Bdd.topvar b) (Hashtbl.hash b) in
       let lbl = match Hashtbl.Poly.find m idx with
         | Some(v) -> v
         | None -> name in

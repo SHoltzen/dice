@@ -5,12 +5,12 @@ open Wmc
 
 (** Result of compiling an expression *)
 type compiled_expr = {
-  state: varstate btree;
+  state: Bdd.dt btree;
   z: Bdd.dt;
   flips: Bdd.dt List.t}
 
 type compiled_func = {
-  args: (varstate btree) List.t;
+  args: (Bdd.dt btree) List.t;
   body: compiled_expr;
 }
 

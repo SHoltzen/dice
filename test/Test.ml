@@ -348,6 +348,18 @@ let tmp = observe candy in
 coin1 == int(6, 10)
 " in assert_feq 0.45 (parse_and_prob prog)
 
+let test_swap _ =
+  let open Cudd in
+  let mgr = Man.make_d () in
+  let bdd1 = Bdd.newvar mgr in
+  let bdd2 = Bdd.newvar mgr in
+  let bdd3 = Bdd.newvar mgr in
+  let bdd4 = Bdd.newvar mgr in
+  let andbdd = Bdd.dand bdd1 bdd2 in
+  let swapbdd = List.to_array [bdd3; bdd4] in
+  let swapidx = List.to_array [Bdd.topvar bdd1; Bdd.topvar bdd2] in
+  let swapped = Bdd.labeled_vector_compose andbdd swapbdd swapidx in
+  OUnit2.assert_bool "Expected equal bdds" (Bdd.is_equal (Bdd.dand bdd3 bdd4) swapped)
 
 let expression_tests =
 "suite">:::
@@ -407,6 +419,8 @@ let expression_tests =
   "test_double_flip">::test_double_flip;
   "test_typecheck">::test_typecheck_1;
   "test_caesar_iterate">::test_caesar_iterate;
+
+  "test_swap">::test_swap;
 ]
 
 let () =

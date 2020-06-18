@@ -25,7 +25,7 @@ let run_benches () =
   List.iter benches ~f:(fun (name, bench) ->
       let t0 = Unix.gettimeofday () in
       let (parsed, res) = bench () in
-      let st = [res.body.state; VarState.Leaf(VarState.BddLeaf(res.body.z))] in
+      let st = [res.body.state; VarState.Leaf(res.body.z)] in
       let sz = VarState.state_size st in
       let t1 = Unix.gettimeofday () in
       print_endline (Format.sprintf "%s\t%f\t%s\t%d"

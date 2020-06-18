@@ -1,25 +1,11 @@
 open Core
 open Cudd
 
-type varstate =
-    BddLeaf of Bdd.dt
-  | IntLeaf of Bdd.dt List.t
-
 (** A compiled variable. It is a tree to compile tuples. *)
 type 'a btree =
     Leaf of 'a
   | Node of 'a btree * 'a btree
 [@@deriving sexp]
-
-let extract_bdd (state: varstate btree) =
-  match state with
-  | Leaf(BddLeaf(bdd)) -> bdd
-  | _ -> failwith "Type error: expected Boolean"
-
-let extract_discrete (state: varstate btree) =
-  match state with
-  | Leaf(IntLeaf(l)) -> l
-  | _ -> failwith "Type error: expected discrete"
 
 (** applies `f` to each leaf in `s` *)
 let rec map_tree (s:'a btree) (f: 'a -> 'b) : 'b btree =
@@ -34,21 +20,10 @@ let rec iter_tree (s:'a btree) (f: 'a -> unit) =
     iter_tree l f;
     iter_tree r f
 
-(** Applies `f` to each BDD in `s` *)
-let rec map_bddtree (s:varstate btree) (f: Bdd.dt -> Bdd.dt) : varstate btree =
-  match s with
-  | Leaf(BddLeaf(bdd)) -> Leaf(BddLeaf(f bdd))
-  | Leaf(IntLeaf(l)) -> Leaf(IntLeaf(List.map l ~f:f))
-  | Node(l, r) -> Node(map_bddtree l f, map_bddtree r f)
-
-(** [fold_bddtree] folds [f] over each BDD in [s] with accumulator [acc] *)
-let rec fold_bddtree (s:varstate btree) acc f =
-  match s with
-  | Leaf(BddLeaf(bdd)) -> f acc bdd
-  | Leaf(IntLeaf(l)) -> List.fold l ~init: acc ~f:f
-  | Node(l, r) ->
-    let a_1 = fold_bddtree l acc f in
-    fold_bddtree r a_1 f
+let extract_leaf a =
+  match a with
+  | Leaf(a) -> a
+  | _ -> failwith "Attempting to extract non-leaf node"
 
 let rec zip_tree (s1: 'a btree) (s2: 'b btree) =
   match (s1, s2) with
@@ -61,12 +36,8 @@ let rec zip_tree (s1: 'a btree) (s2: 'b btree) =
 let get_table st =
   let rec process_state state =
     match state with
-    | Leaf(BddLeaf(bdd)) ->
+    | Leaf(bdd) ->
       [(`True, bdd); (`False, Bdd.dnot bdd)]
-    | Leaf(IntLeaf(l)) ->
-      List.mapi l ~f:(fun i itm ->
-          ((`Int(List.length l, i)), itm)
-        )
     | Node(l, r) ->
       let lst = process_state l and rst = process_state r in
       List.map lst ~f:(fun (lt, lbdd) ->
@@ -77,19 +48,24 @@ let get_table st =
       |> List.concat in
   process_state st
 
+let rec collect_leaves t =
+  match t with
+  | Leaf(a) -> [a]
+  | Node(l, r) -> collect_leaves l @ collect_leaves r
 
 (** [state_size] computes the total number of unique nodes in the list of
     varstates [states] *)
-let state_size (states : varstate btree List.t) =
-  let seen = Hash_set.Poly.create () in
-  let rec helper (bdd : Bdd.dt) =
-    match Hash_set.Poly.mem seen bdd with
-    | true -> 0
-    | false ->
-      Hash_set.Poly.add seen bdd;
-      (match Bdd.inspect bdd with
-       | Bool(_) -> 1
-       | Ite(_, l, r) -> 1 + (helper l) + (helper r)) in
-  List.fold states ~init:0 ~f:(fun acc i -> fold_bddtree i acc (fun acc bdd ->
-      acc + (helper bdd)))
+let state_size (states : Bdd.dt btree List.t) =
+  failwith "not implemented"
+  (* let seen = Hash_set.Poly.create () in
+   * let rec helper (bdd : Bdd.dt) =
+   *   match Hash_set.Poly.mem seen bdd with
+   *   | true -> 0
+   *   | false ->
+   *     Hash_set.Poly.add seen bdd;
+   *     (match Bdd.inspect bdd with
+   *      | Bool(_) -> 1
+   *      | Ite(_, l, r) -> 1 + (helper l) + (helper r)) in
+   * List.fold states ~init:0 ~f:(fun acc i -> fold_bddtree i acc (fun acc bdd ->
+   *     acc + (helper bdd))) *)
 

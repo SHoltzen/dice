@@ -28,6 +28,7 @@ let inline_functions (p: EG.program) =
       let s2 = helper e2 in Eq(s, s1, s2)
     | IntConst(_, _) -> e
     | Plus(s, e1, e2) -> Plus(s, helper e1, helper e2)
+    | LeftShift(s, e1, amt) -> LeftShift(s, helper e1, amt)
     | Eq(s, e1, e2) -> Eq(s, helper e1, helper e2)
     | Neq(s, e1, e2) -> Neq(s, helper e1, helper e2)
     | Minus(s, e1, e2) -> Minus(s, helper e1, helper e2)
@@ -169,6 +170,7 @@ type source = EG.source
 
 type ast =
     And of source * tast * tast
+  | LeftShift of source * ast * int
   | Or of source * tast * tast
   | Iff of source * tast * tast
   | IntConst of source * int
@@ -234,6 +236,9 @@ let rec type_of (env: EG.tenv) (e: EG.eexpr) : tast =
     let s1 = expect_t e1 s.startpos TBool in
     let s2 = expect_t e2 s.startpos TBool in
     (TBool, Or(s, s1, s2))
+  | LeftShift(s, e, amt) ->
+    let (t, newe) = type_of env e in
+    (t, LeftShift(s, newe, amt))
   | Iff(s, e1, e2) ->
     let s1 = expect_t e1 s.startpos TBool in
     let s2 = expect_t e2 s.startpos TBool in
@@ -332,7 +337,7 @@ let rec type_of (env: EG.tenv) (e: EG.eexpr) : tast =
       ) in
     (tres, FuncCall(s, id, arg'))
   | IntConst(_, _) -> failwith "Internal Error: unstripped int const"
-  | Iter(s, id, init, _) ->
+  | Iter(s, id, init, k) ->
     let res = try Map.Poly.find_exn env id
       with _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: could not find function \
                                                    '%s' during typechecking"
@@ -342,9 +347,9 @@ let rec type_of (env: EG.tenv) (e: EG.eexpr) : tast =
         | _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: non-function type found for \
                                                    '%s' during typechecking, found %s "
                                      s.startpos.pos_lnum s.startpos.pos_cnum id (string_of_typ res)))) in
-    let (tinit, initbody) = type_of env init in
+    let init' = type_of env init in
     (* TODO check arg validity*)
-    (tres, initbody)
+    (tres, Iter(s, id, init', k))
 
 
 let rec and_of_l l =
@@ -475,6 +480,8 @@ let rec from_external_expr_h (tenv: EG.tenv) ((t, e): tast) : CG.expr =
   | Iff(_, e1, e2) ->
     let s1 = from_external_expr_h tenv e1 in
     let s2 = from_external_expr_h tenv e2 in Eq(s1, s2)
+  | LeftShift(_, e, amt) ->
+    failwith ""
   | Plus(_, e2, e1) ->
     let sz = (match t with
         | TInt(sz) -> sz
@@ -502,6 +509,7 @@ let rec from_external_expr_h (tenv: EG.tenv) ((t, e): tast) : CG.expr =
         | EG.TInt(a), EG.TInt(b) when a = b -> a
         | _ -> failwith "Internal Error: Unreachable") in
     let n1 = fresh () and n2 = fresh () in
+    (** TODO: dont print nth bit so many times... it scales poorly *)
     let rec h idx : CG.expr =
       if idx = sz then False
       else Ite(And(nth_bit sz idx (Ident(n1)), Not(nth_bit sz idx (Ident n2))),
@@ -512,29 +520,29 @@ let rec from_external_expr_h (tenv: EG.tenv) ((t, e): tast) : CG.expr =
   | Lte(s, e1, e2) -> from_external_expr_h tenv (TBool, Or(s, (TBool, Lt(s, e1, e2)), (TBool, Eq(s, e1, e2))))
   | Gt(s, e1, e2) -> from_external_expr_h tenv (TBool, Not(s, (TBool, Lte(s, e1, e2))))
   | Gte(s, e1, e2) -> from_external_expr_h tenv (TBool, Not(s, (TBool, Lt(s, e1, e2))))
-  | Not(s, e) -> Not(from_external_expr_h tenv e)
-  | Flip(s, f) -> Flip(f)
-  | Ident(src, s) -> Ident(s)
-  | Discrete(s, l) -> gen_discrete l
-  | Int(s, sz, v) ->
+  | Not(_, e) -> Not(from_external_expr_h tenv e)
+  | Flip(_, f) -> Flip(f)
+  | Ident(_, s) -> Ident(s)
+  | Discrete(_, l) -> gen_discrete l
+  | Int(_, sz, v) ->
     let bits = int_to_bin sz v
                |> List.map ~f:(fun i -> if i = 1 then CG.True else CG.False) in
     mk_dfs_tuple bits
   | True(_) -> True
   | False(_) -> False
-  | Observe(s, e) ->
+  | Observe(_, e) ->
     Observe(from_external_expr_h tenv e)
-  | Let(s, x, e1, e2) ->
+  | Let(_, x, e1, e2) ->
     let tenv' = Map.Poly.set tenv ~key:x ~data:t in
     Let(x, from_external_expr_h tenv e1, from_external_expr_h tenv' e2)
-  | Ite(s, g, thn, els) -> Ite(from_external_expr_h tenv g, from_external_expr_h tenv thn, from_external_expr_h tenv els)
-  | Snd(s, e) -> Snd(from_external_expr_h tenv e)
-  | Fst(s, e) -> Fst(from_external_expr_h tenv e)
-  | Tup(s, e1, e2) -> Tup(from_external_expr_h tenv e1, from_external_expr_h tenv e2)
-  | FuncCall(s, id, args) -> FuncCall(id, List.map args ~f:(fun i -> from_external_expr_h tenv i))
-  | Iter(s, f, init, k) ->
+  | Ite(_, g, thn, els) -> Ite(from_external_expr_h tenv g, from_external_expr_h tenv thn, from_external_expr_h tenv els)
+  | Snd(_, e) -> Snd(from_external_expr_h tenv e)
+  | Fst(_, e) -> Fst(from_external_expr_h tenv e)
+  | Tup(_, e1, e2) -> Tup(from_external_expr_h tenv e1, from_external_expr_h tenv e2)
+  | FuncCall(_, id, args) -> FuncCall(id, List.map args ~f:(fun i -> from_external_expr_h tenv i))
+  | Iter(_, f, init, k) ->
     let e = from_external_expr_h tenv init in
-    List.fold (List.init k ~f:(fun _ -> ()))  ~init:e
+    List.fold (List.init k ~f:(fun _ -> ())) ~init:e
       ~f:(fun acc _ -> FuncCall(f, [acc]))
   | IntConst(_, _) -> failwith "not implemented"
 

@@ -38,23 +38,15 @@ let parse_and_print ~print_parsed ~print_info ~print_internal ~print_size ~skip_
        ));
   if print_marginals then
     (Format.printf "==========Marginal Probabilities==========\n";
-     VarState.iter_tree compiled.body.state (fun state ->
-         match state with
-         | BddLeaf(bdd) ->
-           Format.printf "Value\tProbability\n";
-           Format.printf "true\t%f\n" ((Wmc.wmc (Bdd.dand bdd zbdd) compiled.ctx.weights) /. z);
-           Format.printf "false\t%f\n" ((Wmc.wmc (Bdd.dand (Bdd.dnot bdd) zbdd) compiled.ctx.weights) /. z);
-           Format.printf "\n";
-         | IntLeaf(l) ->
-           Format.printf "Value\tProbability\n";
-           List.iteri l ~f:(fun idx bdd ->
-               Format.printf "%d\t%f\n" idx ((Wmc.wmc (Bdd.dand bdd zbdd) compiled.ctx.weights) /. z);
-             );
-           Format.printf "\n"
+     VarState.iter_tree compiled.body.state (fun bdd ->
+         Format.printf "Value\tProbability\n";
+         Format.printf "true\t%f\n" ((Wmc.wmc (Bdd.dand bdd zbdd) compiled.ctx.weights) /. z);
+         Format.printf "false\t%f\n" ((Wmc.wmc (Bdd.dand (Bdd.dnot bdd) zbdd) compiled.ctx.weights) /. z);
+         Format.printf "\n";
        ));
   if print_info then (Format.printf "==========BDD Manager Info=========="; Man.print_info compiled.ctx.man);
   if print_size then (Format.printf "==========Final compiled BDD size: %d\n=========="
-                        (VarState.state_size [compiled.body.state; VarState.Leaf(VarState.BddLeaf(compiled.body.z))]))
+                        (VarState.state_size [compiled.body.state; VarState.Leaf(compiled.body.z)]))
   with Compiler.Syntax_error(s) -> Format.printf "Syntax error: %s" s
 
 
