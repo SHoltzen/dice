@@ -11,6 +11,11 @@ let fresh () =
   n := !n + 1;
   (Format.sprintf "$%d" !n)
 
+let within_epsilon x y =
+  (Float.compare (Float.abs (x -. y)) 0.0001) < 0
+
+
+
 let inline_functions (p: EG.program) =
   let open EG in
   let function_map = List.fold p.functions ~init:(Map.Poly.empty) ~f:(fun acc f ->
@@ -279,8 +284,6 @@ let rec type_of (env: EG.tenv) (e: EG.eexpr) : tast =
   | Int(src, sz, v) -> (TInt(sz), Int(src, sz, v))
   | Discrete(src, l) ->
     let sum = List.fold l ~init:0.0 ~f:(fun acc i -> acc +. i) in
-    let within_epsilon x y =
-      (Float.compare (Float.abs (x -. y)) 0.0001) < 0 in
     if not (within_epsilon sum 1.0) then
       raise (Type_error (Format.sprintf "Type error at line %d column %d: discrete parameters must sum to 1, got %f"
                            src.startpos.pos_lnum src.startpos.pos_cnum sum))
@@ -358,11 +361,13 @@ let rec and_of_l l =
   | [x] -> x
   | x::xs -> CG.And(x, and_of_l xs)
 
-let rec gen_discrete (l: float List.t) =
+(*  00   01   10
+    [0.1; 0.4; 0.5] *)
+
+let rec gen_discrete mgr (l: float List.t) =
   let open Cudd in
   let open CG in
   (* first generate the ADD *)
-  let mgr = Man.make_d () in
   (* list of bits in little-endian order *)
   let bits = List.init (num_binary_digits ((List.length l) - 1)) ~f:(fun i -> (Ident(Format.sprintf "d%d" i), Bdd.newvar mgr)) in
   let numbits = List.length bits in
@@ -469,29 +474,29 @@ let gen_subtractor sz a b : CG.expr =
 
 
 
-let rec from_external_expr_h (tenv: EG.tenv) ((t, e): tast) : CG.expr =
+let rec from_external_expr_h (mgr: Cudd.Man.dt) (tenv: EG.tenv) ((t, e): tast) : CG.expr =
   match e with
   | And(_, e1, e2) ->
-    let s1 = from_external_expr_h tenv e1 in
-    let s2 = from_external_expr_h tenv e2 in And(s1, s2)
+    let s1 = from_external_expr_h mgr tenv e1 in
+    let s2 = from_external_expr_h mgr tenv e2 in And(s1, s2)
   | Or(_, e1, e2) ->
-    let s1 = from_external_expr_h tenv e1 in
-    let s2 = from_external_expr_h tenv e2 in Or(s1, s2)
+    let s1 = from_external_expr_h mgr tenv e1 in
+    let s2 = from_external_expr_h mgr tenv e2 in Or(s1, s2)
   | Iff(_, e1, e2) ->
-    let s1 = from_external_expr_h tenv e1 in
-    let s2 = from_external_expr_h tenv e2 in Eq(s1, s2)
+    let s1 = from_external_expr_h mgr tenv e1 in
+    let s2 = from_external_expr_h mgr tenv e2 in Eq(s1, s2)
   | LeftShift(_, e, amt) ->
     failwith ""
   | Plus(_, e2, e1) ->
     let sz = (match t with
         | TInt(sz) -> sz
         | _ -> failwith "Internal Error: unreachable") in
-    gen_adder sz (from_external_expr_h tenv e1) (from_external_expr_h tenv e2)
+    gen_adder sz (from_external_expr_h mgr tenv e1) (from_external_expr_h mgr tenv e2)
   | Minus(_, e1, e2) ->
     let sz = (match t with
         | TInt(sz) -> sz
         | _ -> failwith "Internal Error: unreachable") in
-    gen_subtractor sz (from_external_expr_h tenv e1) (from_external_expr_h tenv e2)
+    gen_subtractor sz (from_external_expr_h mgr tenv e1) (from_external_expr_h mgr tenv e2)
   | Eq(_, (t1, e1), (t2, e2)) ->
     let sz = (match (t1, t2) with
         | EG.TInt(a), EG.TInt(b) when a = b -> a
@@ -500,8 +505,8 @@ let rec from_external_expr_h (tenv: EG.tenv) ((t, e): tast) : CG.expr =
     let inner = List.init sz ~f:(fun idx ->
         CG.Eq(nth_bit sz idx (Ident(n1)), nth_bit sz idx (Ident(n2)))
       ) |> and_of_l in
-    Let(n1, from_external_expr_h tenv (t1, e1), Let(n2, from_external_expr_h tenv (t2, e2), inner))
-  | Neq(s, e1, e2) -> from_external_expr_h tenv (TBool, Not(s, (TBool, Eq(s, e1, e2))))
+    Let(n1, from_external_expr_h mgr tenv (t1, e1), Let(n2, from_external_expr_h mgr tenv (t2, e2), inner))
+  | Neq(s, e1, e2) -> from_external_expr_h mgr tenv (TBool, Not(s, (TBool, Eq(s, e1, e2))))
   | Mult(s, e1, e2) -> failwith "not implemented *"
   | Div(s, e1, e2) -> failwith "not implemented /"
   | Lt(_, (t1, e1), (t2, e2)) ->
@@ -516,14 +521,14 @@ let rec from_external_expr_h (tenv: EG.tenv) ((t, e): tast) : CG.expr =
                False,
                Ite(And(Not(nth_bit sz idx (Ident(n1))), nth_bit sz idx (Ident n2)), True,
                h (idx + 1))) in
-    Let(n1, from_external_expr_h tenv (t1, e1), Let(n2, from_external_expr_h tenv (t2, e2), h 0))
-  | Lte(s, e1, e2) -> from_external_expr_h tenv (TBool, Or(s, (TBool, Lt(s, e1, e2)), (TBool, Eq(s, e1, e2))))
-  | Gt(s, e1, e2) -> from_external_expr_h tenv (TBool, Not(s, (TBool, Lte(s, e1, e2))))
-  | Gte(s, e1, e2) -> from_external_expr_h tenv (TBool, Not(s, (TBool, Lt(s, e1, e2))))
-  | Not(_, e) -> Not(from_external_expr_h tenv e)
+    Let(n1, from_external_expr_h mgr tenv (t1, e1), Let(n2, from_external_expr_h mgr tenv (t2, e2), h 0))
+  | Lte(s, e1, e2) -> from_external_expr_h mgr tenv (TBool, Or(s, (TBool, Lt(s, e1, e2)), (TBool, Eq(s, e1, e2))))
+  | Gt(s, e1, e2) -> from_external_expr_h mgr tenv (TBool, Not(s, (TBool, Lte(s, e1, e2))))
+  | Gte(s, e1, e2) -> from_external_expr_h mgr tenv (TBool, Not(s, (TBool, Lt(s, e1, e2))))
+  | Not(_, e) -> Not(from_external_expr_h mgr tenv e)
   | Flip(_, f) -> Flip(f)
   | Ident(_, s) -> Ident(s)
-  | Discrete(_, l) -> gen_discrete l
+  | Discrete(_, l) -> gen_discrete mgr l
   | Int(_, sz, v) ->
     let bits = int_to_bin sz v
                |> List.map ~f:(fun i -> if i = 1 then CG.True else CG.False) in
@@ -531,24 +536,26 @@ let rec from_external_expr_h (tenv: EG.tenv) ((t, e): tast) : CG.expr =
   | True(_) -> True
   | False(_) -> False
   | Observe(_, e) ->
-    Observe(from_external_expr_h tenv e)
+    Observe(from_external_expr_h mgr tenv e)
   | Let(_, x, e1, e2) ->
     let tenv' = Map.Poly.set tenv ~key:x ~data:t in
-    Let(x, from_external_expr_h tenv e1, from_external_expr_h tenv' e2)
-  | Ite(_, g, thn, els) -> Ite(from_external_expr_h tenv g, from_external_expr_h tenv thn, from_external_expr_h tenv els)
-  | Snd(_, e) -> Snd(from_external_expr_h tenv e)
-  | Fst(_, e) -> Fst(from_external_expr_h tenv e)
-  | Tup(_, e1, e2) -> Tup(from_external_expr_h tenv e1, from_external_expr_h tenv e2)
-  | FuncCall(_, id, args) -> FuncCall(id, List.map args ~f:(fun i -> from_external_expr_h tenv i))
+    Let(x, from_external_expr_h mgr tenv e1, from_external_expr_h mgr tenv' e2)
+  | Ite(_, g, thn, els) -> Ite(from_external_expr_h mgr tenv g,
+                               from_external_expr_h mgr tenv thn,
+                               from_external_expr_h mgr tenv els)
+  | Snd(_, e) -> Snd(from_external_expr_h mgr tenv e)
+  | Fst(_, e) -> Fst(from_external_expr_h mgr tenv e)
+  | Tup(_, e1, e2) -> Tup(from_external_expr_h mgr tenv e1, from_external_expr_h mgr tenv e2)
+  | FuncCall(_, id, args) -> FuncCall(id, List.map args ~f:(fun i -> from_external_expr_h mgr tenv i))
   | Iter(_, f, init, k) ->
-    let e = from_external_expr_h tenv init in
+    let e = from_external_expr_h mgr tenv init in
     List.fold (List.init k ~f:(fun _ -> ())) ~init:e
       ~f:(fun acc _ -> FuncCall(f, [acc]))
   | IntConst(_, _) -> failwith "not implemented"
 
-let from_external_expr (env: EG.tenv) (e: EG.eexpr) : (EG.typ * CG.expr) =
+let from_external_expr mgr (env: EG.tenv) (e: EG.eexpr) : (EG.typ * CG.expr) =
   let (typ, e) = type_of env e in
-  (typ, from_external_expr_h Map.Poly.empty (typ, e))
+  (typ, from_external_expr_h mgr Map.Poly.empty (typ, e))
 
 let rec from_external_typ (t:EG.typ) : CG.typ =
   match t with
@@ -569,12 +576,12 @@ let from_external_arg (a:EG.arg) : CG.arg =
   let (name, t) = a in
   (name, from_external_typ t)
 
-let from_external_func (tenv: EG.tenv) (f: EG.func) : (EG.typ * CG.func) =
+let from_external_func mgr (tenv: EG.tenv) (f: EG.func) : (EG.typ * CG.func) =
   (* add the arguments to the type environment *)
   let tenvwithargs = List.fold f.args ~init:tenv ~f:(fun acc (name, typ) ->
       Map.Poly.set acc ~key:name ~data:typ
     ) in
-  let (t, conv) = from_external_expr tenvwithargs f.body in
+  let (t, conv) = from_external_expr mgr tenvwithargs f.body in
   (* convert arguments *)
   let args = List.map f.args ~f:from_external_arg in
   (TFunc(List.map f.args ~f:snd, t), {name = f.name;
@@ -582,12 +589,13 @@ let from_external_func (tenv: EG.tenv) (f: EG.func) : (EG.typ * CG.func) =
        body = conv})
 
 let from_external_prog (p: EG.program) : CG.program =
+  let mgr = Cudd.Man.make_d () in
   let (tenv, functions) = List.fold p.functions ~init:(Map.Poly.empty, []) ~f:(fun (tenv, flst) i ->
-      let (t, conv) = from_external_func tenv i in
+      let (t, conv) = from_external_func mgr tenv i in
       let tenv' = Map.Poly.set tenv ~key:i.name ~data:t in
       (tenv', flst @ [conv])
     ) in
-  let (_, convbody) = from_external_expr tenv p.body in
+  let (_, convbody) = from_external_expr mgr tenv p.body in
   {functions = functions; body = convbody}
 
 
