@@ -23,13 +23,16 @@ let run_benches () =
                   ))) in
   print_endline (Format.sprintf "Benchmark\tTime (s)\t#Paths (log10)\tBDD Size");
   List.iter benches ~f:(fun (name, bench) ->
-      let t0 = Unix.gettimeofday () in
-      let (parsed, res) = bench () in
-      let st = [res.body.state; VarState.Leaf(res.body.z)] in
-      let sz = VarState.state_size st in
-      let t1 = Unix.gettimeofday () in
-      print_endline (Format.sprintf "%s\t%f\t%s\t%d"
-                       name (t1 -. t0) (LogProbability.to_string 10.0 (Passes.num_paths parsed)) sz);
+      try
+        let t0 = Unix.gettimeofday () in
+        let r = bench () in
+        let (parsed, res) = r in
+        let st = [res.body.state; VarState.Leaf(res.body.z)] in
+        let sz = VarState.state_size st in
+        let t1 = Unix.gettimeofday () in
+        print_endline (Format.sprintf "%s\t%f\t%s\t%d"
+                         name (t1 -. t0) (LogProbability.to_string 10.0 (Passes.num_paths parsed)) sz);
+      with ExternalGrammar.Type_error(s) -> Format.printf "Type error in %s: %s\n" name s
     )
 
 let gen_caesar (str: int list) =
