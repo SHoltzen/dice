@@ -32,7 +32,6 @@ type source = {startpos: lexing_position; endpos: lexing_position}
 
 type eexpr =
     And of source * eexpr * eexpr
-  | LeftShift of source * eexpr * int
   | Or of source * eexpr * eexpr
   | Iff of source * eexpr * eexpr
   | IntConst of source * int
@@ -104,7 +103,6 @@ let get_src e =
   | Tup(s, _, _) -> s
   | Iter(s, _, _, _) -> s
   | FuncCall(s, _, _) -> s
-  | LeftShift(s, _, _) -> s
 
 
 

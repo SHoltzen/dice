@@ -37,7 +37,6 @@ let inline_functions (p: EG.program) =
       let s2 = helper e2 in Eq(s, s1, s2)
     | IntConst(_, _) -> e
     | Plus(s, e1, e2) -> Plus(s, helper e1, helper e2)
-    | LeftShift(s, e1, amt) -> LeftShift(s, helper e1, amt)
     | Eq(s, e1, e2) -> Eq(s, helper e1, helper e2)
     | Neq(s, e1, e2) -> Neq(s, helper e1, helper e2)
     | Minus(s, e1, e2) -> Minus(s, helper e1, helper e2)
@@ -177,7 +176,7 @@ type source = EG.source
 
 type ast =
     And of source * tast * tast
-  | LeftShift of source * ast * int
+  | LeftShift of source * tast * int
   | Or of source * tast * tast
   | Iff of source * tast * tast
   | IntConst of source * int
@@ -243,9 +242,6 @@ let rec type_of (env: EG.tenv) (e: EG.eexpr) : tast =
     let s1 = expect_t e1 s.startpos TBool in
     let s2 = expect_t e2 s.startpos TBool in
     (TBool, Or(s, s1, s2))
-  | LeftShift(s, e, amt) ->
-    let (t, newe) = type_of env e in
-    (t, LeftShift(s, newe, amt))
   | Iff(s, e1, e2) ->
     let s1 = expect_t e1 s.startpos TBool in
     let s2 = expect_t e2 s.startpos TBool in
@@ -422,7 +418,9 @@ let rec nth_snd i inner =
     0 -> inner
   | n -> CG.Snd (nth_snd (n-1) inner)
 
-let nth_bit sz n e : CG.expr = if n = sz-1 then nth_snd n (e) else Fst(nth_snd n (e))
+let nth_bit sz n e : CG.expr =
+  assert (n < sz);
+  if n = sz-1 then nth_snd n (e) else Fst(nth_snd n (e))
 
 let gen_adder sz a b : CG.expr =
   let a_name = fresh () in
@@ -464,7 +462,7 @@ let gen_subtractor sz a b : CG.expr =
   let halfborrow = (Format.sprintf "%s_0" borrowname, CG.And(Not(nth_bit sz (sz-1) tmp_a), nth_bit sz (sz-1) tmp_b)) in
   (* very finnicky business in here ... generate a sequence of full adders
      that feed one into the next *)
-  let fulladders = List.init (sz - 1) ~f:(fun bit ->
+  let fullsubt = List.init (sz - 1) ~f:(fun bit ->
       let curidx = bit + 1 in
       let curbit = sz - bit - 2 in
       let curout = Format.sprintf "%s_%d" outputname curidx in
@@ -476,10 +474,15 @@ let gen_subtractor sz a b : CG.expr =
        (curborrow, CG.Or(CG.And(Ident(prevborrow), Not(curinput_a)),
                         CG.Or(CG.And(Ident(prevborrow), curinput_b), CG.And(Not(curinput_a), curinput_b))))]
     ) |> List.concat in
-  let full_l = [(a_name, a); (b_name, b); halfout; halfborrow] @ fulladders in
+  let full_l = [(a_name, a); (b_name, b); halfout; halfborrow] @ fullsubt in
   let output_list = List.init sz ~f:(fun idx -> CG.Ident(Format.sprintf "%s_%d" outputname (sz - 1 - idx))) in
   let inner = mk_dfs_tuple output_list in
   List.fold_right full_l ~init:inner ~f:(fun (name, e) acc -> CG.Let(name, e, acc))
+
+let extract_sz t =
+  (match t with
+   | EG.TInt(sz) -> sz
+   | _ -> failwith "Internal Type Error: expected int")
 
 let rec from_external_expr_h (mgr: Cudd.Man.dt) (tenv: EG.tenv) ((t, e): tast) : CG.expr =
   match e with
@@ -493,35 +496,52 @@ let rec from_external_expr_h (mgr: Cudd.Man.dt) (tenv: EG.tenv) ((t, e): tast) :
     let s1 = from_external_expr_h mgr tenv e1 in
     let s2 = from_external_expr_h mgr tenv e2 in Eq(s1, s2)
   | LeftShift(_, e, amt) ->
-    failwith ""
-  | Plus(_, e2, e1) ->
-    let sz = (match t with
-        | TInt(sz) -> sz
-        | _ -> failwith "Internal Error: unreachable") in
+    let sube = from_external_expr_h mgr tenv e in
+    if amt = 0 then sube else
+      let sz = extract_sz t in
+      let id = Format.sprintf "leftshift_%s" (fresh ()) in
+      let rec h depth : CG.expr =
+        if depth = sz - 1 then False
+        else if depth + amt >= sz then Tup(False, h (depth+1))
+        else Tup(nth_bit sz (depth+amt) (Ident(id)), h (depth+1)) in
+      Let(id, sube, h 0)
+  | Plus(_, e1, e2) ->
+    let sz = extract_sz (fst e1) in
     gen_adder sz (from_external_expr_h mgr tenv e1) (from_external_expr_h mgr tenv e2)
   | Minus(_, e1, e2) ->
-    let sz = (match t with
-        | TInt(sz) -> sz
-        | _ -> failwith "Internal Error: unreachable") in
+    let sz = extract_sz t in
     gen_subtractor sz (from_external_expr_h mgr tenv e1) (from_external_expr_h mgr tenv e2)
   | Eq(_, (t1, e1), (t2, e2)) ->
-    let sz = (match (t1, t2) with
-        | EG.TInt(a), EG.TInt(b) when a = b -> a
-        | _ -> failwith "Internal Error: Unreachable") in
+    let sz = extract_sz t1 in
     let n1 = fresh () and n2 = fresh () in
     let inner = List.init sz ~f:(fun idx ->
         CG.Eq(nth_bit sz idx (Ident(n1)), nth_bit sz idx (Ident(n2)))
       ) |> and_of_l in
-    Let(n1, from_external_expr_h mgr tenv (t1, e1), Let(n2, from_external_expr_h mgr tenv (t2, e2), inner))
+    Let(n1, from_external_expr_h mgr tenv (t1, e1),
+        Let(n2, from_external_expr_h mgr tenv (t2, e2), inner))
   | Neq(s, e1, e2) -> from_external_expr_h mgr tenv (TBool, Not(s, (TBool, Eq(s, e1, e2))))
-  | Mult(s, e1, e2) -> failwith "not implemented *"
+  | Mult(s, e1, e2) ->
+    let sz = extract_sz (fst e1) in
+    let sube1 = from_external_expr_h mgr tenv e1 in
+    let sube2 = from_external_expr_h mgr tenv e2 in
+    let fresha = Format.sprintf "multa_%s" (fresh ()) in
+    let freshb = Format.sprintf "multb_%s" (fresh ()) in
+    let freshout = Format.sprintf "multo_%s" (fresh ()) in
+    let lst : CG.expr List.t = List.init sz ~f:(fun i ->
+        let subadd = from_external_expr_h mgr tenv
+            (t, Plus(s, (t, Ident(s, freshout)), (t, LeftShift(s, (t, Ident(s, freshb)), i)))) in
+        CG.Ite(nth_bit sz (sz - i - 1) (Ident(fresha)), subadd, Ident(freshout))
+      ) in
+    let assgn = List.fold (List.rev lst) ~init:(CG.Ident(freshout)) ~f:(fun acc i ->
+        Let(freshout, i, acc)) in
+    let zeroconst = from_external_expr_h mgr tenv (TInt(sz), Int(s, sz, 0)) in
+    Let(freshout, zeroconst,
+        Let(fresha, sube1,
+            Let(freshb, sube2, assgn)))
   | Div(s, e1, e2) -> failwith "not implemented /"
   | Lt(_, (t1, e1), (t2, e2)) ->
-    let sz = (match (t1, t2) with
-        | EG.TInt(a), EG.TInt(b) when a = b -> a
-        | _ -> failwith "Internal Error: Unreachable") in
+    let sz = extract_sz t1 in
     let n1 = fresh () and n2 = fresh () in
-    (** TODO: dont print nth bit so many times... it scales poorly *)
     let rec h idx : CG.expr =
       if idx = sz then False
       else Ite(And(nth_bit sz idx (Ident(n1)), Not(nth_bit sz idx (Ident n2))),

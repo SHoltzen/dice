@@ -134,17 +134,33 @@ let test_op4 _ =
   let prog = "
    let x = discrete(0.1, 0.2, 0.3, 0.4) in
    let y = discrete(0.4, 0.3, 0.2, 0.1) in
-   (x * y) < int(4, 2)" in
-  assert_feq (31.0 /. 50.0) (parse_and_prob prog)
-
-let test_op5 _ =
-  let prog = "
-   let x = discrete(0.1, 0.2, 0.3, 0.4) in
-   let y = discrete(0.4, 0.3, 0.2, 0.1) in
-   let tmp = observe (x + y) < int(4, 2) in
+   let tmp = observe (x + y) < int(2, 2) in
    x == y" in
   assert_feq (5.0 /. 23.0) (parse_and_prob prog)
 
+let test_mul1 _ =
+  let prog = "let x = int(3, 0) * int(3, 1) in x == int(3, 0)" in
+  assert_feq 1.0 (parse_and_prob prog)
+
+let test_mul2 _ =
+  let prog = "let x = int(3, 2) * int(3, 2) in x == int(3, 4)" in
+  assert_feq 1.0 (parse_and_prob prog)
+
+let test_mul3 _ =
+  let prog = "let x = int(3, 3) * int(3, 3) in x == int(3, 1)" in
+  assert_feq 1.0 (parse_and_prob prog)
+
+let test_mul4 _ =
+  let prog = "let x = int(4, 3) * int(4, 3) in x == int(4, 9)" in
+  assert_feq 1.0 (parse_and_prob prog)
+
+let test_mul5 _ =
+  let prog = "let x = int(4, 3) * int(4, 3) * int(4, 3) in x == int(4, 27)" in
+  assert_feq 1.0 (parse_and_prob prog)
+
+let test_mul6 _ =
+  let prog = "let x = discrete(0.1, 0.4, 0.5, 0.0) * int(2, 2) in x == int(2, 0)" in
+  assert_feq 0.6 (parse_and_prob prog)
 
 let test_fcall1 _ =
   let prog = "
@@ -392,6 +408,13 @@ let expression_tests =
   "test_sub3">::test_sub3;
   "test_sub4">::test_sub4;
 
+  "test_mul1">::test_mul1;
+  "test_mul2">::test_mul2;
+  "test_mul3">::test_mul3;
+  "test_mul4">::test_mul3;
+  "test_mul5">::test_mul3;
+  "test_mul6">::test_mul3;
+
   "test_fcall1">::test_fcall1;
   "test_fcall2">::test_fcall2;
   "test_fcall3">::test_fcall3;
@@ -412,7 +435,6 @@ let expression_tests =
   "test_op2">::test_op2;
   "test_op3">::test_op3;
   "test_op4">::test_op4;
-  "test_op5">::test_op5;
   "test_alarm">::test_alarm;
   "test_coin">::test_coin;
   "test_burglary">::test_burglary;
