@@ -47,9 +47,10 @@ let new_context ~lazy_eval () =
    lazy_eval = lazy_eval}
 
 let new_var ctx =
-  match Stack.pop ctx.free_stack with
-  | None -> Bdd.newvar ctx.man
-  | Some(a) -> a
+  Bdd.newvar ctx.man
+  (* match Stack.pop ctx.free_stack with
+   * | None -> Bdd.newvar ctx.man
+   * | Some(a) -> a *)
 
 let free_var ctx var =
   Stack.push ctx.free_stack var
@@ -136,8 +137,8 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     {state=Leaf(Bdd.dtrue ctx.man); z=Bdd.dand (extract_leaf c.state) c.z; flips=c.flips}
 
   | Let(x, e1, e2) ->
-    let c1 = compile_expr ctx tenv env e1 in
     (* create a temp variable *)
+    let c1 = compile_expr ctx tenv env e1 in
     let t = (type_of tenv e1) in
     let tmp = gen_sym_type ctx t in
     let env' = Map.Poly.set env ~key:x ~data:tmp in
@@ -154,8 +155,11 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
   | FuncCall(name, args) ->
     let func = try Hashtbl.Poly.find_exn ctx.funcs name
       with _ -> failwith (Format.sprintf "Could not find function '%s'." name) in
+   (* set up the flip refreshing permutation *)
+
+    (* now compile the argument. we do this _after_ we refresh the flips *)
     let cargs = List.map args ~f:(compile_expr ctx tenv env) in
-    (* set up the flip refreshing permutation *)
+
     let new_flips = List.map func.body.flips ~f:(fun f ->
         let newv = new_var ctx in
         let lvl = Bdd.topvar newv in
@@ -176,10 +180,12 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
       List.map cargs ~f:(fun arg ->
           List.to_array (collect_leaves arg.state))
       |> Array.concat in
+    let argz = List.fold cargs ~init:(Bdd.dtrue ctx.man) ~f:(fun acc i -> Bdd.dand i.z acc) in
+    let argflips = List.fold cargs ~init:[] ~f:(fun acc i -> acc @ i.flips) in
     let final_state = map_tree refreshed_state (fun bdd ->
         Bdd.labeled_vector_compose bdd swap_bdd swap_idx) in
     let final_z = Bdd.labeled_vector_compose refreshed_z swap_bdd swap_idx in
-    {state=final_state; z=final_z; flips=new_flips} in
+    {state=final_state; z=Bdd.dand argz final_z; flips=new_flips @ argflips} in
   r
 
 

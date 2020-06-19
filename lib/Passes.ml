@@ -14,6 +14,10 @@ let fresh () =
 let within_epsilon x y =
   (Float.compare (Float.abs (x -. y)) 0.0001) < 0
 
+let rec expand_iter s f curv k : EG.eexpr =
+  assert (k >= 0);
+  if k = 0 then curv else
+    Let(s, "$iterident", FuncCall(s, f, [curv]), expand_iter s f (Ident(s, "$iterident")) (k-1))
 
 
 let inline_functions (p: EG.program) =
@@ -56,9 +60,7 @@ let inline_functions (p: EG.program) =
     | Snd(s, e) -> Snd(s, helper e)
     | Fst(s, e) -> Fst(s, helper e)
     | Tup(s, e1, e2) -> Tup(s, helper e1, helper e2)
-    | Iter(s, f, init, k) ->
-      List.fold (List.init k ~f:(fun _ -> ())) ~init:init
-        ~f:(fun acc _ -> FuncCall(s, f, [acc]))
+    | Iter(s, f, init, k) -> helper (expand_iter s f init k)
     | FuncCall(s, id, args) ->
       let cur_f = Map.Poly.find_exn function_map id in
       let inlined = helper cur_f.body in
@@ -355,6 +357,14 @@ let rec type_of (env: EG.tenv) (e: EG.eexpr) : tast =
     (tres, Iter(s, id, init', k))
 
 
+let rec expand_iter_t s f ((t, curv):tast) k : tast =
+  assert (k >= 0);
+  if k = 0 then (t, curv) else
+    (t, Let(s, "$iterident", (t, FuncCall(s, f, [(t, curv)])),
+            expand_iter_t s f (t, Ident(s, "$iterident")) (k-1)))
+
+
+
 let rec and_of_l l =
   match l with
   | [] -> CG.True
@@ -544,10 +554,9 @@ let rec from_external_expr_h (mgr: Cudd.Man.dt) (tenv: EG.tenv) ((t, e): tast) :
   | Fst(_, e) -> Fst(from_external_expr_h mgr tenv e)
   | Tup(_, e1, e2) -> Tup(from_external_expr_h mgr tenv e1, from_external_expr_h mgr tenv e2)
   | FuncCall(_, id, args) -> FuncCall(id, List.map args ~f:(fun i -> from_external_expr_h mgr tenv i))
-  | Iter(_, f, init, k) ->
-    let e = from_external_expr_h mgr tenv init in
-    List.fold (List.init k ~f:(fun _ -> ())) ~init:e
-      ~f:(fun acc _ -> FuncCall(f, [acc]))
+  | Iter(s, f, init, k) ->
+    let expanded = expand_iter_t s f init k in
+    from_external_expr_h mgr tenv expanded
   | IntConst(_, _) -> failwith "not implemented"
 
 let from_external_expr mgr (env: EG.tenv) (e: EG.eexpr) : (EG.typ * CG.expr) =
@@ -586,6 +595,8 @@ let from_external_func mgr (tenv: EG.tenv) (f: EG.func) : (EG.typ * CG.func) =
        body = conv})
 
 let from_external_prog (p: EG.program) : CG.program =
+  (* let p = inline_functions p in *)
+  (* Format.printf "prog: %s" (EG.string_of_prog p); *)
   let mgr = Cudd.Man.make_d () in
   let (tenv, functions) = List.fold p.functions ~init:(Map.Poly.empty, []) ~f:(fun (tenv, flst) i ->
       let (t, conv) = from_external_func mgr tenv i in

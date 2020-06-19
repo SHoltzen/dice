@@ -56,16 +56,16 @@ let rec collect_leaves t =
 (** [state_size] computes the total number of unique nodes in the list of
     varstates [states] *)
 let state_size (states : Bdd.dt btree List.t) =
-  failwith "not implemented"
-  (* let seen = Hash_set.Poly.create () in
-   * let rec helper (bdd : Bdd.dt) =
-   *   match Hash_set.Poly.mem seen bdd with
-   *   | true -> 0
-   *   | false ->
-   *     Hash_set.Poly.add seen bdd;
-   *     (match Bdd.inspect bdd with
-   *      | Bool(_) -> 1
-   *      | Ite(_, l, r) -> 1 + (helper l) + (helper r)) in
-   * List.fold states ~init:0 ~f:(fun acc i -> fold_bddtree i acc (fun acc bdd ->
-   *     acc + (helper bdd))) *)
+  let seen = Hash_set.Poly.create () in
+  let rec helper (bdd : Bdd.dt) =
+    match Hash_set.Poly.mem seen bdd with
+    | true -> 0
+    | false ->
+      Hash_set.Poly.add seen bdd;
+      (match Bdd.inspect bdd with
+       | Bool(_) -> 1
+       | Ite(_, l, r) -> 1 + (helper l) + (helper r)) in
+  List.fold states ~init:0 ~f:(fun acc i ->
+      let leaves = collect_leaves i in
+      List.fold leaves ~init:acc ~f:(fun acc bdd -> acc + (helper bdd)) )
 
