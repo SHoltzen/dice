@@ -155,7 +155,7 @@ let test_mul4 _ =
   assert_feq 1.0 (parse_and_prob prog)
 
 let test_mul5 _ =
-  let prog = "let x = int(4, 3) * int(4, 3) * int(4, 3) in x == int(4, 27)" in
+  let prog = "let x = int(4, 3) * int(4, 3) * int(4, 3) in x == int(4, 11)" in
   assert_feq 1.0 (parse_and_prob prog)
 
 let test_mul6 _ =
@@ -411,9 +411,9 @@ let expression_tests =
   "test_mul1">::test_mul1;
   "test_mul2">::test_mul2;
   "test_mul3">::test_mul3;
-  "test_mul4">::test_mul3;
-  "test_mul5">::test_mul3;
-  "test_mul6">::test_mul3;
+  "test_mul4">::test_mul4;
+  "test_mul5">::test_mul5;
+  "test_mul6">::test_mul6;
 
   "test_fcall1">::test_fcall1;
   "test_fcall2">::test_fcall2;

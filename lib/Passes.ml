@@ -279,7 +279,11 @@ let rec type_of (env: EG.tenv) (e: EG.eexpr) : tast =
     let t1 = type_of env e1 in
     let t2 = type_of env e2 in
     (TTuple(fst t1, fst t2), Tup(s, t1, t2))
-  | Int(src, sz, v) -> (TInt(sz), Int(src, sz, v))
+  | Int(src, sz, v) ->
+    if v >= 1 lsl sz then
+      (raise (Type_error (Format.sprintf "Type error at line %d column %d: integer constant out of range"
+                           src.startpos.pos_lnum src.startpos.pos_cnum))) else ();
+    (TInt(sz), Int(src, sz, v))
   | Discrete(src, l) ->
     let sum = List.fold l ~init:0.0 ~f:(fun acc i -> acc +. i) in
     if not (within_epsilon sum 1.0) then
