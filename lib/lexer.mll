@@ -31,6 +31,7 @@ rule token =
     | '-'                       { MINUS }
     | '*'                       { MULTIPLY }
     | '/'                       { DIVIDE }
+    | "<=>"                     { IFF }
     | '%'                       { MODULUS }
     | '<'                       { LT }
     | '>'                       { GT }

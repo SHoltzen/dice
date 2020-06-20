@@ -1,22 +1,17 @@
 (** Defines the core internal dice grammar *)
 
+
 type expr =
   | And of expr * expr
   | Or of expr * expr
+  | Eq of expr * expr
+  | Xor of expr * expr
   | Not of expr
   | Ident of String.t
   | Fst of expr
   | Snd of expr
   | Tup of expr * expr
   | Ite of expr * expr * expr
-  | Discrete of float List.t
-  | Eq of expr * expr
-  | Lt of expr * expr
-  | Int of int * int  (* sz, v *)
-  | Plus of expr * expr
-  | Minus of expr * expr
-  | Mult of expr * expr
-  | Div of expr * expr
   | True
   | False
   | Flip of float
@@ -30,11 +25,9 @@ and fcall = {
 }
 [@@deriving sexp_of]
 
-val string_of_expr : expr -> String.t
 
 type typ =
     TBool
-  | TInt of int (* sz *)
   | TTuple of typ * typ
 [@@deriving sexp_of]
 
@@ -63,3 +56,6 @@ type tenv = (String.t, typ) Core.Map.Poly.t
 
 val type_of : tenv -> expr -> typ
 val type_of_fun : tenv -> func -> typ
+
+val string_of_expr : expr -> String.t
+val string_of_prog : program -> String.t
