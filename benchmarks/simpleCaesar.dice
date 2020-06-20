@@ -14,4 +14,3 @@ let key1  = discrete(
 //let tmp = drawChar((key1, int(5,2))) in
 let tmp = iterate(drawChar, (key1, int(5, 2)), 10000) in
 key1
-
