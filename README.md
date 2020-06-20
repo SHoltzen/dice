@@ -113,7 +113,7 @@ false	0.200000
 
 ```
 let x = discrete(0.4, 0.1, 0.5) in 
-let y = int(3, 1) in 
+let y = int(2, 1) in 
 x + y
 ```
 
@@ -121,9 +121,8 @@ Breaking this program down:
 
 * `discrete(0.4, 0.1, 0.5)` creates a random integer that is 0 with probability 0.4, 
    1 with probability 0.1, and 2 with probability 0.3.
-* `int(3, 1)` creates an integer constant of size 3 and value 1. All integer
-  constants in `dice` must specify their size (i.e., an integer of size 3
-  supports values between 0 and 2 inclusive).
+* `int(2, 1)` creates a 2-bit integer constant with value 1. All integer
+  constants in `dice` must specify their size.
 * `x + y` adds `x` and `y` together. All integer operations in `dice` are
   performed modulo the size (i.e., `x + y` is implicitly modulo 3 in this
   case). `dice` supports the following integer operations: `+`, `*`, `/`, `-`, 
@@ -196,7 +195,7 @@ is the most common letter, the string `CCCC` is most likely the encrypted string
 The following program models this scenario in `dice`:
 
 ```
-fun sendChar(key: int(4), observation: int(4)) {
+fun sendChar(key: int(2), observation: int(2)) {
   let gen = discrete(0.5, 0.25, 0.125, 0.125) in    // sample a FooLang character
   let enc = key + gen in                            // encrypt the character
   observe observation == enc
@@ -204,10 +203,10 @@ fun sendChar(key: int(4), observation: int(4)) {
 // sample a uniform random key: A=0, B=1, C=2, D=3
 let key = discrete(0.25, 0.25, 0.25, 0.25) in
 // observe the ciphertext CCCC
-let tmp = sendChar(key, int(4, 2)) in
-let tmp = sendChar(key, int(4, 2)) in
-let tmp = sendChar(key, int(4, 2)) in
-let tmp = sendChar(key, int(4, 2)) in
+let tmp = sendChar(key, int(2, 2)) in
+let tmp = sendChar(key, int(2, 2)) in
+let tmp = sendChar(key, int(2, 2)) in
+let tmp = sendChar(key, int(2, 2)) in
 key
 ```
 
