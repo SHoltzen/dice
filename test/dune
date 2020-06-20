@@ -5,6 +5,8 @@
   (deps "../resources/alarm_test.dice"
         "../resources/cancer_test.dice"
         "../resources/caesar_test.dice"
+        "../resources/pmc1.dice"
+        "../resources/pmc2.dice"
         "../benchmarks/baselines/alarm.dice"
         "../benchmarks/baselines/murderMystery.dice"
         "../benchmarks/baselines/evidence1.dice"

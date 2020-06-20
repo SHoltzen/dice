@@ -308,6 +308,15 @@ let test_alarm_2 _ =
   let prog = In_channel.read_all "../resources/alarm_test.dice" in
   assert_feq 0.281037656 (parse_and_prob prog)
 
+let test_pmc1 _ =
+  let prog = In_channel.read_all "../resources/pmc1.dice" in
+  assert_feq (1023.0 /. 2048.0) (parse_and_prob prog)
+
+let test_pmc2 _ =
+  let prog = In_channel.read_all "../resources/pmc2.dice" in
+  assert_feq (31.0 /. 64.0) (parse_and_prob prog)
+
+
 let test_double_flip _ =
   let prog = "
     let c1 = flip 0.5 in
@@ -435,12 +444,15 @@ let expression_tests =
   "test_op2">::test_op2;
   "test_op3">::test_op3;
   "test_op4">::test_op4;
+
   "test_alarm">::test_alarm;
   "test_coin">::test_coin;
   "test_burglary">::test_burglary;
   "test_double_flip">::test_double_flip;
   "test_typecheck">::test_typecheck_1;
   "test_caesar_iterate">::test_caesar_iterate;
+  "test_pmc1">::test_pmc1;
+  "test_pmc2">::test_pmc2;
 
   "test_swap">::test_swap;
 ]
