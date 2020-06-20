@@ -19,7 +19,7 @@ let run_benches () =
                       | Parser.Error ->
                         fprintf stderr "%a: syntax error\n" print_position buf;
                         failwith (Format.sprintf "Error parsing %s" contents) in
-                    (parsed, Compiler.compile_program (Passes.from_external_prog parsed))
+                    (parsed, Compiler.compile_program (snd (Passes.from_external_prog parsed)))
                   ))) in
   print_endline (Format.sprintf "Benchmark\tTime (s)\t#Paths (log10)\tBDD Size");
   List.iter benches ~f:(fun (name, bench) ->
@@ -62,6 +62,7 @@ let bench_caesar inline_functions =
       let caesar = gen_caesar (List.init len ~f:(fun _ -> Random.int_incl 0 25)) in
       let res = (if inline_functions then Passes.inline_functions caesar else caesar)
                 |> Passes.from_external_prog
+                |> snd
                 |> Compiler.compile_program in
       let sz = Cudd.Bdd.size res.body.z in
       let t1 = Unix.gettimeofday () in
@@ -100,6 +101,7 @@ let bench_caesar_error inline_functions =
       let caesar = gen_caesar_error (List.init len ~f:(fun _ -> Random.int_incl 0 25)) in
       let res = (if inline_functions then Passes.inline_functions caesar else caesar)
                 |> Passes.from_external_prog
+                |> snd
                 |> Compiler.compile_program in
       let sz = Cudd.Bdd.size res.body.z in
       let t1 = Unix.gettimeofday () in
@@ -133,6 +135,7 @@ let bench_diamond inline_functions =
       let inlined = if inline_functions then Passes.inline_functions caesar else caesar in
       let t0 = Unix.gettimeofday () in
       let res = Passes.from_external_prog inlined
+                |> snd
                 |> Compiler.compile_program in
       let sz = VarState.state_size [res.body.state] in
       let t1 = Unix.gettimeofday () in
@@ -171,6 +174,7 @@ let bench_ladder inline_functions =
       let inlined = if inline_functions then Passes.inline_functions caesar else caesar in
       let t0 = Unix.gettimeofday () in
       let res = Passes.from_external_prog inlined
+                |> snd
                 |> Compiler.compile_program in
       let sz = VarState.state_size [res.body.state] in
       let t1 = Unix.gettimeofday () in

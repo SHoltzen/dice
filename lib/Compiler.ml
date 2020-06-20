@@ -252,11 +252,11 @@ let parse_and_prob ?debug txt =
   | Parser.Error ->
     fprintf stderr "%a: syntax error\n" print_position buf;
     failwith (Format.sprintf "Error parsing %s" txt) in
-  let transformed = Passes.from_external_prog parsed in
+  let (_, transformed) = Passes.from_external_prog parsed in
   (match debug with
    | Some(true)->
      Format.printf "Program: %s\n" (ExternalGrammar.string_of_prog parsed);
-     Format.printf "After passes: %s\n" (CoreGrammar.string_of_prog transformed);
+     Format.printf "After passes: %s\n" (CoreGrammar.string_of_prog (transformed));
    | _ -> ());
   get_prob transformed
 

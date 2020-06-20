@@ -15,7 +15,9 @@ val zip_tree : 'a btree -> 'b btree -> ('a * 'b) btree
 val extract_leaf : 'a btree -> 'a
 
 (** [get_table] gets a list of all possible instantiations of BDDs in [st]. *)
-val get_table: Bdd.dt btree -> (([> `False | `Int of int * int | `True | `Tup of 'a * 'a ] as 'a) *  Cudd.Man.d Cudd.Bdd.t) list
+val get_table: Bdd.dt btree ->
+  ExternalGrammar.typ ->
+  (([> `False | `Int of int | `True | `Tup of 'a * 'a ] as 'a) *  Cudd.Man.d Cudd.Bdd.t) list
 
 (** [state_size] computes the total number of unique nodes in the list of
     varstates [states] *)

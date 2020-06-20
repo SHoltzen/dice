@@ -347,7 +347,7 @@ let rec type_of (env: EG.tenv) (e: EG.eexpr) : tast =
       with _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: could not find function \
                                                    '%s' during typechecking"
                                      s.startpos.pos_lnum s.startpos.pos_cnum id)) in
-    let (targ, tres) = (match res with
+    let (_, tres) = (match res with
         | TFunc(targ, tres) -> targ, tres
         | _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: non-function type found for \
                                                    '%s' during typechecking, found %s "
@@ -618,7 +618,7 @@ let from_external_func mgr (tenv: EG.tenv) (f: EG.func) : (EG.typ * CG.func) =
        args = args;
        body = conv})
 
-let from_external_prog (p: EG.program) : CG.program =
+let from_external_prog (p: EG.program) : (EG.typ * CG.program) =
   (* let p = inline_functions p in *)
   (* Format.printf "prog: %s" (EG.string_of_prog p); *)
   let mgr = Cudd.Man.make_d () in
@@ -627,7 +627,7 @@ let from_external_prog (p: EG.program) : CG.program =
       let tenv' = Map.Poly.set tenv ~key:i.name ~data:t in
       (tenv', flst @ [conv])
     ) in
-  let (_, convbody) = from_external_expr mgr tenv p.body in
-  {functions = functions; body = convbody}
+  let (t, convbody) = from_external_expr mgr tenv p.body in
+  (t, {functions = functions; body = convbody})
 
 

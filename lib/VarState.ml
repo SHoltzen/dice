@@ -33,20 +33,38 @@ let rec zip_tree (s1: 'a btree) (s2: 'b btree) =
   | _ -> failwith "could not zip trees, incompatible shape"
 
 (** [get_table] gets a list of all possible instantiations of BDDs in [st]. *)
-let get_table st =
-  let rec process_state state =
-    match state with
-    | Leaf(bdd) ->
+let get_table st  typ =
+  let rec process_state t state =
+    let open ExternalGrammar in
+    match (t, state) with
+    | (TBool, Leaf(bdd)) ->
       [(`True, bdd); (`False, Bdd.dnot bdd)]
-    | Node(l, r) ->
-      let lst = process_state l and rst = process_state r in
+    | (TInt(1), Leaf(bdd)) ->
+      [`Int(0), Bdd.dnot bdd; `Int(1), bdd;]
+    | (TInt(sz), Node(Leaf(bdd), r)) ->
+      let sub1 = process_state (TInt(sz-1)) r in
+      let curbitvalue = 1 lsl (sz - 1) in
+      let lower = List.map sub1 ~f:(fun (t, subbdd) ->
+          match t with
+            `Int(tval) -> `Int(tval), Bdd.dand (Bdd.dnot bdd) subbdd
+          | _ -> failwith "Unreachable"
+        ) in
+      let upper = List.map sub1 ~f:(fun (t, subbdd) ->
+          match t with
+            `Int(tval) -> `Int(tval + curbitvalue), Bdd.dand bdd subbdd
+          | _ -> failwith "Unreachable"
+        ) in
+      lower @ upper
+    | (TTuple(t1, t2), Node(l, r)) ->
+      let lst = process_state t1 l and rst = process_state t2 r in
       List.map lst ~f:(fun (lt, lbdd) ->
           List.map rst ~f:(fun (rt, rbdd) ->
               (`Tup(lt, rt), Bdd.dand lbdd rbdd)
             )
-        )
-      |> List.concat in
-  process_state st
+        ) |> List.concat
+    | _ -> failwith "Unreachable"
+  in
+  process_state typ st
 
 let rec collect_leaves t =
   match t with

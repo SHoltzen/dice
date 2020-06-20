@@ -13,13 +13,13 @@ let get_lexing_position lexbuf =
 let parse_and_print ~print_parsed ~print_info ~print_internal ~print_size ~skip_table ~print_marginals lexbuf = try
   let parsed = Compiler.parse_with_error lexbuf in
   if print_parsed then Format.printf "==========Parsed program==========\n%s\n" (ExternalGrammar.string_of_prog parsed);
-  let internal = from_external_prog parsed in
+  let (t, internal) = from_external_prog parsed in
   if print_internal then Format.printf "==========Desugared program==========\n%s\n" (CoreGrammar.string_of_prog internal);
   let compiled = Compiler.compile_program internal in
   let zbdd = compiled.body.z in
   let z = Wmc.wmc zbdd compiled.ctx.weights in
   if not skip_table then
-  (let table = VarState.get_table compiled.body.state in
+  (let table = VarState.get_table compiled.body.state t in
    let probs = List.map table ~f:(fun (label, bdd) ->
        if Util.within_epsilon z 0.0 then (label, 0.0) else
          let prob = (Wmc.wmc (Bdd.dand bdd zbdd) compiled.ctx.weights) /. z in
@@ -29,7 +29,7 @@ let parse_and_print ~print_parsed ~print_info ~print_internal ~print_size ~skip_
    List.iter probs ~f:(fun (typ, prob) ->
          let rec print_pretty e =
            match e with
-           | `Int(_, v) -> string_of_int v
+           | `Int(v) -> string_of_int v
            | `True -> "true"
            | `False -> "false"
            | `Tup(l, r) -> Format.sprintf "(%s, %s)" (print_pretty l) (print_pretty r)
