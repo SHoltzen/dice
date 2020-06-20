@@ -46,8 +46,7 @@ let parse_and_print ~print_parsed ~print_info ~print_internal ~print_size ~skip_
        ));
   if print_info then (Format.printf "==========BDD Manager Info=========="; Man.print_info compiled.ctx.man);
   if print_size then (Format.printf "==========Final compiled BDD size: %d\n=========="
-                        (Format.printf "size: %d\n" (Cudd.Bdd.size compiled.body.z);
-                         VarState.state_size [compiled.body.state; VarState.Leaf(compiled.body.z)]))
+                        (VarState.state_size [compiled.body.state; VarState.Leaf(compiled.body.z)]))
   with Compiler.Syntax_error(s) -> Format.printf "Syntax error: %s" s
 
 

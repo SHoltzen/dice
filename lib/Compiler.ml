@@ -52,8 +52,8 @@ let new_var ctx =
    * | None -> Bdd.newvar ctx.man
    * | Some(a) -> a *)
 
-let free_var ctx var =
-  Stack.push ctx.free_stack var
+let free_var _ _ = ()
+  (* Stack.push ctx.free_stack var *)
 
 (** generates a symbolic representation for a variable of the given type *)
 let rec gen_sym_type ctx (t:typ) : Bdd.dt btree =
@@ -137,29 +137,32 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     {state=Leaf(Bdd.dtrue ctx.man); z=Bdd.dand (extract_leaf c.state) c.z; flips=c.flips}
 
   | Let(x, e1, e2) ->
-    (* create a temp variable *)
     let c1 = compile_expr ctx tenv env e1 in
-    let t = (type_of tenv e1) in
-    let tmp = gen_sym_type ctx t in
-    let env' = Map.Poly.set env ~key:x ~data:tmp in
-    let tenv' = Map.Poly.set tenv ~key:x ~data:t in
-    let c2 = compile_expr ctx tenv' env' e2 in
-    (* do substitution *)
-    let swap_idx = List.to_array (List.map (collect_leaves tmp) ~f:(Bdd.topvar)) in
-    let swap_bdd = List.to_array (collect_leaves c1.state) in
-    let final_state = map_tree c2.state (fun bdd -> Bdd.labeled_vector_compose bdd swap_bdd swap_idx) in
-    let final_z = Bdd.labeled_vector_compose c2.z swap_bdd swap_idx in
-    let _v = map_tree tmp (fun i -> free_var ctx i) in
-    {state=final_state; z=Bdd.dand c1.z final_z; flips=List.append c1.flips c2.flips}
+    let env' = Map.Poly.set env ~key:x ~data:c1.state in
+    let c2 = compile_expr ctx tenv env' e2 in
+    {state=c2.state; z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips}
+
+
+    (* create a temp variable *)
+    (* let c1 = compile_expr ctx tenv env e1 in
+     * let t = (type_of tenv e1) in
+     * let tmp = gen_sym_type ctx t in
+     * let env' = Map.Poly.set env ~key:x ~data:tmp in
+     * let tenv' = Map.Poly.set tenv ~key:x ~data:t in
+     * let c2 = compile_expr ctx tenv' env' e2 in
+     * (\* do substitution *\)
+     * let swap_idx = List.to_array (List.map (collect_leaves tmp) ~f:(Bdd.topvar)) in
+     * let swap_bdd = List.to_array (collect_leaves c1.state) in
+     * let final_state = map_tree c2.state (fun bdd -> Bdd.labeled_vector_compose bdd swap_bdd swap_idx) in
+     * let final_z = Bdd.labeled_vector_compose c2.z swap_bdd swap_idx in
+     * let _v = map_tree tmp (fun i -> free_var ctx i) in
+     * {state=final_state; z=Bdd.dand c1.z final_z; flips=List.append c1.flips c2.flips} *)
 
   | FuncCall(name, args) ->
     let func = try Hashtbl.Poly.find_exn ctx.funcs name
       with _ -> failwith (Format.sprintf "Could not find function '%s'." name) in
-   (* set up the flip refreshing permutation *)
 
-    (* now compile the argument. we do this _after_ we refresh the flips *)
     let cargs = List.map args ~f:(compile_expr ctx tenv env) in
-
     let new_flips = List.map func.body.flips ~f:(fun f ->
         let newv = new_var ctx in
         let lvl = Bdd.topvar newv in
@@ -187,8 +190,6 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     let final_z = Bdd.labeled_vector_compose refreshed_z swap_bdd swap_idx in
     {state=final_state; z=Bdd.dand argz final_z; flips=new_flips @ argflips} in
   r
-
-
 
 
 let compile_func ctx tenv (f: func) : compiled_func =

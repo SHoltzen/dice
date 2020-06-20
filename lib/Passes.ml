@@ -579,6 +579,10 @@ let rec from_external_expr_h (mgr: Cudd.Man.dt) (tenv: EG.tenv) ((t, e): tast) :
   | Tup(_, e1, e2) -> Tup(from_external_expr_h mgr tenv e1, from_external_expr_h mgr tenv e2)
   | FuncCall(_, id, args) -> FuncCall(id, List.map args ~f:(fun i -> from_external_expr_h mgr tenv i))
   | Iter(s, f, init, k) ->
+    (* let e = from_external_expr_h mgr tenv init in
+     * List.fold (List.init k ~f:(fun _ -> ())) ~init:e
+     *   ~f:(fun acc _ -> FuncCall(f, [acc])) *)
+
     let expanded = expand_iter_t s f init k in
     from_external_expr_h mgr tenv expanded
   | IntConst(_, _) -> failwith "not implemented"
@@ -619,8 +623,6 @@ let from_external_func mgr (tenv: EG.tenv) (f: EG.func) : (EG.typ * CG.func) =
        body = conv})
 
 let from_external_prog (p: EG.program) : (EG.typ * CG.program) =
-  (* let p = inline_functions p in *)
-  (* Format.printf "prog: %s" (EG.string_of_prog p); *)
   let mgr = Cudd.Man.make_d () in
   let (tenv, functions) = List.fold p.functions ~init:(Map.Poly.empty, []) ~f:(fun (tenv, flst) i ->
       let (t, conv) = from_external_func mgr tenv i in
