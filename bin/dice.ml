@@ -14,7 +14,7 @@ let get_lexing_position lexbuf =
 let parse_and_print ~print_parsed ~print_info ~print_internal ~print_size ~skip_table ~print_marginals ~optimize lexbuf = try
   let parsed = Compiler.parse_with_error lexbuf in
   if print_parsed then Format.printf "==========Parsed program==========\n%s\n" (ExternalGrammar.string_of_prog parsed);
-  let (t, internal) = from_external_prog parsed in
+  let (t, internal) = if optimize then from_external_prog_optimize parsed else from_external_prog parsed in
   if print_internal then Format.printf "==========Desugared program==========\n%s\n" (CoreGrammar.string_of_prog internal);
   let compiled = Compiler.compile_program internal in
   let zbdd = compiled.body.z in

@@ -43,7 +43,7 @@ val parse_with_error: Lexing.lexbuf -> ExternalGrammar.program
     Parses and prints the probability of [program text]. *)
 val parse_and_prob: ?debug:bool -> string -> float
 
-
+val parse_optimize_and_prob: ?debug:bool -> string -> float
 
 (** prints the current position of the lex buffer to the out channel *)
 val print_position : out_channel -> Lexing.lexbuf -> unit
