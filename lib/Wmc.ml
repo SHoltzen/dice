@@ -21,6 +21,6 @@ let wmc bdd (w: weight) =
         let (loww, highw) = try Hashtbl.Poly.find_exn w (Bdd.topvar bdd)
           with _ -> failwith (Format.sprintf "Could not find variable %d" (Bdd.topvar bdd))in
         let new_weight = (highw *. thnw) +. (loww *. elsw) in
-        Hashtbl.Poly.add_exn cache bdd new_weight;
+        Hashtbl.Poly.add_exn cache ~key:bdd ~data:new_weight;
         new_weight in
   wmc_rec bdd w (Hashtbl.Poly.create ())
