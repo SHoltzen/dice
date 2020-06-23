@@ -143,8 +143,8 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     {state=c2.state; z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips}
 
 
-    (* create a temp variable *)
-    (* let c1 = compile_expr ctx tenv env e1 in
+    (* (\* create a temp variable *\)
+     * let c1 = compile_expr ctx tenv env e1 in
      * let t = (type_of tenv e1) in
      * let tmp = gen_sym_type ctx t in
      * let env' = Map.Poly.set env ~key:x ~data:tmp in
@@ -173,6 +173,8 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     let swapA = List.to_array (List.map new_flips ~f:(fun cur -> Bdd.topvar cur)) in
     let swapB = List.to_array (List.map func.body.flips ~f:(fun cur -> Bdd.topvar cur)) in
     let refreshed_state = map_tree func.body.state (fun bdd -> Bdd.swapvariables bdd swapA swapB) in
+    (* Format.printf "Calling %s: swapping size %d, got size %d\n" name (VarState.state_size [func.body.state]) (VarState.state_size [refreshed_state]);
+     * flush_all (); *)
     let refreshed_z = Bdd.swapvariables func.body.z swapA swapB in
 
     let swap_idx =

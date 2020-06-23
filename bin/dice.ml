@@ -10,10 +10,13 @@ let get_lexing_position lexbuf =
   let column = p.Lexing.pos_cnum - p.Lexing.pos_bol + 1 in
   (line_number, column)
 
-let parse_and_print ~print_parsed ~print_info ~print_internal ~print_size ~skip_table ~print_marginals lexbuf = try
+let parse_and_print ~print_parsed ~print_info ~print_internal
+    ~print_size ~skip_table ~print_marginals ~inline_functions lexbuf = try
   let parsed = Compiler.parse_with_error lexbuf in
   if print_parsed then Format.printf "==========Parsed program==========\n%s\n" (ExternalGrammar.string_of_prog parsed);
-  let (t, internal) = from_external_prog parsed in
+  let (t, internal) = if inline_functions then
+      (from_external_prog (Passes.inline_functions parsed))
+    else from_external_prog parsed in
   if print_internal then Format.printf "==========Desugared program==========\n%s\n" (CoreGrammar.string_of_prog internal);
   let compiled = Compiler.compile_program internal in
   let zbdd = compiled.body.z in
@@ -61,6 +64,7 @@ let command =
      and print_info = flag "-show-info" no_arg ~doc:" print BDD info and statistics"
      and print_size = flag "-show-size" no_arg ~doc:" show the size of the final compiled BDD"
      and print_parsed = flag "-show-parsed" no_arg ~doc:" print parsed dice program"
+     and inline_functions = flag "-inline-functions" no_arg ~doc:" inline all function calls"
      and print_internal = flag "-show-internal" no_arg ~doc:" print desugared dice program"
      and skip_table = flag "-skip-table" no_arg ~doc:" skip printing the joint probability distribution"
      and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order"
@@ -68,8 +72,8 @@ let command =
        let inx = In_channel.create fname in
        let lexbuf = Lexing.from_channel inx in
        lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = fname };
-       parse_and_print ~print_parsed:print_parsed ~print_info:print_info ~print_internal:print_internal
-         ~print_size:print_size ~skip_table:skip_table ~print_marginals:print_marginals lexbuf
+       parse_and_print ~print_parsed ~print_info ~print_internal
+         ~print_size ~inline_functions ~skip_table ~print_marginals lexbuf
     )
 
 let () =
