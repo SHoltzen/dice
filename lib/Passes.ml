@@ -35,6 +35,9 @@ let inline_functions (p: EG.program) =
     | Iff(s, e1, e2) ->
       let s1 = helper e1 in
       let s2 = helper e2 in Eq(s, s1, s2)
+    | Xor(s, e1, e2) ->
+      let s1 = helper e1 in
+      let s2 = helper e2 in Xor(s, s1, s2)
     | IntConst(_, _) -> e
     | Plus(s, e1, e2) -> Plus(s, helper e1, helper e2)
     | Eq(s, e1, e2) -> Eq(s, helper e1, helper e2)
