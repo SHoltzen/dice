@@ -179,6 +179,7 @@ type ast =
   | LeftShift of source * tast * int
   | Or of source * tast * tast
   | Iff of source * tast * tast
+  | Xor of source * tast * tast
   | IntConst of source * int
   | Not of source * tast
   | Ite of source * tast * tast * tast
@@ -246,6 +247,10 @@ let rec type_of (env: EG.tenv) (e: EG.eexpr) : tast =
     let s1 = expect_t e1 s.startpos TBool in
     let s2 = expect_t e2 s.startpos TBool in
     (TBool, Iff(s, s1, s2))
+  | Xor(s, e1, e2) ->
+    let s1 = expect_t e1 s.startpos TBool in
+    let s2 = expect_t e2 s.startpos TBool in
+    (TBool, Xor(s, s1, s2))
   | Not(s, e1) ->
     let s1 = expect_t e1 s.startpos TBool in
     (TBool, Not(s, s1))
@@ -499,6 +504,9 @@ let rec from_external_expr_h (mgr: Cudd.Man.dt) (tenv: EG.tenv) ((t, e): tast) :
   | Iff(_, e1, e2) ->
     let s1 = from_external_expr_h mgr tenv e1 in
     let s2 = from_external_expr_h mgr tenv e2 in Eq(s1, s2)
+  | Xor(_, e1, e2) ->
+    let s1 = from_external_expr_h mgr tenv e1 in
+    let s2 = from_external_expr_h mgr tenv e2 in Xor(s1, s2)
   | LeftShift(_, e, amt) ->
     let sube = from_external_expr_h mgr tenv e in
     if amt = 0 then sube else

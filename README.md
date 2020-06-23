@@ -65,7 +65,7 @@ program:
   represents a coin landing heads-side up in this case.
 * The expression `observe a || b` conditions either `a` or `b` to be true. This
   expression returns `true`. `dice` supports logical conjunction (`||`),
-  conjunction (`&&`), and negation (`!`).
+  conjunction (`&&`), equality (`<=>`), negation (`!`), and exclusive-or (`^`).
 * The program returns `a`.
 
 You can find this program in `resources/example.dice`, and then you can run it
@@ -250,7 +250,7 @@ complete syntax for `dice` in is:
 
 ```
 ident := ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*
-binop := +, -, *, /, <, <=, >, >=, ==, !=, &&, ||
+binop := +, -, *, /, <, <=, >, >=, ==, !=, &&, ||, <=>, ^
 
 expr := 
    (expr)

@@ -32,6 +32,7 @@ rule token =
     | '*'                       { MULTIPLY }
     | '/'                       { DIVIDE }
     | "<=>"                     { IFF }
+    | "^"                       { XOR }
     | '%'                       { MODULUS }
     | '<'                       { LT }
     | '>'                       { GT }

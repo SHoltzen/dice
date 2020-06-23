@@ -138,6 +138,7 @@ let test_op4 _ =
    x == y" in
   assert_feq (5.0 /. 23.0) (parse_and_prob prog)
 
+
 let test_iff1 _ =
   let prog = "true <=> false" in
   assert_feq 0.0 (parse_and_prob prog)
@@ -149,6 +150,20 @@ let test_iff2 _ =
 let test_iff3 _ =
   let prog = "flip 0.1 <=> flip 0.4" in
   assert_feq 0.58 (parse_and_prob prog)
+
+
+let test_xor1 _ =
+  let prog = "true ^ false" in
+  assert_feq 1.0 (parse_and_prob prog)
+
+let test_xor2 _ =
+  let prog = "false ^ false" in
+  assert_feq 0.0 (parse_and_prob prog)
+
+let test_xor3 _ =
+  let prog = "flip 0.1 ^ flip 0.4" in
+  assert_feq 0.42 (parse_and_prob prog)
+
 
 let test_mul1 _ =
   let prog = "let x = int(3, 0) * int(3, 1) in x == int(3, 0)" in
@@ -435,6 +450,10 @@ let expression_tests =
   "test_iff1">::test_iff1;
   "test_iff2">::test_iff2;
   "test_iff3">::test_iff3;
+
+  "test_xor1">::test_xor1;
+  "test_xor2">::test_xor2;
+  "test_xor3">::test_xor3;
 
 
   "test_mul1">::test_mul1;

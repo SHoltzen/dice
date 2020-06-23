@@ -34,6 +34,7 @@ type eexpr =
     And of source * eexpr * eexpr
   | Or of source * eexpr * eexpr
   | Iff of source * eexpr * eexpr
+  | Xor of source * eexpr * eexpr
   | IntConst of source * int
   | Not of source * eexpr
   | Ite of source * eexpr * eexpr * eexpr
@@ -76,6 +77,7 @@ let get_src e =
   match e with
   | And(s, _, _)
   | Or(s, _, _)
+  | Xor(s, _, _)
   | Plus(s, _, _)
   | Eq(s, _, _)
   | Neq(s, _, _)
