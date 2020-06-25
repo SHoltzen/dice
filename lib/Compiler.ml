@@ -33,9 +33,10 @@ type compiled_program = {
 
 type env = (String.t, Bdd.dt btree) Map.Poly.t (* map from variable identifiers to BDDs*)
 
+let ctx_man = Man.make_d ()
 
 let new_context ~lazy_eval () =
-  let man = Man.make_d () in
+  let man = ctx_man in
   Man.disable_autodyn man;
   let weights = Hashtbl.Poly.create () in
   let names = Hashtbl.Poly.create () in
@@ -158,6 +159,24 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
      * let _v = map_tree tmp (fun i -> free_var ctx i) in
      * {state=final_state; z=Bdd.dand c1.z final_z; flips=List.append c1.flips c2.flips} *)
 
+  | Sample(e) ->
+    let sube = compile_expr ctx tenv env e in
+    (* perform sequential sampling *)
+    let rec sequential_sample cur_obs state =
+      (match state with
+       | Leaf(bdd) ->
+         let t = Wmc.wmc (Bdd.dand (Bdd.dand cur_obs bdd) sube.z) ctx.weights in
+         let curz = Wmc.wmc (Bdd.dand sube.z cur_obs) ctx.weights in
+         let rndvalue = Random.float 1.0 in
+         if compare_float rndvalue (t /. curz) < 0 then (bdd, Leaf(Bdd.dtrue ctx.man)) else (Bdd.dnot bdd, Leaf(Bdd.dfalse ctx.man))
+       | Node(l, r) ->
+         let lbdd, lres = sequential_sample cur_obs l in
+         let rbdd, rres = sequential_sample lbdd r in
+         (rbdd, Node(lres, rres))
+      ) in
+    let _, r = sequential_sample (Bdd.dtrue ctx.man) sube.state in
+    {state=r; z=Bdd.dtrue ctx.man; flips=[]}
+
   | FuncCall(name, args) ->
     let func = try Hashtbl.Poly.find_exn ctx.funcs name
       with _ -> failwith (Format.sprintf "Could not find function '%s'." name) in
@@ -173,8 +192,6 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     let swapA = List.to_array (List.map new_flips ~f:(fun cur -> Bdd.topvar cur)) in
     let swapB = List.to_array (List.map func.body.flips ~f:(fun cur -> Bdd.topvar cur)) in
     let refreshed_state = map_tree func.body.state (fun bdd -> Bdd.swapvariables bdd swapA swapB) in
-    (* Format.printf "Calling %s: swapping size %d, got size %d\n" name (VarState.state_size [func.body.state]) (VarState.state_size [refreshed_state]);
-     * flush_all (); *)
     let refreshed_z = Bdd.swapvariables func.body.z swapA swapB in
 
     let swap_idx =

@@ -33,7 +33,7 @@ let rec zip_tree (s1: 'a btree) (s2: 'b btree) =
   | _ -> failwith "could not zip trees, incompatible shape"
 
 (** [get_table] gets a list of all possible instantiations of BDDs in [st]. *)
-let get_table st  typ =
+let get_table st typ =
   let rec process_state t state =
     let open ExternalGrammar in
     match (t, state) with

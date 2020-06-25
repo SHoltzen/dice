@@ -6,7 +6,7 @@
 %token EOF
 %token PLUS MINUS MULTIPLY DIVIDE MODULUS
 %token LT LTE GT GTE EQUAL_TO NEQ EQUAL
-%token AND OR NOT DISCRETE IFF XOR
+%token AND OR NOT DISCRETE IFF XOR SAMPLE
 %token LPAREN RPAREN
 %token IF THEN ELSE TRUE FALSE IN INT
 %token SEMICOLON COMMA COLON
@@ -40,6 +40,7 @@ expr:
         { Int({startpos=$startpos; endpos=$endpos}, fst $2, snd $2) }
     | DISCRETE delimited(LPAREN, separated_list(COMMA, FLOAT_LIT), RPAREN)
         { Discrete({startpos=$startpos; endpos=$endpos}, $2) }
+    | SAMPLE expr { Sample({startpos=$startpos; endpos=$endpos}, $2) }
     | expr EQUAL_TO expr { Eq({startpos=$startpos; endpos=$endpos}, $1, $3) }
     | expr PLUS expr { Plus({startpos=$startpos; endpos=$endpos}, $1, $3) }
     | expr MINUS expr { Minus({startpos=$startpos; endpos=$endpos}, $1, $3) }

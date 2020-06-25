@@ -48,6 +48,7 @@ rule token =
     | "||"                      { OR }
     | "//"                      { comment lexbuf; }
     | "if"                      { IF }
+    | "sample"                  { SAMPLE }
     | "else"                    { ELSE }
     | "discrete"                { DISCRETE }
     | "then"                    { THEN }
