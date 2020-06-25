@@ -55,10 +55,12 @@ let parse_and_print ~print_parsed ~print_info ~print_internal
     if print_size then (Format.printf "==========Final compiled BDD size:==========\n%d\n"
                           (VarState.state_size [compiled.body.state; VarState.Leaf(compiled.body.z)]))
   | Some(n) ->
+    let sz = ref 0 in
     let rec draw_sample (prob, oldz) n =
       if n = 0 then (prob, oldz)
       else
         let compiled = Compiler.compile_program internal in
+        sz := !sz + VarState.state_size [compiled.body.state; Leaf(compiled.body.z)];
         let table = VarState.get_table compiled.body.state t in
         let zbdd = compiled.body.z in
         let z = Wmc.wmc zbdd compiled.ctx.weights in
@@ -83,7 +85,10 @@ let parse_and_print ~print_parsed ~print_info ~print_internal
           | `Tup(l, r) -> Format.sprintf "(%s, %s)" (print_pretty l) (print_pretty r)
           | _ -> failwith "ouch" in
         Format.printf "%s\t%f\n" (print_pretty typ) (prob /. z);
-      )
+      );
+    if print_size then (Format.printf "==========Average compiled BDD size:==========\n%f\n"
+                          (float_of_int !sz /. float_of_int n))
+
   with Compiler.Syntax_error(s) -> Format.printf "Syntax error: %s" s
 
 
