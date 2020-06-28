@@ -651,6 +651,6 @@ let from_external_prog (p: EG.program) : (EG.typ * CG.program) =
         let tenv' = Map.Poly.set tenv ~key:i.name ~data:t in
         (tenv', flst @ [conv])
       ) in
-    let (t, convbody) = from_external_expr mgr tenv p.body in
+    let (t, convbody) = from_external_expr mgr false tenv p.body in
     let optbody = Optimization.do_optimize convbody !n in
     (t, {functions = functions; body = optbody})
