@@ -32,6 +32,7 @@ rule token =
     | '*'                       { MULTIPLY }
     | '/'                       { DIVIDE }
     | "<=>"                     { IFF }
+    | "^"                       { XOR }
     | '%'                       { MODULUS }
     | '<'                       { LT }
     | '>'                       { GT }
@@ -47,6 +48,7 @@ rule token =
     | "||"                      { OR }
     | "//"                      { comment lexbuf; }
     | "if"                      { IF }
+    | "sample"                  { SAMPLE }
     | "else"                    { ELSE }
     | "discrete"                { DISCRETE }
     | "then"                    { THEN }

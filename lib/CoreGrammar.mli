@@ -8,6 +8,7 @@ type expr =
   | Xor of expr * expr
   | Not of expr
   | Ident of String.t
+  | Sample of expr
   | Fst of expr
   | Snd of expr
   | Tup of expr * expr

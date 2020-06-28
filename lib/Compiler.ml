@@ -33,9 +33,10 @@ type compiled_program = {
 
 type env = (String.t, Bdd.dt btree) Map.Poly.t (* map from variable identifiers to BDDs*)
 
+let ctx_man = Man.make_d ()
 
 let new_context ~lazy_eval () =
-  let man = Man.make_d () in
+  let man = ctx_man in
   Man.disable_autodyn man;
   let weights = Hashtbl.Poly.create () in
   let names = Hashtbl.Poly.create () in
@@ -143,8 +144,8 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     {state=c2.state; z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips}
 
 
-    (* create a temp variable *)
-    (* let c1 = compile_expr ctx tenv env e1 in
+    (* (\* create a temp variable *\)
+     * let c1 = compile_expr ctx tenv env e1 in
      * let t = (type_of tenv e1) in
      * let tmp = gen_sym_type ctx t in
      * let env' = Map.Poly.set env ~key:x ~data:tmp in
@@ -157,6 +158,24 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
      * let final_z = Bdd.labeled_vector_compose c2.z swap_bdd swap_idx in
      * let _v = map_tree tmp (fun i -> free_var ctx i) in
      * {state=final_state; z=Bdd.dand c1.z final_z; flips=List.append c1.flips c2.flips} *)
+
+  | Sample(e) ->
+    let sube = compile_expr ctx tenv env e in
+    (* perform sequential sampling *)
+    let rec sequential_sample cur_obs state =
+      (match state with
+       | Leaf(bdd) ->
+         let t = Wmc.wmc (Bdd.dand (Bdd.dand cur_obs bdd) sube.z) ctx.weights in
+         let curz = Wmc.wmc (Bdd.dand sube.z cur_obs) ctx.weights in
+         let rndvalue = Random.float 1.0 in
+         if compare_float rndvalue (t /. curz) < 0 then (bdd, Leaf(Bdd.dtrue ctx.man)) else (Bdd.dnot bdd, Leaf(Bdd.dfalse ctx.man))
+       | Node(l, r) ->
+         let lbdd, lres = sequential_sample cur_obs l in
+         let rbdd, rres = sequential_sample lbdd r in
+         (rbdd, Node(lres, rres))
+      ) in
+    let _, r = sequential_sample (Bdd.dtrue ctx.man) sube.state in
+    {state=r; z=Bdd.dtrue ctx.man; flips=[]}
 
   | FuncCall(name, args) ->
     let func = try Hashtbl.Poly.find_exn ctx.funcs name

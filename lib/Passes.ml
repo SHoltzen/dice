@@ -18,7 +18,6 @@ let rec expand_iter s f curv k : EG.eexpr =
   if k = 0 then curv else
     Let(s, "$iterident", FuncCall(s, f, [curv]), expand_iter s f (Ident(s, "$iterident")) (k-1))
 
-
 let inline_functions (p: EG.program) =
   let open EG in
   let function_map = List.fold p.functions ~init:(Map.Poly.empty) ~f:(fun acc f ->
@@ -31,9 +30,13 @@ let inline_functions (p: EG.program) =
     | Or(s, e1, e2) ->
       let s1 = helper e1 in
       let s2 = helper e2 in Or(s, s1, s2)
+    | Sample(s, e1) -> Sample(s, helper e1)
     | Iff(s, e1, e2) ->
       let s1 = helper e1 in
       let s2 = helper e2 in Eq(s, s1, s2)
+    | Xor(s, e1, e2) ->
+      let s1 = helper e1 in
+      let s2 = helper e2 in Xor(s, s1, s2)
     | IntConst(_, _) -> e
     | Plus(s, e1, e2) -> Plus(s, helper e1, helper e2)
     | Eq(s, e1, e2) -> Eq(s, helper e1, helper e2)
@@ -102,23 +105,12 @@ let num_paths (p: EG.program) : LogProbability.t =
     | _ -> failwith "unreachable, functions inlined" in
   helper inlined.body
 
-
 let num_binary_digits d = int_of_float (floor (Util.log2 (float_of_int (d)))) + 1
-
-(** produces all binary sequences up to a size [sz] *)
-let rec all_binary sz =
-  assert (sz >= 0);
-  match sz with
-  | 0 -> [[]]
-  | n ->
-    let subl = all_binary (n-1) in
-    List.map subl ~f:(fun i -> i @ [1]) @
-    List.map subl ~f:(fun i -> i @ [0])
 
 (** converts a little-endian binary vector into an integer *)
 let bin_to_int l =
   let sz = (List.length l) - 1 in
-  List.foldi l ~init:0 ~f:(fun idx acc i -> acc + (i lsl (sz - idx)) )
+  List.foldi l ~init:0 ~f:(fun idx acc i -> acc + (i lsl (sz - idx)))
 
 (** converts a little-endian binary vector into an integer *)
 let int_to_bin final_sz d =
@@ -176,8 +168,10 @@ type source = EG.source
 type ast =
     And of source * tast * tast
   | LeftShift of source * tast * int
+  | Sample of source * tast
   | Or of source * tast * tast
   | Iff of source * tast * tast
+  | Xor of source * tast * tast
   | IntConst of source * int
   | Not of source * tast
   | Ite of source * tast * tast * tast
@@ -217,16 +211,17 @@ type func = { name: String.t; args: arg List.t; body: tast}
 type program = { functions: func List.t; body: tast }
 [@@deriving sexp_of]
 
+type typ_ctx = { in_func: bool }
 
-let rec type_of (env: EG.tenv) (e: EG.eexpr) : tast =
+let rec type_of (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast =
   let open EG in
   let expect_t e (src: EG.lexing_position) typ : tast =
-    let (t, e) = type_of env e in
+    let (t, e) = type_of ctx env e in
     if (type_eq t typ) then (t, e) else
       raise (EG.Type_error(Format.sprintf "Type error at line %d column %d: expected %s, got %s"
                                       src.pos_lnum src.pos_cnum (EG.string_of_typ typ) (EG.string_of_typ t))) in
   let expect_compatible_int (f: tast -> tast -> ast) src e1 e2 =
-    let (t1, s1) = type_of env e1 and (t2, s2) = type_of env e2 in
+    let (t1, s1) = type_of ctx env e1 and (t2, s2) = type_of ctx env e2 in
     match (t1, t2) with
     | (TInt(d1), TInt(d2)) when d1 = d2 -> (d1, f (t1, s1) (t1, s2))
     | (_, _) ->
@@ -245,6 +240,17 @@ let rec type_of (env: EG.tenv) (e: EG.eexpr) : tast =
     let s1 = expect_t e1 s.startpos TBool in
     let s2 = expect_t e2 s.startpos TBool in
     (TBool, Iff(s, s1, s2))
+  | Sample(s, e1) ->
+    if ctx.in_func then
+      raise (Type_error (Format.sprintf "Type error at line %d column %d: \
+                                         Sampling within functions is not permitted"
+                           s.startpos.pos_lnum s.startpos.pos_cnum));
+    let t, e = type_of ctx (Map.Poly.empty) e1 in
+    (t, Sample(s, (t, e)))
+  | Xor(s, e1, e2) ->
+    let s1 = expect_t e1 s.startpos TBool in
+    let s2 = expect_t e2 s.startpos TBool in
+    (TBool, Xor(s, s1, s2))
   | Not(s, e1) ->
     let s1 = expect_t e1 s.startpos TBool in
     (TBool, Not(s, s1))
@@ -261,22 +267,22 @@ let rec type_of (env: EG.tenv) (e: EG.eexpr) : tast =
                                     src.startpos.pos_lnum src.startpos.pos_cnum s))) in
     (t, Ident(src, s))
   | Fst(s, e1) ->
-    let (t, s1) = type_of env e1 in
+    let (t, s1) = type_of ctx env e1 in
     let t' = (match t with
      | TTuple(l, _) -> l
      | t -> raise (Type_error (Format.sprintf "Type error at line %d column %d: expected tuple, got %s"
                                  s.startpos.pos_lnum s.startpos.pos_cnum (string_of_typ t)))) in
     (t', Fst(s, (t, s1)))
   | Snd(s, e1) ->
-    let s1 = type_of env e1 in
+    let s1 = type_of ctx env e1 in
     let t = (match fst s1 with
      | TTuple(_, r) -> r
      | t -> raise (Type_error (Format.sprintf "Type error at line %d column %d: expected tuple, got %s"
                                  s.startpos.pos_lnum s.startpos.pos_cnum (string_of_typ t)))) in
     (t, Snd(s, s1))
   | Tup(s, e1, e2) ->
-    let t1 = type_of env e1 in
-    let t2 = type_of env e2 in
+    let t1 = type_of ctx env e1 in
+    let t2 = type_of ctx env e2 in
     (TTuple(fst t1, fst t2), Tup(s, t1, t2))
   | Int(src, sz, v) ->
     if v >= 1 lsl sz then
@@ -308,12 +314,12 @@ let rec type_of (env: EG.tenv) (e: EG.eexpr) : tast =
     let sz, res = expect_compatible_int (fun e1 e2 -> Div(s, e1, e2)) s.startpos e1 e2 in
     (TInt(sz), res)
   | Let(slet, x, e1, e2) ->
-    let r1 = type_of env e1 in
-    let r2 = type_of (Map.Poly.set env ~key:x ~data:(fst r1)) e2 in
+    let r1 = type_of ctx env e1 in
+    let r2 = type_of ctx (Map.Poly.set env ~key:x ~data:(fst r1)) e2 in
     (fst r2, Let(slet, x, r1, r2))
   | Ite(s, g, thn, els) ->
     let sg = expect_t g ((EG.get_src g).startpos) TBool in
-    let (t1, thnbody) = type_of env thn and (t2, elsbody) = type_of env els in
+    let (t1, thnbody) = type_of ctx env thn and (t2, elsbody) = type_of ctx env els in
     if not (type_eq t1 t2) then
       raise (Type_error (Format.sprintf "Type error at line %d column %d: expected equal types \
                                          from branches of if-statement, got %s and %s"
@@ -334,7 +340,7 @@ let rec type_of (env: EG.tenv) (e: EG.eexpr) : tast =
                                                    %d arguments and got %d arguments"
                                      s.startpos.pos_lnum s.startpos.pos_cnum (List.length targ) (List.length args))) in
     let arg' = List.mapi zipped ~f:(fun idx (arg, typ) ->
-        let (found_t, body) = type_of env arg in
+        let (found_t, body) = type_of ctx env arg in
         if (type_eq found_t typ) then (found_t, body) else
           raise (Type_error (Format.sprintf "Type error in argument %d at line %d column %d: expected type %s, got %s"
                                s.startpos.pos_lnum s.startpos.pos_cnum (idx + 1) (string_of_typ typ) (string_of_typ found_t)))
@@ -351,7 +357,7 @@ let rec type_of (env: EG.tenv) (e: EG.eexpr) : tast =
         | _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: non-function type found for \
                                                    '%s' during typechecking, found %s "
                                      s.startpos.pos_lnum s.startpos.pos_cnum id (string_of_typ res)))) in
-    let init' = type_of env init in
+    let init' = type_of ctx env init in
     (* TODO check arg validity*)
     (tres, Iter(s, id, init', k))
 
@@ -487,19 +493,24 @@ let extract_sz t =
    | EG.TInt(sz) -> sz
    | _ -> failwith "Internal Type Error: expected int")
 
-let rec from_external_expr_h (mgr: Cudd.Man.dt) (tenv: EG.tenv) ((t, e): tast) : CG.expr =
+type external_ctx = Cudd.Man.dt
+
+let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) : CG.expr =
   match e with
   | And(_, e1, e2) ->
-    let s1 = from_external_expr_h mgr tenv e1 in
-    let s2 = from_external_expr_h mgr tenv e2 in And(s1, s2)
+    let s1 = from_external_expr_h ctx tenv e1 in
+    let s2 = from_external_expr_h ctx tenv e2 in And(s1, s2)
   | Or(_, e1, e2) ->
-    let s1 = from_external_expr_h mgr tenv e1 in
-    let s2 = from_external_expr_h mgr tenv e2 in Or(s1, s2)
+    let s1 = from_external_expr_h ctx tenv e1 in
+    let s2 = from_external_expr_h ctx tenv e2 in Or(s1, s2)
   | Iff(_, e1, e2) ->
-    let s1 = from_external_expr_h mgr tenv e1 in
-    let s2 = from_external_expr_h mgr tenv e2 in Eq(s1, s2)
+    let s1 = from_external_expr_h ctx tenv e1 in
+    let s2 = from_external_expr_h ctx tenv e2 in Eq(s1, s2)
+  | Xor(_, e1, e2) ->
+    let s1 = from_external_expr_h ctx tenv e1 in
+    let s2 = from_external_expr_h ctx tenv e2 in Xor(s1, s2)
   | LeftShift(_, e, amt) ->
-    let sube = from_external_expr_h mgr tenv e in
+    let sube = from_external_expr_h ctx tenv e in
     if amt = 0 then sube else
       let sz = extract_sz t in
       let id = Format.sprintf "leftshift_%s" (fresh ()) in
@@ -510,38 +521,38 @@ let rec from_external_expr_h (mgr: Cudd.Man.dt) (tenv: EG.tenv) ((t, e): tast) :
       Let(id, sube, h 0)
   | Plus(_, e1, e2) ->
     let sz = extract_sz (fst e1) in
-    gen_adder sz (from_external_expr_h mgr tenv e1) (from_external_expr_h mgr tenv e2)
+    gen_adder sz (from_external_expr_h ctx tenv e1) (from_external_expr_h ctx tenv e2)
   | Minus(_, e1, e2) ->
     let sz = extract_sz t in
-    gen_subtractor sz (from_external_expr_h mgr tenv e1) (from_external_expr_h mgr tenv e2)
+    gen_subtractor sz (from_external_expr_h ctx tenv e1) (from_external_expr_h ctx tenv e2)
   | Eq(_, (t1, e1), (t2, e2)) ->
     let sz = extract_sz t1 in
     let n1 = fresh () and n2 = fresh () in
     let inner = List.init sz ~f:(fun idx ->
         CG.Eq(nth_bit sz idx (Ident(n1)), nth_bit sz idx (Ident(n2)))
       ) |> and_of_l in
-    Let(n1, from_external_expr_h mgr tenv (t1, e1),
-        Let(n2, from_external_expr_h mgr tenv (t2, e2), inner))
-  | Neq(s, e1, e2) -> from_external_expr_h mgr tenv (TBool, Not(s, (TBool, Eq(s, e1, e2))))
+    Let(n1, from_external_expr_h ctx tenv (t1, e1),
+        Let(n2, from_external_expr_h ctx tenv (t2, e2), inner))
+  | Neq(s, e1, e2) -> from_external_expr_h ctx tenv (TBool, Not(s, (TBool, Eq(s, e1, e2))))
   | Mult(s, e1, e2) ->
     let sz = extract_sz (fst e1) in
-    let sube1 = from_external_expr_h mgr tenv e1 in
-    let sube2 = from_external_expr_h mgr tenv e2 in
+    let sube1 = from_external_expr_h ctx tenv e1 in
+    let sube2 = from_external_expr_h ctx tenv e2 in
     let fresha = Format.sprintf "multa_%s" (fresh ()) in
     let freshb = Format.sprintf "multb_%s" (fresh ()) in
     let freshout = Format.sprintf "multo_%s" (fresh ()) in
     let lst : CG.expr List.t = List.init sz ~f:(fun i ->
-        let subadd = from_external_expr_h mgr tenv
+        let subadd = from_external_expr_h ctx tenv
             (t, Plus(s, (t, Ident(s, freshout)), (t, LeftShift(s, (t, Ident(s, freshb)), i)))) in
         CG.Ite(nth_bit sz (sz - i - 1) (Ident(fresha)), subadd, Ident(freshout))
       ) in
     let assgn = List.fold (List.rev lst) ~init:(CG.Ident(freshout)) ~f:(fun acc i ->
         Let(freshout, i, acc)) in
-    let zeroconst = from_external_expr_h mgr tenv (TInt(sz), Int(s, sz, 0)) in
+    let zeroconst = from_external_expr_h ctx tenv (TInt(sz), Int(s, sz, 0)) in
     Let(freshout, zeroconst,
         Let(fresha, sube1,
             Let(freshb, sube2, assgn)))
-  | Div(s, e1, e2) -> failwith "not implemented /"
+  | Div(_, _, _) -> failwith "not implemented /"
   | Lt(_, (t1, e1), (t2, e2)) ->
     let sz = extract_sz t1 in
     let n1 = fresh () and n2 = fresh () in
@@ -551,14 +562,14 @@ let rec from_external_expr_h (mgr: Cudd.Man.dt) (tenv: EG.tenv) ((t, e): tast) :
                False,
                Ite(And(Not(nth_bit sz idx (Ident(n1))), nth_bit sz idx (Ident n2)), True,
                h (idx + 1))) in
-    Let(n1, from_external_expr_h mgr tenv (t1, e1), Let(n2, from_external_expr_h mgr tenv (t2, e2), h 0))
-  | Lte(s, e1, e2) -> from_external_expr_h mgr tenv (TBool, Or(s, (TBool, Lt(s, e1, e2)), (TBool, Eq(s, e1, e2))))
-  | Gt(s, e1, e2) -> from_external_expr_h mgr tenv (TBool, Not(s, (TBool, Lte(s, e1, e2))))
-  | Gte(s, e1, e2) -> from_external_expr_h mgr tenv (TBool, Not(s, (TBool, Lt(s, e1, e2))))
-  | Not(_, e) -> Not(from_external_expr_h mgr tenv e)
+    Let(n1, from_external_expr_h ctx tenv (t1, e1), Let(n2, from_external_expr_h ctx tenv (t2, e2), h 0))
+  | Lte(s, e1, e2) -> from_external_expr_h ctx tenv (TBool, Or(s, (TBool, Lt(s, e1, e2)), (TBool, Eq(s, e1, e2))))
+  | Gt(s, e1, e2) -> from_external_expr_h ctx tenv (TBool, Not(s, (TBool, Lte(s, e1, e2))))
+  | Gte(s, e1, e2) -> from_external_expr_h ctx tenv (TBool, Not(s, (TBool, Lt(s, e1, e2))))
+  | Not(_, e) -> Not(from_external_expr_h ctx tenv e)
   | Flip(_, f) -> Flip(f)
   | Ident(_, s) -> Ident(s)
-  | Discrete(_, l) -> gen_discrete mgr l
+  | Discrete(_, l) -> gen_discrete ctx l
   | Int(_, sz, v) ->
     let bits = int_to_bin sz v
                |> List.map ~f:(fun i -> if i = 1 then CG.True else CG.False) in
@@ -566,28 +577,30 @@ let rec from_external_expr_h (mgr: Cudd.Man.dt) (tenv: EG.tenv) ((t, e): tast) :
   | True(_) -> True
   | False(_) -> False
   | Observe(_, e) ->
-    Observe(from_external_expr_h mgr tenv e)
+    Observe(from_external_expr_h ctx tenv e)
   | Let(_, x, e1, e2) ->
     let tenv' = Map.Poly.set tenv ~key:x ~data:t in
-    Let(x, from_external_expr_h mgr tenv e1, from_external_expr_h mgr tenv' e2)
-  | Ite(_, g, thn, els) -> Ite(from_external_expr_h mgr tenv g,
-                               from_external_expr_h mgr tenv thn,
-                               from_external_expr_h mgr tenv els)
-  | Snd(_, e) -> Snd(from_external_expr_h mgr tenv e)
-  | Fst(_, e) -> Fst(from_external_expr_h mgr tenv e)
-  | Tup(_, e1, e2) -> Tup(from_external_expr_h mgr tenv e1, from_external_expr_h mgr tenv e2)
-  | FuncCall(_, id, args) -> FuncCall(id, List.map args ~f:(fun i -> from_external_expr_h mgr tenv i))
+    Let(x, from_external_expr_h ctx tenv e1, from_external_expr_h ctx tenv' e2)
+  | Ite(_, g, thn, els) -> Ite(from_external_expr_h ctx tenv g,
+                               from_external_expr_h ctx tenv thn,
+                               from_external_expr_h ctx tenv els)
+  | Snd(_, e) -> Snd(from_external_expr_h ctx tenv e)
+  | Fst(_, e) -> Fst(from_external_expr_h ctx tenv e)
+  | Tup(_, e1, e2) -> Tup(from_external_expr_h ctx tenv e1, from_external_expr_h ctx tenv e2)
+  | FuncCall(_, id, args) -> FuncCall(id, List.map args ~f:(fun i -> from_external_expr_h ctx tenv i))
   | Iter(s, f, init, k) ->
-    (* let e = from_external_expr_h mgr tenv init in
+    (* let e = from_external_expr_h ctx tenv init in
      * List.fold (List.init k ~f:(fun _ -> ())) ~init:e
      *   ~f:(fun acc _ -> FuncCall(f, [acc])) *)
 
     let expanded = expand_iter_t s f init k in
-    from_external_expr_h mgr tenv expanded
+    from_external_expr_h ctx tenv expanded
+  | Sample(_, e) -> Sample(from_external_expr_h ctx tenv e)
   | IntConst(_, _) -> failwith "not implemented"
 
-let from_external_expr mgr (env: EG.tenv) (e: EG.eexpr) : (EG.typ * CG.expr) =
-  let (typ, e) = type_of env e in
+let from_external_expr mgr in_func (env: EG.tenv) (e: EG.eexpr) : (EG.typ * CG.expr) =
+  let ctx = if in_func then {in_func=true} else {in_func=false} in
+  let (typ, e) = type_of ctx env e in
   (typ, from_external_expr_h mgr Map.Poly.empty (typ, e))
 
 let rec from_external_typ (t:EG.typ) : CG.typ =
@@ -614,7 +627,7 @@ let from_external_func mgr (tenv: EG.tenv) (f: EG.func) : (EG.typ * CG.func) =
   let tenvwithargs = List.fold f.args ~init:tenv ~f:(fun acc (name, typ) ->
       Map.Poly.set acc ~key:name ~data:typ
     ) in
-  let (t, conv) = from_external_expr mgr tenvwithargs f.body in
+  let (t, conv) = from_external_expr mgr true tenvwithargs f.body in
   (* convert arguments *)
   let args = List.map f.args ~f:from_external_arg in
   (TFunc(List.map f.args ~f:snd, t), {name = f.name;
@@ -628,7 +641,7 @@ let from_external_prog (p: EG.program) : (EG.typ * CG.program) =
       let tenv' = Map.Poly.set tenv ~key:i.name ~data:t in
       (tenv', flst @ [conv])
     ) in
-  let (t, convbody) = from_external_expr mgr tenv p.body in
+  let (t, convbody) = from_external_expr mgr false tenv p.body in
   (t, {functions = functions; body = convbody})
 
   let from_external_prog_optimize (p: EG.program) : (EG.typ * CG.program) =

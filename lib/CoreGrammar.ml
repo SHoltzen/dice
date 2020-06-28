@@ -7,6 +7,7 @@ type expr =
   | Xor of expr * expr
   | Not of expr
   | Ident of String.t
+  | Sample of expr
   | Fst of expr
   | Snd of expr
   | Tup of expr * expr
@@ -42,6 +43,7 @@ let rec type_of env e : typ =
   | And(_, _) | Xor(_, _) | Eq(_, _) | Or(_, _) | Not(_) | True | False | Flip(_) | Observe(_) -> TBool
   | Ident(s) -> (try Map.Poly.find_exn env s
     with _ -> failwith (Format.sprintf "Could not find variable %s during typechecking" s))
+  | Sample(e) -> type_of env e
   | Fst(e1) ->
     (match type_of env e1 with
      | TTuple(l, _) -> l

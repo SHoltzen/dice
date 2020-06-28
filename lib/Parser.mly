@@ -6,7 +6,7 @@
 %token EOF
 %token PLUS MINUS MULTIPLY DIVIDE MODULUS
 %token LT LTE GT GTE EQUAL_TO NEQ EQUAL
-%token AND OR NOT DISCRETE IFF
+%token AND OR NOT DISCRETE IFF XOR SAMPLE
 %token LPAREN RPAREN
 %token IF THEN ELSE TRUE FALSE IN INT
 %token SEMICOLON COMMA COLON
@@ -21,6 +21,7 @@
 %left AND
 %left NOT
 %left IFF
+%left XOR
 %left LTE GTE LT GT NEQ
 %left PLUS MINUS EQUAL_TO
 %left MULTIPLY DIVIDE MODULUS
@@ -39,6 +40,7 @@ expr:
         { Int({startpos=$startpos; endpos=$endpos}, fst $2, snd $2) }
     | DISCRETE delimited(LPAREN, separated_list(COMMA, FLOAT_LIT), RPAREN)
         { Discrete({startpos=$startpos; endpos=$endpos}, $2) }
+    | SAMPLE expr { Sample({startpos=$startpos; endpos=$endpos}, $2) }
     | expr EQUAL_TO expr { Eq({startpos=$startpos; endpos=$endpos}, $1, $3) }
     | expr PLUS expr { Plus({startpos=$startpos; endpos=$endpos}, $1, $3) }
     | expr MINUS expr { Minus({startpos=$startpos; endpos=$endpos}, $1, $3) }
@@ -57,6 +59,7 @@ expr:
     | expr AND expr { And({startpos=$startpos; endpos=$endpos}, $1, $3) }
     | expr OR expr { Or({startpos=$startpos; endpos=$endpos}, $1, $3) }
     | expr IFF expr { Iff({startpos=$startpos; endpos=$endpos}, $1, $3) }
+    | expr XOR expr { Xor({startpos=$startpos; endpos=$endpos}, $1, $3) }
     | NOT expr { Not({startpos=$startpos; endpos=$endpos}, $2) }
     | FLIP FLOAT_LIT { Flip({startpos=$startpos; endpos=$endpos}, $2) }
     | FLIP LPAREN FLOAT_LIT RPAREN { Flip({startpos=$startpos; endpos=$endpos}, $3) }
