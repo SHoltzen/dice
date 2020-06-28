@@ -222,14 +222,9 @@ let rec downPass (e: CG.expr)
 
   match e with
   | Flip(f) ->
-    if f = 0.0 then
-      False, fl
-    else if f = 1.0 then
-      True, fl
-    else
-      (match replace f fl with
-      | None -> Flip(f), fl
-      | Some (v, new_fl) -> Ident(v), new_fl)
+    (match replace f fl with
+    | None -> Flip(f), fl
+    | Some (v, new_fl) -> Ident(v), new_fl)
 
   | Ite(g, thn, els) ->
     (* Find common flips between subtrees *)
@@ -293,18 +288,25 @@ let flip_code_motion (e: CG.expr) (new_n: int) : CG.expr =
 
 let rec merge_branch (e: CG.expr) : CG.expr = 
   match e with
+  | Flip(f) ->
+    if f = 0.0 then
+      False
+    else if f = 1.0 then
+      True
+    else
+      Flip(f)
   | Ite(g, thn, els) ->
     let n1 = merge_branch thn in
     let n2 = merge_branch els in
-    Ite(g, n1, n2)
-    (* (match n1,n2 with
+    (* Ite(g, n1, n2) *)
+    (match n1,n2 with
     | True, False -> g
-    (* | False, True -> Not(g) *)
-    | _, _ -> e) *)
-      (* if n1 = n2 then
+    | False, True -> Not(g)
+    | _, _ ->
+      if n1 = n2 then
         n1
       else 
-        Ite(g, n1, n2)) *)
+        Ite(g, n1, n2))
   | Let(v, e1, e2) ->
     let n1 = merge_branch e1 in
     let n2 = merge_branch e2 in
@@ -345,5 +347,5 @@ let rec merge_branch (e: CG.expr) : CG.expr =
 
 let do_optimize (e: CG.expr) (new_n: int) : CG.expr = 
   let e1 = flip_code_motion e new_n in
-  (* let e2 = merge_branch e1 in *)
-  e1
+  let e2 = merge_branch e1 in
+  e2
