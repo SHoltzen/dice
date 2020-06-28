@@ -18,9 +18,9 @@ let parse_and_print ~print_parsed ~print_info ~print_internal
   let (t, internal) = 
     if inline_functions && optimize then
       (from_external_prog_optimize (Passes.inline_functions parsed))
-    else if inline_function && not optimize then
+    else if inline_functions && not optimize then
       (from_external_prog (Passes.inline_functions parsed))
-    else if not inline_function && optimize then
+    else if not inline_functions && optimize then
       (from_external_prog_optimize parsed)
     else from_external_prog parsed in
   if print_internal then Format.printf "==========Desugared program==========\n%s\n" (CoreGrammar.string_of_prog internal);
