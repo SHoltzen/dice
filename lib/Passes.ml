@@ -1,5 +1,4 @@
 (** Performs optimization passes over the core grammar **)
-open Stdlib
 open Core
 open Util
 module EG = ExternalGrammar

@@ -3,6 +3,7 @@ open Core
 open Cudd
 open Passes
 
+
 let get_lexing_position lexbuf =
   let p = Lexing.lexeme_start_p lexbuf in
   let line_number = p.Lexing.pos_lnum in
@@ -16,7 +17,6 @@ let parse_and_print ~print_parsed ~print_info ~print_internal ~print_size ~skip_
   if print_internal then Format.printf "==========Desugared program==========\n%s\n" (CoreGrammar.string_of_prog internal);
   let compiled = Compiler.compile_program internal in
   let zbdd = compiled.body.z in
-  (* dump_dot compiled.ctx.name_map (extract_bdd compiled.body.state); *)
   let z = Wmc.wmc zbdd compiled.ctx.weights in
   if not skip_table then
   (let table = VarState.get_table compiled.body.state t in
