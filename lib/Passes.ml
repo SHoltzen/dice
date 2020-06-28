@@ -640,5 +640,5 @@ let from_external_prog (p: EG.program) : (EG.typ * CG.program) =
         (tenv', flst @ [conv])
       ) in
     let (t, convbody) = from_external_expr mgr tenv p.body in
-    let optbody = Optimization.flip_code_motion convbody !n in
+    let optbody = Optimization.do_optimize convbody !n in
     (t, {functions = functions; body = optbody})

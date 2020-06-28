@@ -2,8 +2,6 @@ open DiceLib
 open Core
 open Cudd
 open Passes
-open Parser
-open Optimization
 
 let get_lexing_position lexbuf =
   let p = Lexing.lexeme_start_p lexbuf in
