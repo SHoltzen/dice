@@ -17,7 +17,7 @@ depends: [
 ]
 
 pin-depends: [
-  [ "mlcuddidl.dev" "git+https://github.com/SHoltzen/mlcuddidil.git" ]
+  [ "mlcuddidl.dev" "git+https://github.com/SHoltzen/mlcuddidil.git#master" ]
 ]
 
 build: [
