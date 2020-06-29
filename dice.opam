@@ -24,6 +24,8 @@ build: [
   ["dune" "subst"] {pinned}
   ["dune" "build" "-p" name "-j" jobs]
 ]
-
+install: [
+  ["dune" "install"]
+]
 
 dev-repo: "git+https://github.com/SHoltzen/dice.git"
