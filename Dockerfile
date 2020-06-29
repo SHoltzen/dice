@@ -2,12 +2,9 @@ FROM ocaml/opam2
 
 WORKDIR dice
 
-ADD dice.opam .
+RUN opam switch 4.09
 
-RUN opam pin add -yn dice . && \
-    opam depext dice
+RUN opam depext mlcuddidl
 
-RUN opam install dice
-
-
+RUN opam pin add dice git+https://github.com/SHoltzen/dice.git#master
 
