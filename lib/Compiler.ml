@@ -280,6 +280,22 @@ let parse_and_prob ?debug txt =
    | _ -> ());
   get_prob transformed
 
+let parse_optimize_and_prob ?debug txt =
+  let buf = Lexing.from_string txt in
+  let parsed = try Parser.program Lexer.token buf with
+  | SyntaxError msg ->
+    fprintf stderr "%a: %s\n" print_position buf msg;
+    failwith (Format.sprintf "Error parsing %s" txt)
+  | Parser.Error ->
+    fprintf stderr "%a: syntax error\n" print_position buf;
+    failwith (Format.sprintf "Error parsing %s" txt) in
+  let (_, transformed) = Passes.from_external_prog_optimize parsed in
+  (match debug with
+   | Some(true)->
+     Format.printf "Program: %s\n" (ExternalGrammar.string_of_prog parsed);
+     Format.printf "After passes: %s\n" (CoreGrammar.string_of_prog (transformed));
+   | _ -> ());
+  get_prob transformed
 
 let get_lexing_position lexbuf =
   let p = Lexing.lexeme_start_p lexbuf in

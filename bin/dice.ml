@@ -10,14 +10,18 @@ let get_lexing_position lexbuf =
   let column = p.Lexing.pos_cnum - p.Lexing.pos_bol + 1 in
   (line_number, column)
 
-
 let parse_and_print ~print_parsed ~print_info ~print_internal
     ~print_size ~skip_table ~print_marginals ~inline_functions
-    ~sample_amount lexbuf = try
+    ~sample_amount ~optimize lexbuf = try
   let parsed = Compiler.parse_with_error lexbuf in
   if print_parsed then Format.printf "==========Parsed program==========\n%s\n" (ExternalGrammar.string_of_prog parsed);
-  let (t, internal) = if inline_functions then
+  let (t, internal) = 
+    if inline_functions && optimize then
+      (from_external_prog_optimize (Passes.inline_functions parsed))
+    else if inline_functions && not optimize then
       (from_external_prog (Passes.inline_functions parsed))
+    else if not inline_functions && optimize then
+      (from_external_prog_optimize parsed)
     else from_external_prog parsed in
   if print_internal then Format.printf "==========Desugared program==========\n%s\n" (CoreGrammar.string_of_prog internal);
   match sample_amount with
@@ -104,6 +108,7 @@ let command =
      and print_size = flag "-show-size" no_arg ~doc:" show the size of the final compiled BDD"
      and sample_amount = flag "-sample" (optional int) ~doc:" number of samples to draw"
      and print_parsed = flag "-show-parsed" no_arg ~doc:" print parsed dice program"
+     and optimize = flag "-optimize" no_arg ~doc:" optimize dice program before compilation"
      and inline_functions = flag "-inline-functions" no_arg ~doc:" inline all function calls"
      and print_internal = flag "-show-internal" no_arg ~doc:" print desugared dice program"
      and skip_table = flag "-skip-table" no_arg ~doc:" skip printing the joint probability distribution"
@@ -113,7 +118,7 @@ let command =
        let lexbuf = Lexing.from_channel inx in
        lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = fname };
        parse_and_print ~print_parsed ~print_info ~print_internal ~sample_amount
-         ~print_size ~inline_functions ~skip_table ~print_marginals lexbuf
+         ~print_size ~inline_functions ~skip_table ~print_marginals ~optimize lexbuf
     )
 
 let () =

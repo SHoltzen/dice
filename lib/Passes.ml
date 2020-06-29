@@ -1,5 +1,4 @@
 (** Performs optimization passes over the core grammar **)
-
 open Core
 open Util
 module EG = ExternalGrammar
@@ -645,4 +644,13 @@ let from_external_prog (p: EG.program) : (EG.typ * CG.program) =
   let (t, convbody) = from_external_expr mgr false tenv p.body in
   (t, {functions = functions; body = convbody})
 
-
+  let from_external_prog_optimize (p: EG.program) : (EG.typ * CG.program) =
+    let mgr = Cudd.Man.make_d () in
+    let (tenv, functions) = List.fold p.functions ~init:(Map.Poly.empty, []) ~f:(fun (tenv, flst) i ->
+        let (t, conv) = from_external_func mgr tenv i in
+        let tenv' = Map.Poly.set tenv ~key:i.name ~data:t in
+        (tenv', flst @ [conv])
+      ) in
+    let (t, convbody) = from_external_expr mgr false tenv p.body in
+    let optbody = Optimization.do_optimize convbody !n in
+    (t, {functions = functions; body = optbody})
