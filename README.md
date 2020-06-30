@@ -14,21 +14,34 @@ see the research article [here](https://arxiv.org/abs/2005.09089). To cite
 
 # Installation
 
+## Docker
+
+A [docker](https://www.docker.com/) image is available, and can be installed
+with:
+
+```
+docker pull sholtzen/dice
+```
+
+
+## Building From Source
 First install `opam` (version 2.0 or higher) following the instructions
 [here](https://opam.ocaml.org/doc/Install.html). Then, run the following in your
 terminal:
 
 ```
 opam init   # must be performed before installing opam packages
+opam switch 4.09           # switch to use OCaml version 4.09
 eval `opam config env`     # optional: add this line to your .bashrc
-opam install . --yes
+opam depext mlcuddidl      # install external dependencies
+opam pin add dice git+https://github.com/SHoltzen/dice.git#master  # Install dice
 ```
 
 This command will download the necessary dependencies and place the `dice` and
 `dicebench` executables in your path. (If they are not found, try evaluating `opam
 config env` again).
 
-## Building 
+### Building 
 
 First follow the steps for installation. Then, the following build commands are
 available:
