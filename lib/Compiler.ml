@@ -6,6 +6,7 @@ open CoreGrammar
 
 let flip_id = ref 1
 
+
 (** Result of compiling an expression *)
 type compiled_expr = {
   state: Bdd.dt btree;
@@ -49,12 +50,8 @@ let new_context ~lazy_eval () =
 
 let new_var ctx =
   Bdd.newvar ctx.man
-  (* match Stack.pop ctx.free_stack with
-   * | None -> Bdd.newvar ctx.man
-   * | Some(a) -> a *)
 
 let free_var _ _ = ()
-  (* Stack.push ctx.free_stack var *)
 
 (** generates a symbolic representation for a variable of the given type *)
 let rec gen_sym_type ctx (t:typ) : Bdd.dt btree =
@@ -66,26 +63,21 @@ let rec gen_sym_type ctx (t:typ) : Bdd.dt btree =
     Node(s1, s2)
 
 let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled_expr =
-  let binop_helper f e1 e2 =
+  let r = match e with
+  | Binop(op, e1, e2) ->
     let c1 = compile_expr ctx tenv env e1 in
     let c2 = compile_expr ctx tenv env e2 in
-    let v = Leaf(f (extract_leaf c1.state) (extract_leaf c2.state)) in
+    let v = (match op with
+        | And -> Leaf(Bdd.dand (extract_leaf c1.state) (extract_leaf c2.state))
+        | Or -> Leaf(Bdd.dor (extract_leaf c1.state) (extract_leaf c2.state))
+        | Xor -> Leaf(Bdd.xor (extract_leaf c1.state) (extract_leaf c2.state))
+        | Eq -> Leaf(Bdd.eq (extract_leaf c1.state) (extract_leaf c2.state))) in
     let z = Bdd.dand c1.z c2.z in
-    {state=v; z=z; flips=List.append c1.flips c2.flips} in
-
-  let r = match e with
-  | And(e1, e2) -> binop_helper Bdd.dand e1 e2
-  | Or(e1, e2) -> binop_helper Bdd.dor e1 e2
-  | Xor(e1, e2) -> binop_helper Bdd.xor e1 e2
-  | Eq(e1, e2) -> binop_helper Bdd.eq e1 e2
+    {state=v; z=z; flips=List.append c1.flips c2.flips}
   | Not(e) ->
     let c = compile_expr ctx tenv env e in
     let v = Bdd.dnot (extract_leaf c.state) in
     {state=Leaf(v); z=c.z; flips=c.flips}
-
-  | True -> {state=Leaf(Bdd.dtrue ctx.man); z=Bdd.dtrue ctx.man; flips=[]}
-
-  | False -> {state=Leaf(Bdd.dfalse ctx.man); z=Bdd.dtrue ctx.man; flips=[]}
 
   | Ident(s) ->
     (match Map.Poly.find env s with
@@ -159,23 +151,27 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
      * let _v = map_tree tmp (fun i -> free_var ctx i) in
      * {state=final_state; z=Bdd.dand c1.z final_z; flips=List.append c1.flips c2.flips} *)
 
-  | Sample(e) ->
-    let sube = compile_expr ctx tenv env e in
-    (* perform sequential sampling *)
-    let rec sequential_sample cur_obs state =
-      (match state with
-       | Leaf(bdd) ->
-         let t = Wmc.wmc (Bdd.dand (Bdd.dand cur_obs bdd) sube.z) ctx.weights in
-         let curz = Wmc.wmc (Bdd.dand sube.z cur_obs) ctx.weights in
-         let rndvalue = Random.float 1.0 in
-         if compare_float rndvalue (t /. curz) < 0 then (bdd, Leaf(Bdd.dtrue ctx.man)) else (Bdd.dnot bdd, Leaf(Bdd.dfalse ctx.man))
-       | Node(l, r) ->
-         let lbdd, lres = sequential_sample cur_obs l in
-         let rbdd, rres = sequential_sample lbdd r in
-         (rbdd, Node(lres, rres))
-      ) in
-    let _, r = sequential_sample (Bdd.dtrue ctx.man) sube.state in
-    {state=r; z=Bdd.dtrue ctx.man; flips=[]}
+  | DeltaB(pexpr) ->
+    let v = compile_pure ctx env tenv pexpr in
+    let st = if v then (Bdd.dtrue ctx.man) else (Bdd.dfalse ctx.man) in
+    {state=Leaf(st); z=Bdd.dtrue ctx.man; flips=[]}
+  (* | Sample(e) ->
+   *   let sube = compile_expr ctx tenv env e in
+   *   (\* perform sequential sampling *\)
+   *   let rec sequential_sample cur_obs state =
+   *     (match state with
+   *      | Leaf(bdd) ->
+   *        let t = Wmc.wmc (Bdd.dand (Bdd.dand cur_obs bdd) sube.z) ctx.weights in
+   *        let curz = Wmc.wmc (Bdd.dand sube.z cur_obs) ctx.weights in
+   *        let rndvalue = Random.float 1.0 in
+   *        if compare_float rndvalue (t /. curz) < 0 then (bdd, Leaf(Bdd.dtrue ctx.man)) else (Bdd.dnot bdd, Leaf(Bdd.dfalse ctx.man))
+   *      | Node(l, r) ->
+   *        let lbdd, lres = sequential_sample cur_obs l in
+   *        let rbdd, rres = sequential_sample lbdd r in
+   *        (rbdd, Node(lres, rres))
+   *     ) in
+   *   let _, r = sequential_sample (Bdd.dtrue ctx.man) sube.state in
+   *   {state=r; z=Bdd.dtrue ctx.man; flips=[]} *)
 
   | FuncCall(name, args) ->
     let func = try Hashtbl.Poly.find_exn ctx.funcs name
@@ -209,6 +205,13 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     let final_z = Bdd.labeled_vector_compose refreshed_z swap_bdd swap_idx in
     {state=final_state; z=Bdd.dand argz final_z; flips=new_flips @ argflips} in
   r
+and compile_pure (type a) ctx tenv env (e: a pureexpr) : a =
+  match e with
+  | PTrue -> true
+  | PFalse -> false
+  | POr -> fun x y -> x || y
+  | PAnd -> fun x y -> x && y
+  | PEq -> fun x y -> Bool.equal x y
 
 
 let compile_func ctx tenv (f: func) : compiled_func =

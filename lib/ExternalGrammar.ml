@@ -8,6 +8,8 @@ open Sexplib.Std
 type typ =
     TBool
   | TInt of int (* sz *)
+  | Real of float
+  | Dist of typ
   | TTuple of typ * typ
   | TFunc of typ List.t * typ
 [@@deriving sexp_of]
@@ -70,8 +72,6 @@ type func = { name: String.t; args: arg List.t; body: eexpr}
 type program = { functions: func List.t; body: eexpr }
 [@@deriving sexp_of]
 
-
-
 exception Type_error of String.t
 
 let get_src e =
@@ -107,8 +107,6 @@ let get_src e =
   | Tup(s, _, _) -> s
   | Iter(s, _, _, _) -> s
   | FuncCall(s, _, _) -> s
-
-
 
 let string_of_eexpr e =
   Sexp.to_string_hum (sexp_of_eexpr e)

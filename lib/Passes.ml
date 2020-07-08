@@ -130,13 +130,15 @@ let rec all_assignments mgr l =
   let open Cudd in
   let open CG in
   match l with
-  | [] -> [True, Bdd.dtrue mgr]
+  | (cur_constraint, cur_bdd)::[] ->
+    [cur_constraint, cur_bdd]
   | (cur_constraint, cur_bdd)::xs ->
     let l1 = List.map (all_assignments mgr xs)
-        ~f:(fun (constr, bdd) -> And(cur_constraint, constr), Bdd.dand cur_bdd bdd) in
+        ~f:(fun (constr, bdd) -> Binop(And, cur_constraint, constr), Bdd.dand cur_bdd bdd) in
     let l2 = List.map (all_assignments mgr xs)
-        ~f:(fun (constr, bdd) -> And(Not(cur_constraint), constr), Bdd.dand (Bdd.dnot cur_bdd) bdd) in
+        ~f:(fun (constr, bdd) -> Binop(And, Not(cur_constraint), constr), Bdd.dand (Bdd.dnot cur_bdd) bdd) in
     l1 @ l2
+  | [] -> failwith "invalid"
 
 let fold_with_seen l ~init ~f =
   let (_, r) = List.fold l ~init:(([], init)) ~f:(fun (seen, acc) i ->
@@ -220,26 +222,40 @@ let rec type_of (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast =
     if (type_eq t typ) then (t, e) else
       raise (EG.Type_error(Format.sprintf "Type error at line %d column %d: expected %s, got %s"
                                       src.pos_lnum src.pos_cnum (EG.string_of_typ typ) (EG.string_of_typ t))) in
+  let bool_helper f s e1 e2 : tast =
+    let s1 = expect_t e1 s.startpos TBool in
+    let s2 = expect_t e2 s.startpos TBool in
+    (TBool, f s s1 s2) in
   let expect_compatible_int (f: tast -> tast -> ast) src e1 e2 =
     let (t1, s1) = type_of ctx env e1 and (t2, s2) = type_of ctx env e2 in
     match (t1, t2) with
     | (TInt(d1), TInt(d2)) when d1 = d2 -> (d1, f (t1, s1) (t1, s2))
     | (_, _) ->
       raise (EG.Type_error(Format.sprintf "Type error at line %d column %d: expected compatible integer types, got %s and %s"
-                             src.pos_lnum src.pos_cnum (EG.string_of_typ t1) (EG.string_of_typ t2)))  in
+                             src.pos_lnum src.pos_cnum (EG.string_of_typ t1) (EG.string_of_typ t2))) in
+  let int_bool_helper f s e1 e2 : tast =
+    (TBool, snd (expect_compatible_int (fun s1 s2 -> f s s1 s2) s.startpos e1 e2)) in
+  let int_int_helper f s e1 e2 : tast =
+    let sz, res = expect_compatible_int (fun e1 e2 -> f s e1 e2) s.startpos e1 e2 in
+    (TInt(sz), res) in
   match e with
   | And(s, e1, e2) ->
-    let s1 = expect_t e1 s.startpos TBool in
-    let s2 = expect_t e2 s.startpos TBool in
-    (TBool, And(s, s1, s2))
+    bool_helper (fun s a b -> And(s, a, b)) s e1 e2
   | Or(s, e1, e2) ->
-    let s1 = expect_t e1 s.startpos TBool in
-    let s2 = expect_t e2 s.startpos TBool in
-    (TBool, Or(s, s1, s2))
+    bool_helper (fun s a b -> Or(s, a, b)) s e1 e2
   | Iff(s, e1, e2) ->
+    bool_helper (fun s a b -> Iff(s, a, b)) s e1 e2
+  | Xor(s, e1, e2) ->
+    bool_helper (fun s a b -> Xor(s, a, b)) s e1 e2
+  | True(s) -> (TBool, True(s))
+  | False(s) -> (TBool, False(s))
+  | Not(s, e1) ->
     let s1 = expect_t e1 s.startpos TBool in
-    let s2 = expect_t e2 s.startpos TBool in
-    (TBool, Iff(s, s1, s2))
+    (TBool, Not(s, s1))
+  | Observe(s, e1) ->
+    let s1 = expect_t e1 s.startpos TBool in
+    (TBool, Observe(s, s1))
+  | Flip(s, f) -> (TBool, Flip(s,f))
   | Sample(s, e1) ->
     if ctx.in_func then
       raise (Type_error (Format.sprintf "Type error at line %d column %d: \
@@ -247,23 +263,10 @@ let rec type_of (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast =
                            s.startpos.pos_lnum s.startpos.pos_cnum));
     let t, e = type_of ctx (Map.Poly.empty) e1 in
     (t, Sample(s, (t, e)))
-  | Xor(s, e1, e2) ->
-    let s1 = expect_t e1 s.startpos TBool in
-    let s2 = expect_t e2 s.startpos TBool in
-    (TBool, Xor(s, s1, s2))
-  | Not(s, e1) ->
-    let s1 = expect_t e1 s.startpos TBool in
-    (TBool, Not(s, s1))
-  | Observe(s, e1) ->
-    let s1 = expect_t e1 s.startpos TBool in
-    (TBool, Observe(s, s1))
-  | True(s) -> (TBool, True(s))
-  | False(s) -> (TBool, False(s))
-  | Flip(s, f) -> (TBool, Flip(s,f))
   | Ident(src, s) ->
     let t = (try Map.Poly.find_exn env s
      with _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: \
-                                         Could not find variable '%s' during typechecking"
+                                                  Could not find variable '%s' during typechecking"
                                     src.startpos.pos_lnum src.startpos.pos_cnum s))) in
     (t, Ident(src, s))
   | Fst(s, e1) ->
@@ -295,24 +298,16 @@ let rec type_of (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast =
       raise (Type_error (Format.sprintf "Type error at line %d column %d: discrete parameters must sum to 1, got %f"
                            src.startpos.pos_lnum src.startpos.pos_cnum sum))
     else (TInt(num_binary_digits ((List.length l) - 1)), Discrete(src, l))
-  | Eq(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun s1 s2 -> Eq(s, s1, s2)) s.startpos e1 e2))
-  | Lt(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun e1 e2 -> Lt(s, e1, e2)) s.startpos e1 e2))
-  | Gt(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun e1 e2 -> Gt(s, e1, e2)) s.startpos e1 e2))
-  | Lte(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun e1 e2 -> Lte(s, e1, e2)) s.startpos e1 e2))
-  | Gte(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun e1 e2 -> Gte(s, e1, e2)) s.startpos e1 e2))
-  | Neq(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun e1 e2 -> Neq(s, e1, e2)) s.startpos e1 e2))
-  | Plus(s, e1, e2) ->
-    let sz, res = expect_compatible_int (fun e1 e2 -> Plus(s, e1, e2)) s.startpos e1 e2 in
-    (TInt(sz), res)
-  | Minus(s, e1, e2) ->
-    let sz, res = expect_compatible_int (fun e1 e2 -> Minus(s, e1, e2)) s.startpos e1 e2 in
-    (TInt(sz), res)
-  | Mult(s, e1, e2) ->
-    let sz, res = expect_compatible_int (fun e1 e2 -> Mult(s, e1, e2)) s.startpos e1 e2 in
-    (TInt(sz), res)
-  | Div(s, e1, e2) ->
-    let sz, res = expect_compatible_int (fun e1 e2 -> Div(s, e1, e2)) s.startpos e1 e2 in
-    (TInt(sz), res)
+  | Eq(s, e1, e2) -> int_bool_helper (fun s a b -> Eq(s, a, b)) s e1 e2
+  | Lt(s, e1, e2) -> int_bool_helper (fun s a b -> Lt(s, a, b)) s e1 e2
+  | Gt(s, e1, e2) -> int_bool_helper (fun s a b -> Gt(s, a, b)) s e1 e2
+  | Lte(s, e1, e2) -> int_bool_helper (fun s a b -> Lte(s, a, b)) s e1 e2
+  | Gte(s, e1, e2) -> int_bool_helper (fun s a b -> Gte(s, a, b)) s e1 e2
+  | Neq(s, e1, e2) -> int_bool_helper (fun s a b -> Neq(s, a, b)) s e1 e2
+  | Plus(s, e1, e2) -> int_int_helper (fun s a b -> Plus(s, a, b)) s e1 e2
+  | Minus(s, e1, e2) -> int_int_helper (fun s a b -> Minus(s, a, b)) s e1 e2
+  | Mult(s, e1, e2) -> int_int_helper (fun s a b -> Mult(s, a, b)) s e1 e2
+  | Div(s, e1, e2) -> int_int_helper (fun s a b -> Div(s, a, b)) s e1 e2
   | Let(slet, x, e1, e2) ->
     let r1 = type_of ctx env e1 in
     let r2 = type_of ctx (Map.Poly.set env ~key:x ~data:(fst r1)) e2 in
@@ -372,9 +367,9 @@ let rec expand_iter_t s f ((t, curv):tast) k : tast =
 
 let rec and_of_l l =
   match l with
-  | [] -> CG.True
+  | [] -> (CG.DeltaB(PTrue))
   | [x] -> x
-  | x::xs -> CG.And(x, and_of_l xs)
+  | x::xs -> CG.Binop(And, x, and_of_l xs)
 
 (*  00   01   10
     [0.1; 0.4; 0.5] *)
@@ -438,8 +433,8 @@ let gen_adder sz a b : CG.expr =
   let tmp_b = CG.Ident(b_name) in
   let carryname = Format.sprintf "carry%s" (fresh ()) in
   let outputname = Format.sprintf "output%s" (fresh ()) in
-  let halfout = (Format.sprintf "%s_0" outputname, CG.Xor(nth_bit sz (sz-1) tmp_a, nth_bit sz (sz-1) tmp_b)) in
-  let halfcarry = (Format.sprintf "%s_0" carryname, CG.And(nth_bit sz (sz-1) tmp_a, nth_bit sz (sz-1) tmp_b)) in
+  let halfout = (Format.sprintf "%s_0" outputname, CG.Binop(Xor, nth_bit sz (sz-1) tmp_a, nth_bit sz (sz-1) tmp_b)) in
+  let halfcarry = (Format.sprintf "%s_0" carryname, CG.Binop(Xor, nth_bit sz (sz-1) tmp_a, nth_bit sz (sz-1) tmp_b)) in
   (* very finnicky business in here ... generate a sequence of full adders
      that feed one into the next *)
   let fulladders = List.init (sz - 1) ~f:(fun bit ->
@@ -450,9 +445,10 @@ let gen_adder sz a b : CG.expr =
       let curinput_b = nth_bit sz curbit tmp_b in
       let prevcarry = Format.sprintf "%s_%d" carryname (curidx - 1) in
       let curcarry = Format.sprintf "%s_%d" carryname curidx in
-      [(curout, CG.Xor(Ident(prevcarry), CG.Xor(curinput_a, curinput_b)));
-       (curcarry, CG.Or(CG.And(Ident(prevcarry), curinput_a),
-                        CG.Or(CG.And(Ident(prevcarry), curinput_b), CG.And(curinput_a, curinput_b))))]
+      [(curout, CG.Binop(Xor, Ident(prevcarry), CG.Binop(Xor, curinput_a, curinput_b)));
+       (curcarry, CG.Binop(Or, CG.Binop(And, Ident(prevcarry), curinput_a),
+                           CG.Binop(Or, CG.Binop(And, Ident(prevcarry), curinput_b),
+                                    CG.Binop(And, curinput_a, curinput_b))))]
     ) |> List.concat in
   let full_l = [(a_name, a); (b_name, b); halfout; halfcarry] @ fulladders in
   let output_list = List.init sz ~f:(fun idx -> CG.Ident(Format.sprintf "%s_%d" outputname (sz - 1 - idx))) in
@@ -467,8 +463,8 @@ let gen_subtractor sz a b : CG.expr =
   let tmp_b = CG.Ident(b_name) in
   let borrowname = Format.sprintf "borrow%s" (fresh ()) in
   let outputname = Format.sprintf "output%s" (fresh ()) in
-  let halfout = (Format.sprintf "%s_0" outputname, CG.Xor(nth_bit sz (sz-1) tmp_a, nth_bit sz (sz-1) tmp_b)) in
-  let halfborrow = (Format.sprintf "%s_0" borrowname, CG.And(Not(nth_bit sz (sz-1) tmp_a), nth_bit sz (sz-1) tmp_b)) in
+  let halfout = (Format.sprintf "%s_0" outputname, CG.Binop(Xor, (nth_bit sz (sz-1) tmp_a), nth_bit sz (sz-1) tmp_b)) in
+  let halfborrow = (Format.sprintf "%s_0" borrowname, CG.Binop(And, Not(nth_bit sz (sz-1) tmp_a), nth_bit sz (sz-1) tmp_b)) in
   (* very finnicky business in here ... generate a sequence of full adders
      that feed one into the next *)
   let fullsubt = List.init (sz - 1) ~f:(fun bit ->
@@ -479,9 +475,9 @@ let gen_subtractor sz a b : CG.expr =
       let curinput_b = nth_bit sz curbit tmp_b in
       let prevborrow = Format.sprintf "%s_%d" borrowname (curidx - 1) in
       let curborrow = Format.sprintf "%s_%d" borrowname curidx in
-      [(curout, CG.Xor(Ident(prevborrow), CG.Xor(curinput_a, curinput_b)));
-       (curborrow, CG.Or(CG.And(Ident(prevborrow), Not(curinput_a)),
-                        CG.Or(CG.And(Ident(prevborrow), curinput_b), CG.And(Not(curinput_a), curinput_b))))]
+      [curout, CG.Binop(Xor, Ident(prevborrow), CG.Binop(Xor, curinput_a, curinput_b));
+       (curborrow, CG.Binop(Or, CG.Binop(And, Ident(prevborrow), Not(curinput_a)),
+                        CG.Binop(Or, CG.Binop(And, Ident(prevborrow), curinput_b), CG.Binop(And, Not(curinput_a), curinput_b))))]
     ) |> List.concat in
   let full_l = [(a_name, a); (b_name, b); halfout; halfborrow] @ fullsubt in
   let output_list = List.init sz ~f:(fun idx -> CG.Ident(Format.sprintf "%s_%d" outputname (sz - 1 - idx))) in
@@ -499,24 +495,24 @@ let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) 
   match e with
   | And(_, e1, e2) ->
     let s1 = from_external_expr_h ctx tenv e1 in
-    let s2 = from_external_expr_h ctx tenv e2 in And(s1, s2)
+    let s2 = from_external_expr_h ctx tenv e2 in Binop(And, s1, s2)
   | Or(_, e1, e2) ->
     let s1 = from_external_expr_h ctx tenv e1 in
-    let s2 = from_external_expr_h ctx tenv e2 in Or(s1, s2)
+    let s2 = from_external_expr_h ctx tenv e2 in Binop(Or, s1, s2)
   | Iff(_, e1, e2) ->
     let s1 = from_external_expr_h ctx tenv e1 in
-    let s2 = from_external_expr_h ctx tenv e2 in Eq(s1, s2)
+    let s2 = from_external_expr_h ctx tenv e2 in Binop(Eq, s1, s2)
   | Xor(_, e1, e2) ->
     let s1 = from_external_expr_h ctx tenv e1 in
-    let s2 = from_external_expr_h ctx tenv e2 in Xor(s1, s2)
+    let s2 = from_external_expr_h ctx tenv e2 in Binop(Xor, s1, s2)
   | LeftShift(_, e, amt) ->
     let sube = from_external_expr_h ctx tenv e in
     if amt = 0 then sube else
       let sz = extract_sz t in
       let id = Format.sprintf "leftshift_%s" (fresh ()) in
       let rec h depth : CG.expr =
-        if depth = sz - 1 then False
-        else if depth + amt >= sz then Tup(False, h (depth+1))
+        if depth = sz - 1 then (DeltaB(PFalse))
+        else if depth + amt >= sz then Tup((DeltaB(PFalse)), h (depth+1))
         else Tup(nth_bit sz (depth+amt) (Ident(id)), h (depth+1)) in
       Let(id, sube, h 0)
   | Plus(_, e1, e2) ->
@@ -529,7 +525,7 @@ let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) 
     let sz = extract_sz t1 in
     let n1 = fresh () and n2 = fresh () in
     let inner = List.init sz ~f:(fun idx ->
-        CG.Eq(nth_bit sz idx (Ident(n1)), nth_bit sz idx (Ident(n2)))
+        CG.Binop(Eq, nth_bit sz idx (Ident(n1)), nth_bit sz idx (Ident(n2)))
       ) |> and_of_l in
     Let(n1, from_external_expr_h ctx tenv (t1, e1),
         Let(n2, from_external_expr_h ctx tenv (t2, e2), inner))
@@ -557,10 +553,10 @@ let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) 
     let sz = extract_sz t1 in
     let n1 = fresh () and n2 = fresh () in
     let rec h idx : CG.expr =
-      if idx = sz then False
-      else Ite(And(nth_bit sz idx (Ident(n1)), Not(nth_bit sz idx (Ident n2))),
-               False,
-               Ite(And(Not(nth_bit sz idx (Ident(n1))), nth_bit sz idx (Ident n2)), True,
+      if idx = sz then DeltaB(PFalse)
+      else Ite(Binop(And, nth_bit sz idx (Ident(n1)), Not(nth_bit sz idx (Ident n2))),
+               DeltaB(PFalse),
+               Ite(Binop(And, Not(nth_bit sz idx (Ident(n1))), nth_bit sz idx (Ident n2)), DeltaB(PTrue),
                h (idx + 1))) in
     Let(n1, from_external_expr_h ctx tenv (t1, e1), Let(n2, from_external_expr_h ctx tenv (t2, e2), h 0))
   | Lte(s, e1, e2) -> from_external_expr_h ctx tenv (TBool, Or(s, (TBool, Lt(s, e1, e2)), (TBool, Eq(s, e1, e2))))
@@ -572,10 +568,10 @@ let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) 
   | Discrete(_, l) -> gen_discrete ctx l
   | Int(_, sz, v) ->
     let bits = int_to_bin sz v
-               |> List.map ~f:(fun i -> if i = 1 then CG.True else CG.False) in
+               |> List.map ~f:(fun i -> if i = 1 then CG.DeltaB(PTrue) else CG.DeltaB(PFalse)) in
     mk_dfs_tuple bits
-  | True(_) -> True
-  | False(_) -> False
+  | True(_) -> DeltaB(PTrue)
+  | False(_) -> DeltaB(PFalse)
   | Observe(_, e) ->
     Observe(from_external_expr_h ctx tenv e)
   | Let(_, x, e1, e2) ->
@@ -595,7 +591,7 @@ let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) 
 
     let expanded = expand_iter_t s f init k in
     from_external_expr_h ctx tenv expanded
-  | Sample(_, e) -> Sample(from_external_expr_h ctx tenv e)
+  (* | Sample(_, e) -> Sample(from_external_expr_h ctx tenv e) *)
   | IntConst(_, _) -> failwith "not implemented"
 
 let from_external_expr mgr in_func (env: EG.tenv) (e: EG.eexpr) : (EG.typ * CG.expr) =
@@ -631,8 +627,8 @@ let from_external_func mgr (tenv: EG.tenv) (f: EG.func) : (EG.typ * CG.func) =
   (* convert arguments *)
   let args = List.map f.args ~f:from_external_arg in
   (TFunc(List.map f.args ~f:snd, t), {name = f.name;
-       args = args;
-       body = conv})
+                                      args = args;
+                                      body = conv})
 
 let from_external_prog (p: EG.program) : (EG.typ * CG.program) =
   let mgr = Cudd.Man.make_d () in
@@ -652,5 +648,5 @@ let from_external_prog (p: EG.program) : (EG.typ * CG.program) =
         (tenv', flst @ [conv])
       ) in
     let (t, convbody) = from_external_expr mgr false tenv p.body in
-    let optbody = Optimization.do_optimize convbody !n in
-    (t, {functions = functions; body = optbody})
+    (* let optbody = Optimization.do_optimize convbody !n in *)
+    (t, {functions = functions; body = convbody})

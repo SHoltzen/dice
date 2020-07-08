@@ -1,25 +1,51 @@
 open Core
 
+type binop =
+  | And
+  | Or
+  | Eq
+  | Xor
+[@@deriving sexp_of]
+
 type expr =
-  | And of expr * expr
-  | Or of expr * expr
-  | Eq of expr * expr
-  | Xor of expr * expr
+  | Binop of binop * expr * expr
   | Not of expr
   | Ident of String.t
-  | Sample of expr
   | Fst of expr
   | Snd of expr
   | Tup of expr * expr
   | Ite of expr * expr * expr
-  | True
-  | False
   | Flip of float
   | Let of String.t * expr * expr
   | FuncCall of String.t * expr List.t
   | Observe of expr
-[@@deriving sexp_of]
-and fcall = {
+  | DeltaB of bool pureexpr
+and _ pureexpr =
+  | PTrue : bool pureexpr
+  | PFalse : bool pureexpr
+  | POr : (bool -> bool -> bool) pureexpr
+  | PAnd : (bool -> bool -> bool) pureexpr
+  | PEq : (bool -> bool -> bool) pureexpr
+  | PSample : (expr -> bool) pureexpr
+  (* | PFalse
+   * | PAnd of expr * expr
+   * | POr of expr * expr
+   * | PEq of expr * expr
+   * | PXor of expr * expr
+   * | PNot of expr
+   * | PIdent of String.t
+   * | PSample of expr
+   * | PFst of expr
+   * | PSnd of expr
+   * | PTup of expr * expr
+   * | PIte of expr * expr * expr
+   * | PLet of String.t * expr * expr
+   * | PFuncCall of String.t * expr List.t *)
+
+let sexp_of_pureexpr e = failwith "not implemented"
+let sexp_of_expr e = failwith "not implemented"
+
+type fcall = {
   fname: String.t;
   args: expr
 }
@@ -40,10 +66,10 @@ type tenv = (String.t, typ) Map.Poly.t
 
 let rec type_of env e : typ =
   match e with
-  | And(_, _) | Xor(_, _) | Eq(_, _) | Or(_, _) | Not(_) | True | False | Flip(_) | Observe(_) -> TBool
+  | DeltaB(_) | Binop(_, _, _) | Not(_) | Flip(_) | Observe(_) -> TBool
   | Ident(s) -> (try Map.Poly.find_exn env s
     with _ -> failwith (Format.sprintf "Could not find variable %s during typechecking" s))
-  | Sample(e) -> type_of env e
+  (* | BinopPI(_, e1, _) -> type_of env e1 *)
   | Fst(e1) ->
     (match type_of env e1 with
      | TTuple(l, _) -> l
