@@ -297,6 +297,19 @@ let test_fcall7 _ =
   assert_feq (0.4 /. 0.9) (parse_and_prob prog);
   assert_feq (0.4 /. 0.9) (parse_optimize_and_prob prog)
 
+let test_nthbit1 _ =
+  let prog = "
+    let f1 = discrete(0.1, 0.4, 0.3, 0.2) in
+    nth_bit(int(2, 1), f1)" in
+  assert_feq 0.6 (parse_and_prob prog)
+
+let test_nthbit2 _ =
+  let prog = "
+    let f1 = discrete(0.1, 0.4, 0.3, 0.2) in
+    nth_bit(int(2, 0), f1)" in
+  assert_feq 0.5 (parse_and_prob prog)
+
+
 let test_caesar _ =
   let prog = "
     fun sendchar(key: int(2), observation: int(2)) {
@@ -396,8 +409,6 @@ let test_pmc2 _ =
   let prog = In_channel.read_all "../resources/pmc2.dice" in
   assert_feq (31.0 /. 64.0) (parse_and_prob prog);
   assert_feq (31.0 /. 64.0) (parse_optimize_and_prob prog)
-
-
 
 let test_double_flip _ =
   let prog = "
@@ -528,6 +539,9 @@ let expression_tests =
   "test_fcall5">::test_fcall5;
   "test_fcall6">::test_fcall6;
   "test_fcall7">::test_fcall7;
+
+  "test_nthbit1">::test_nthbit1;
+  "test_nthbit2">::test_nthbit2;
 
   "test_caesar">::test_caesar;
   "test_alarm">::test_alarm;

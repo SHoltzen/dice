@@ -325,6 +325,12 @@ let rec type_of (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast =
                                          from branches of if-statement, got %s and %s"
                            s.startpos.pos_lnum s.startpos.pos_cnum (string_of_typ t1) (string_of_typ t2)))
     else (t1, Ite(s, sg, (t1, thnbody), (t2, elsbody)))
+  | FuncCall(s, "nth_bit", [Int(src, sz, v); e2]) ->
+    let conve2 = match type_of ctx env e2 with
+      | (TInt(v), r) ->(TInt(v), r)
+      | _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: expected int for second argument"
+                                  s.startpos.pos_lnum s.startpos.pos_cnum)) in
+    (TBool, FuncCall(s, "nth_bit", [(TInt(v), Int(src, sz, v)); conve2]))
   | FuncCall(s, id, args) ->
     let res = try Map.Poly.find_exn env id
       with _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: could not find function \
@@ -587,6 +593,9 @@ let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) 
   | Snd(_, e) -> Snd(from_external_expr_h ctx tenv e)
   | Fst(_, e) -> Fst(from_external_expr_h ctx tenv e)
   | Tup(_, e1, e2) -> Tup(from_external_expr_h ctx tenv e1, from_external_expr_h ctx tenv e2)
+  | FuncCall(_, "nth_bit", [(_, Int(_, sz, v)); e2]) ->
+    let internal = from_external_expr_h ctx tenv e2 in
+    nth_bit sz v internal
   | FuncCall(_, id, args) -> FuncCall(id, List.map args ~f:(fun i -> from_external_expr_h ctx tenv i))
   | Iter(s, f, init, k) ->
     (* let e = from_external_expr_h ctx tenv init in
