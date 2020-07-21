@@ -283,7 +283,7 @@ expr :=
 
 type := bool | (type, type) | int(size)
 arg := ident: type
-function := fun name(arg1: type1, ...) { expr }
+function := fun name(arg1, ...) { expr }
 
 program := expr 
         | function program
