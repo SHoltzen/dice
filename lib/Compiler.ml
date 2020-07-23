@@ -139,25 +139,26 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
 
   | Let(x, e1, e2) ->
     let c1 = compile_expr ctx tenv env e1 in
-    let env' = Map.Poly.set env ~key:x ~data:c1.state in
-    let c2 = compile_expr ctx tenv env' e2 in
-    {state=c2.state; z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips}
-
-
-    (* (\* create a temp variable *\)
-     * let c1 = compile_expr ctx tenv env e1 in
-     * let t = (type_of tenv e1) in
-     * let tmp = gen_sym_type ctx t in
-     * let env' = Map.Poly.set env ~key:x ~data:tmp in
-     * let tenv' = Map.Poly.set tenv ~key:x ~data:t in
-     * let c2 = compile_expr ctx tenv' env' e2 in
-     * (\* do substitution *\)
-     * let swap_idx = List.to_array (List.map (collect_leaves tmp) ~f:(Bdd.topvar)) in
-     * let swap_bdd = List.to_array (collect_leaves c1.state) in
-     * let final_state = map_tree c2.state (fun bdd -> Bdd.labeled_vector_compose bdd swap_bdd swap_idx) in
-     * let final_z = Bdd.labeled_vector_compose c2.z swap_bdd swap_idx in
-     * let _v = map_tree tmp (fun i -> free_var ctx i) in
-     * {state=final_state; z=Bdd.dand c1.z final_z; flips=List.append c1.flips c2.flips} *)
+    let sz = VarState.state_size [c1.state; Leaf(c1.z)] in
+    let num_leaves = List.length (VarState.collect_leaves c1.state) in
+    let t = (type_of tenv e1) in
+    let tenv' = Map.Poly.set tenv ~key:x ~data:t in
+    if sz < num_leaves * 10 then (* this value is a heuristic *)
+      let env' = Map.Poly.set env ~key:x ~data:c1.state in
+      let c2 = compile_expr ctx tenv' env' e2 in
+      {state=c2.state; z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips}
+    else
+      (* create a temp variable *)
+      let tmp = gen_sym_type ctx t in
+      let env' = Map.Poly.set env ~key:x ~data:tmp in
+      let c2 = compile_expr ctx tenv' env' e2 in
+      (* do substitution *)
+      let swap_idx = List.to_array (List.map (collect_leaves tmp) ~f:(Bdd.topvar)) in
+      let swap_bdd = List.to_array (collect_leaves c1.state) in
+      let final_state = map_tree c2.state (fun bdd -> Bdd.labeled_vector_compose bdd swap_bdd swap_idx) in
+      let final_z = Bdd.labeled_vector_compose c2.z swap_bdd swap_idx in
+      let _v = map_tree tmp (fun i -> free_var ctx i) in
+      {state=final_state; z=Bdd.dand c1.z final_z; flips=List.append c1.flips c2.flips}
 
   | Sample(e) ->
     let sube = compile_expr ctx tenv env e in
@@ -208,7 +209,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
         Bdd.labeled_vector_compose bdd swap_bdd swap_idx) in
     let final_z = Bdd.labeled_vector_compose refreshed_z swap_bdd swap_idx in
     {state=final_state; z=Bdd.dand argz final_z; flips=new_flips @ argflips} in
-  r
+ r
 
 
 let compile_func ctx tenv (f: func) : compiled_func =
