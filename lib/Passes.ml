@@ -27,6 +27,10 @@ let inline_functions (p: EG.program) =
     | And(s, e1, e2) ->
       let s1 = helper e1 in
       let s2 = helper e2 in And(s, s1, s2)
+    | LeftShift(s, e1, i) ->
+      let s1 = helper e1 in LeftShift(s, s1, i)
+    | RightShift(s, e1, i) ->
+      let s1 = helper e1 in RightShift(s, s1, i)
     | Or(s, e1, e2) ->
       let s1 = helper e1 in
       let s2 = helper e2 in Or(s, s1, s2)
@@ -168,6 +172,7 @@ type source = EG.source
 type ast =
     And of source * tast * tast
   | LeftShift of source * tast * int
+  | RightShift of source * tast * int
   | Sample of source * tast
   | Or of source * tast * tast
   | Iff of source * tast * tast
@@ -295,6 +300,12 @@ let rec type_of (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast =
       raise (Type_error (Format.sprintf "Type error at line %d column %d: discrete parameters must sum to 1, got %f"
                            src.startpos.pos_lnum src.startpos.pos_cnum sum))
     else (TInt(num_binary_digits ((List.length l) - 1)), Discrete(src, l))
+  | LeftShift(s, e1, i) ->
+    let (t, e) = type_of ctx env e1 in
+    (t, LeftShift(s, (t, e), i))
+  | RightShift(s, e1, i) ->
+    let (t, e) = type_of ctx env e1 in
+    (t, RightShift(s, (t, e), i))
   | Eq(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun s1 s2 -> Eq(s, s1, s2)) s.startpos e1 e2))
   | Lt(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun e1 e2 -> Lt(s, e1, e2)) s.startpos e1 e2))
   | Gt(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun e1 e2 -> Gt(s, e1, e2)) s.startpos e1 e2))
@@ -515,6 +526,7 @@ let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) 
   | Xor(_, e1, e2) ->
     let s1 = from_external_expr_h ctx tenv e1 in
     let s2 = from_external_expr_h ctx tenv e2 in Xor(s1, s2)
+  | LeftShift(_, e, 0) -> from_external_expr_h ctx tenv e
   | LeftShift(_, e, amt) ->
     let sube = from_external_expr_h ctx tenv e in
     if amt = 0 then sube else
@@ -524,6 +536,17 @@ let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) 
         if depth = sz - 1 then False
         else if depth + amt >= sz then Tup(False, h (depth+1))
         else Tup(nth_bit sz (depth+amt) (Ident(id)), h (depth+1)) in
+      Let(id, sube, h 0)
+  | RightShift(_, e, 0) -> from_external_expr_h ctx tenv e
+  | RightShift(_, e, amt) ->
+    let sube = from_external_expr_h ctx tenv e in
+    if amt = 0 then sube else
+      let sz = extract_sz t in
+      let id = Format.sprintf "rightshift_%s" (fresh ()) in
+      let rec h depth : CG.expr =
+        if depth = sz - 1 then nth_bit sz (depth - amt) (Ident(id))
+        else if depth < amt then Tup(False, h (depth+1))
+        else Tup(nth_bit sz (depth - amt) (Ident(id)), h (depth+1)) in
       Let(id, sube, h 0)
   | Plus(_, e1, e2) ->
     let sz = extract_sz (fst e1) in

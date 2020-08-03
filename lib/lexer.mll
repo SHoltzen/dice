@@ -42,6 +42,8 @@ rule token =
     | "<="                      { LTE }
     | ">="                      { GTE }
     | "=="                      { EQUAL_TO }
+    | "<<"                      { LEFTSHIFT }
+    | ">>"                      { RIGHTSHIFT }
     | "="                       { EQUAL }
     | "!="                      { NEQ }
     | "&&"                      { AND }

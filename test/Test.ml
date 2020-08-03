@@ -223,6 +223,23 @@ let test_mul6 _ =
   assert_feq 0.6 (parse_and_prob prog);
   assert_feq 0.6 (parse_optimize_and_prob prog)
 
+let test_leftshift_1 _ =
+  let prog = "let x = int(4, 1) in let y = x << 2 in y == int(4, 4)" in
+  assert_feq 1.0 (parse_and_prob prog)
+
+let test_leftshift_2 _ =
+  let prog = "let x = int(4, 1) in let y = x << 5 in y == int(4, 0)" in
+  assert_feq 1.0 (parse_and_prob prog)
+
+let test_rightshift_1 _ =
+  let prog = "let x = int(4, 8) in let y = x >> 2 in y == int(4, 2)" in
+  assert_feq 1.0 (parse_and_prob prog)
+
+let test_rightshift_2 _ =
+  let prog = "let x = int(4, 12) in let y = x >> 1 in y == int(4, 6)" in
+  assert_feq 1.0 (parse_and_prob prog)
+
+
 let test_fcall1 _ =
   let prog = "
     fun foo(test: bool) {
@@ -531,6 +548,12 @@ let expression_tests =
   "test_mul4">::test_mul4;
   "test_mul5">::test_mul5;
   "test_mul6">::test_mul6;
+
+  "test_leftshift_1">::test_leftshift_1;
+  "test_leftshift_2">::test_leftshift_2;
+
+  "test_rightshift_1">::test_rightshift_1;
+  "test_rightshift_2">::test_rightshift_2;
 
   "test_fcall1">::test_fcall1;
   "test_fcall2">::test_fcall2;

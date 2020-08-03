@@ -46,6 +46,8 @@ type eexpr =
   | Discrete of source * float List.t
   | Int of source * int * int (* value, size *)
   | Eq of source * eexpr * eexpr
+  | LeftShift of source * eexpr * int
+  | RightShift of source * eexpr * int
   | Plus of source * eexpr * eexpr
   | Minus of source * eexpr * eexpr
   | Mult of source * eexpr * eexpr

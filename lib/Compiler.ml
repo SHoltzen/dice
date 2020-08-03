@@ -143,7 +143,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     let num_leaves = List.length (VarState.collect_leaves c1.state) in
     let t = (type_of tenv e1) in
     let tenv' = Map.Poly.set tenv ~key:x ~data:t in
-    if sz < num_leaves * 10 then (* this value is a heuristic *)
+    if sz < num_leaves * 1000 then (* this value is a heuristic *)
       let env' = Map.Poly.set env ~key:x ~data:c1.state in
       let c2 = compile_expr ctx tenv' env' e2 in
       {state=c2.state; z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips}

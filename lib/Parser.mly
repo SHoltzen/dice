@@ -5,7 +5,7 @@
 /* Tokens */
 %token EOF
 %token PLUS MINUS MULTIPLY DIVIDE MODULUS
-%token LT LTE GT GTE EQUAL_TO NEQ EQUAL
+%token LT LTE GT GTE EQUAL_TO NEQ EQUAL LEFTSHIFT RIGHTSHIFT
 %token AND OR NOT DISCRETE IFF XOR SAMPLE
 %token LPAREN RPAREN
 %token IF THEN ELSE TRUE FALSE IN INT
@@ -23,7 +23,7 @@
 %left IFF
 %left XOR
 %left LTE GTE LT GT NEQ
-%left PLUS MINUS EQUAL_TO
+%left PLUS MINUS EQUAL_TO LEFTSHIFT RIGHTSHIFT
 %left MULTIPLY DIVIDE MODULUS
 /* entry point */
 
@@ -42,6 +42,8 @@ expr:
         { Discrete({startpos=$startpos; endpos=$endpos}, $2) }
     | SAMPLE expr { Sample({startpos=$startpos; endpos=$endpos}, $2) }
     | expr EQUAL_TO expr { Eq({startpos=$startpos; endpos=$endpos}, $1, $3) }
+    | expr RIGHTSHIFT INT_LIT { RightShift({startpos=$startpos; endpos=$endpos}, $1, $3) }
+    | expr LEFTSHIFT INT_LIT { LeftShift({startpos=$startpos; endpos=$endpos}, $1, $3) }
     | expr PLUS expr { Plus({startpos=$startpos; endpos=$endpos}, $1, $3) }
     | expr MINUS expr { Minus({startpos=$startpos; endpos=$endpos}, $1, $3) }
     | expr MULTIPLY expr { Mult({startpos=$startpos; endpos=$endpos}, $1, $3) }
