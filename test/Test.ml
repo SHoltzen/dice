@@ -243,7 +243,20 @@ let test_rightshift_3 _ =
   let prog = "let x = int(4, 12) in let y = x >> 5 in y == int(4, 0)" in
   assert_feq 1.0 (parse_and_prob prog)
 
+let test_rightshift_4 _ =
+  let prog = "let x = int(2, 2) in int(2, 1) == (x >> 1)" in
+  assert_feq 1.0 (parse_and_prob prog)
 
+let test_rightshift_5 _ =
+  let prog = "
+let a = int(2,2) in
+let _x1 = if ( nth_bit(int(2,1), a)) then true else false in
+let _x0 = if ( nth_bit(int(2,0), a)) then _x1 else true in
+let b = a in
+let _y1 = if ( nth_bit(int(2,1), b)) then true else false in
+let _y0 = if ( nth_bit(int(2,1), b >> 1)) then _y1 else true in
+_x0 <=> _y0" in
+  assert_feq 1.0 (parse_and_prob prog)
 
 let test_fcall1 _ =
   let prog = "
@@ -330,6 +343,16 @@ let test_nthbit2 _ =
     let f1 = discrete(0.1, 0.4, 0.3, 0.2) in
     nth_bit(int(2, 0), f1)" in
   assert_feq 0.5 (parse_and_prob prog)
+
+let test_nthbit3 _ =
+  let prog = "
+    let a = int(2, 1) in nth_bit(int(2,1), a)" in
+  assert_feq 1.0 (parse_and_prob prog)
+
+let test_nthbit4 _ =
+  let prog = "
+    let a = int(2, 1) in nth_bit(int(2,0), a)" in
+  assert_feq 0.0 (parse_and_prob prog)
 
 
 let test_caesar _ =
@@ -560,6 +583,8 @@ let expression_tests =
   "test_rightshift_1">::test_rightshift_1;
   "test_rightshift_2">::test_rightshift_2;
   "test_rightshift_3">::test_rightshift_3;
+  "test_rightshift_4">::test_rightshift_4;
+  "test_rightshift_5">::test_rightshift_5;
 
   "test_fcall1">::test_fcall1;
   "test_fcall2">::test_fcall2;
@@ -571,6 +596,8 @@ let expression_tests =
 
   "test_nthbit1">::test_nthbit1;
   "test_nthbit2">::test_nthbit2;
+  "test_nthbit3">::test_nthbit3;
+  "test_nthbit4">::test_nthbit4;
 
   "test_caesar">::test_caesar;
   "test_alarm">::test_alarm;

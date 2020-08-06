@@ -548,7 +548,7 @@ let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) 
     let id = Format.sprintf "rightshift_%s" (fresh ()) in
     let rec h depth : CG.expr =
       if depth = sz - 1 then
-        if (depth - sz < 0) then False else nth_bit sz (depth - amt) (Ident(id))
+        if (depth - amt < 0) then False else nth_bit sz (depth - amt) (Ident(id))
       else if depth < amt || amt >= sz then Tup(False, h (depth+1))
       else Tup(nth_bit sz (depth - amt) (Ident(id)), h (depth+1)) in
     Let(id, sube, h 0)
