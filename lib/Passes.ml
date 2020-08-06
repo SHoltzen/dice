@@ -207,6 +207,9 @@ and
   tast = EG.typ * ast
 [@@deriving sexp_of]
 
+let string_of_tast (a: tast) =
+  Sexp.to_string_hum (sexp_of_tast a)
+
 type arg = EG.arg
 [@@deriving sexp_of]
 
@@ -393,9 +396,6 @@ let rec and_of_l l =
   | [x] -> x
   | x::xs -> CG.And(x, and_of_l xs)
 
-(*  00   01   10
-    [0.1; 0.4; 0.5] *)
-
 let rec gen_discrete mgr (l: float List.t) =
   let open Cudd in
   let open CG in
@@ -440,12 +440,13 @@ let rec gen_discrete mgr (l: float List.t) =
 
 
 let rec nth_snd i inner =
+  assert (i >= 0);
   match i with
     0 -> inner
   | n -> CG.Snd (nth_snd (n-1) inner)
 
 let nth_bit sz n e : CG.expr =
-  assert (n < sz);
+  assert (n < sz && n >= 0);
   if n = sz-1 then nth_snd n (e) else Fst(nth_snd n (e))
 
 let gen_adder sz a b : CG.expr =
@@ -513,6 +514,8 @@ let extract_sz t =
 type external_ctx = Cudd.Man.dt
 
 let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) : CG.expr =
+  (* Format.printf "converting %s\n" (string_of_tast (t,e));
+   * flush_all (); *)
   match e with
   | And(_, e1, e2) ->
     let s1 = from_external_expr_h ctx tenv e1 in
@@ -529,25 +532,26 @@ let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) 
   | LeftShift(_, e, 0) -> from_external_expr_h ctx tenv e
   | LeftShift(_, e, amt) ->
     let sube = from_external_expr_h ctx tenv e in
-    if amt = 0 then sube else
-      let sz = extract_sz t in
-      let id = Format.sprintf "leftshift_%s" (fresh ()) in
-      let rec h depth : CG.expr =
-        if depth = sz - 1 then False
-        else if depth + amt >= sz then Tup(False, h (depth+1))
-        else Tup(nth_bit sz (depth+amt) (Ident(id)), h (depth+1)) in
-      Let(id, sube, h 0)
+    assert (amt > 0);
+    let sz = extract_sz t in
+    let id = Format.sprintf "leftshift_%s" (fresh ()) in
+    let rec h depth : CG.expr =
+      if depth = sz - 1 then False
+      else if depth + amt >= sz then Tup(False, h (depth+1))
+      else Tup(nth_bit sz (depth+amt) (Ident(id)), h (depth+1)) in
+    Let(id, sube, h 0)
   | RightShift(_, e, 0) -> from_external_expr_h ctx tenv e
   | RightShift(_, e, amt) ->
+    assert (amt > 0);
     let sube = from_external_expr_h ctx tenv e in
-    if amt = 0 then sube else
-      let sz = extract_sz t in
-      let id = Format.sprintf "rightshift_%s" (fresh ()) in
-      let rec h depth : CG.expr =
-        if depth = sz - 1 then nth_bit sz (depth - amt) (Ident(id))
-        else if depth < amt then Tup(False, h (depth+1))
-        else Tup(nth_bit sz (depth - amt) (Ident(id)), h (depth+1)) in
-      Let(id, sube, h 0)
+    let sz = extract_sz t in
+    let id = Format.sprintf "rightshift_%s" (fresh ()) in
+    let rec h depth : CG.expr =
+      if depth = sz - 1 then
+        if (depth - sz < 0) then False else nth_bit sz (depth - amt) (Ident(id))
+      else if depth < amt || amt >= sz then Tup(False, h (depth+1))
+      else Tup(nth_bit sz (depth - amt) (Ident(id)), h (depth+1)) in
+    Let(id, sube, h 0)
   | Plus(_, e1, e2) ->
     let sz = extract_sz (fst e1) in
     gen_adder sz (from_external_expr_h ctx tenv e1) (from_external_expr_h ctx tenv e2)
@@ -586,7 +590,7 @@ let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) 
     let sz = extract_sz t1 in
     let n1 = fresh () and n2 = fresh () in
     let rec h idx : CG.expr =
-      if idx = sz then False
+      if idx >= sz then False
       else Ite(And(nth_bit sz idx (Ident(n1)), Not(nth_bit sz idx (Ident n2))),
                False,
                Ite(And(Not(nth_bit sz idx (Ident(n1))), nth_bit sz idx (Ident n2)), True,
@@ -616,7 +620,10 @@ let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) 
   | Snd(_, e) -> Snd(from_external_expr_h ctx tenv e)
   | Fst(_, e) -> Fst(from_external_expr_h ctx tenv e)
   | Tup(_, e1, e2) -> Tup(from_external_expr_h ctx tenv e1, from_external_expr_h ctx tenv e2)
-  | FuncCall(_, "nth_bit", [(_, Int(_, sz, v)); e2]) ->
+  | FuncCall(src, "nth_bit", [(_, Int(_, sz, v)); e2]) ->
+    if v >= sz then
+      (raise (EG.Type_error (Format.sprintf "Type error at line %d column %d: nth_bit exceeds maximum bit size"
+                               src.startpos.pos_lnum src.startpos.pos_cnum)));
     let internal = from_external_expr_h ctx tenv e2 in
     nth_bit sz v internal
   | FuncCall(_, id, args) -> FuncCall(id, List.map args ~f:(fun i -> from_external_expr_h ctx tenv i))
@@ -633,7 +640,8 @@ let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) 
 let from_external_expr mgr in_func (env: EG.tenv) (e: EG.eexpr) : (EG.typ * CG.expr) =
   let ctx = if in_func then {in_func=true} else {in_func=false} in
   let (typ, e) = type_of ctx env e in
-  (typ, from_external_expr_h mgr Map.Poly.empty (typ, e))
+  let r = (typ, from_external_expr_h mgr Map.Poly.empty (typ, e)) in
+  r
 
 let rec from_external_typ (t:EG.typ) : CG.typ =
   match t with

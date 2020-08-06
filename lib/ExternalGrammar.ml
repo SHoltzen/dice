@@ -109,6 +109,8 @@ let get_src e =
   | Tup(s, _, _) -> s
   | Iter(s, _, _, _) -> s
   | FuncCall(s, _, _) -> s
+  | LeftShift(s, _, _) -> s
+  | RightShift(s, _, _) -> s
 
 
 

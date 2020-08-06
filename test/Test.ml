@@ -239,6 +239,11 @@ let test_rightshift_2 _ =
   let prog = "let x = int(4, 12) in let y = x >> 1 in y == int(4, 6)" in
   assert_feq 1.0 (parse_and_prob prog)
 
+let test_rightshift_3 _ =
+  let prog = "let x = int(4, 12) in let y = x >> 5 in y == int(4, 0)" in
+  assert_feq 1.0 (parse_and_prob prog)
+
+
 
 let test_fcall1 _ =
   let prog = "
@@ -554,6 +559,7 @@ let expression_tests =
 
   "test_rightshift_1">::test_rightshift_1;
   "test_rightshift_2">::test_rightshift_2;
+  "test_rightshift_3">::test_rightshift_3;
 
   "test_fcall1">::test_fcall1;
   "test_fcall2">::test_fcall2;
