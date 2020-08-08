@@ -12,7 +12,9 @@ Then, install the following dependencies from `opam`:
 
 ```
 opam init   # must be performed before installing opam packages
+opam switch 4.09  # ocaml 4.09 is required
 eval `opam config env`     # optional: add this line to your .bashrc
+opam depext mlcuddidl
 opam install ounit core ppx_sexp_conv sexplib core_bench menhir ppx_deriving
 ```
 
