@@ -179,6 +179,37 @@ let bench_ladder inline_functions =
     )
 
 
+let gen_motiv n =
+  let prog = ref "
+fun motiv(x: bool) {
+  if x then flip 0.2 else flip 0.3
+}
+      let x = flip 0.1 in
+" in
+  for x = 1 to n do
+      let new_ln = Format.sprintf "let x = motiv(x) in" in
+      prog := Format.sprintf "%s\n%s" !prog new_ln;
+  done;
+prog := Format.sprintf "%s\n%s" !prog "x" ;
+  parse_with_error (Lexing.from_string !prog)
+
+let bench_motiv inline_functions =
+  Format.printf "Length\tTime (ms)\tBDD Size\n";
+  let lst = [1; 100; 200; 300; 400; 500; 700; 800; 900; 1000; 2000; 3000; 4000; 5000] in
+  List.iter lst ~f:(fun len ->
+      let caesar = gen_motiv (len + 1) in
+      let inlined = if inline_functions then Passes.inline_functions caesar else caesar in
+      let t0 = Unix.gettimeofday () in
+      let res = CoreGrammar.from_external_prog inlined
+                |> CoreGrammar.compile_program in
+      let sz = VarState.state_size [res.body.state] in
+      let t1 = Unix.gettimeofday () in
+      let numpaths = Passes.num_paths caesar in
+      print_endline (Format.sprintf "%d\t%f\t%s\t%d" len ((t1 -. t0) *. 1000.0)
+                       (LogProbability.to_string 10.0 numpaths) sz);
+    )
+
+
 
 let command =
   Command.basic
@@ -191,6 +222,7 @@ let command =
      and diamond = flag "-diamond" no_arg ~doc:" run diamond"
      and ladder = flag "-ladder" no_arg ~doc:" run ladder"
      and baselines = flag "-baselines" no_arg ~doc:" run the baseline experiments"
+     and motiv = flag "-motivating" no_arg ~doc:" run the motivating example"
      in fun () ->
        if baselines then (
          Format.printf "****************************************[Baselines]****************************************\n";
@@ -214,7 +246,12 @@ let command =
          Format.printf "****************************************[Ladder Inlined]****************************************\n";
          bench_ladder true;
          Format.printf "****************************************[Ladder Non-Inlined]****************************************\n";
-         bench_ladder false))
+         bench_ladder false);
+       if motiv then (
+         Format.printf "****************************************[Motivating]****************************************\n";
+         bench_ladder true
+       )
+    )
 
 let () =
   Command.run ~version:"1.0" command
