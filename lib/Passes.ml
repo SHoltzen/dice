@@ -66,8 +66,11 @@ let inline_functions (p: EG.program) =
     | Fst(s, e) -> Fst(s, helper e)
     | Tup(s, e1, e2) -> Tup(s, helper e1, helper e2)
     | Iter(s, f, init, k) -> helper (expand_iter s f init k)
+    | FuncCall(s, "nth_bit", args) ->
+      FuncCall(s, "nth_bit", List.map args ~f:helper)
     | FuncCall(s, id, args) ->
-      let cur_f = Map.Poly.find_exn function_map id in
+      let cur_f = try Map.Poly.find_exn function_map id
+        with _ -> failwith (Format.sprintf "Internal error: could not find inlined function %s" id) in
       let inlined = helper cur_f.body in
       List.fold (List.zip_exn cur_f.args args) ~init:inlined ~f:(fun acc (arg, v) -> Let(s, fst arg, v, acc)) in
   {functions=[]; body=helper p.body}
