@@ -128,7 +128,7 @@ fun diamond(s1: bool) {
 
 let bench_diamond inline_functions =
   Format.printf "Length\tTime (ms)\tBDD Size\n";
-  let lst = [1; 100; 200; 300; 400; 500; 700; 800; 900; 1000; 2000; 3000; 4000; 5000] in
+  let lst = [1; 100; 200; 300; 400; 500; 700; 800; 900; 1000; 2000; 3000; 4000; 5000; 7500; 10000; 20000] in
   (* let lst = [10000] in *)
   List.iter lst ~f:(fun len ->
       let caesar = gen_diamond (len + 1) in
