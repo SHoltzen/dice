@@ -1,5 +1,5 @@
 (executable
- (libraries core cudd sexplib menhirLib diceLib)
+ (libraries core cudd sexplib menhirLib diceLib yojson)
  (name dice)
  (preprocess (pps ppx_jane)))
 
