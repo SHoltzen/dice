@@ -1,0 +1,87 @@
+
+var encrypt = function(key, observedChar) {
+      var sampledChar = sample(Discrete({ps: [0.08167, 0.01492, 0.02782,
+                                   0.04253, 0.12702, 0.02228, 0.02015, 0.06094, 
+                                   0.06966, 0.0153, 0.0772,
+                                   0.04025, 0.02406, 0.06749,
+                                   0.07507, 0.01929, 0.00095, 0.05987,
+                                   0.06327, 0.09056, 0.02758, 0.00978, 
+                                   0.02360, 0.00150, 0.01974, 0.00074]}));
+      var encrypted = (sampledChar + key) % 26;
+      condition(encrypted == observedChar)
+};
+
+
+var main = function() { 
+  var key1 = sample(Discrete({ps: [0.038461538,0.038461538,0.038461538,
+                                   0.038461538,0.038461538,0.038461538,
+                                   0.038461538,0.038461538,0.038461538,
+                                   0.038461538,0.038461538,0.038461538,
+                                   0.038461538,0.038461538,0.038461538,
+                                   0.038461538,0.038461538,0.038461538,
+                                   0.038461538,0.038461538,0.038461538,
+                                   0.038461538,0.038461538,0.038461538, 
+                                   0.038461538,0.038461538]}));
+
+    encrypt(key1, 0);
+    encrypt(key1, 1);
+    encrypt(key1, 2);
+    encrypt(key1, 3);
+    encrypt(key1, 4);
+    encrypt(key1, 5);
+    encrypt(key1, 6);
+    encrypt(key1, 7);
+    encrypt(key1, 8);
+    encrypt(key1, 9);
+    encrypt(key1, 10);
+    encrypt(key1, 11);
+    encrypt(key1, 12);
+    encrypt(key1, 13);
+    encrypt(key1, 14);
+    encrypt(key1, 15);
+    encrypt(key1, 16);
+    encrypt(key1, 17);
+    encrypt(key1, 18);
+    encrypt(key1, 19);
+    encrypt(key1, 20);
+    encrypt(key1, 21);
+    encrypt(key1, 22);
+    encrypt(key1, 23);
+    encrypt(key1, 24);
+    encrypt(key1, 25);
+
+    encrypt(key1, 0);
+    encrypt(key1, 1);
+    encrypt(key1, 2);
+    encrypt(key1, 3);
+    encrypt(key1, 4);
+    encrypt(key1, 5);
+    encrypt(key1, 6);
+    encrypt(key1, 7);
+    encrypt(key1, 8);
+    encrypt(key1, 9);
+    encrypt(key1, 10);
+    encrypt(key1, 11);
+    encrypt(key1, 12);
+    encrypt(key1, 13);
+    encrypt(key1, 14);
+    encrypt(key1, 15);
+    encrypt(key1, 16);
+    encrypt(key1, 17);
+    encrypt(key1, 18);
+    encrypt(key1, 19);
+    encrypt(key1, 20);
+    encrypt(key1, 21);
+    encrypt(key1, 22);
+    encrypt(key1, 23);
+    encrypt(key1, 24);
+    encrypt(key1, 25);
+
+  return key1;
+};
+
+var dist = Infer({method: 'rejection'}, function() {
+  return main();
+});
+
+display(dist);

@@ -1,0 +1,51 @@
+var ladder = function(i) {
+    if (i.a) {
+        var output = flip(0.5);
+        var fail = flip(0.001);
+        if (fail) {
+            return {a: false, b: false};
+        } else {
+            return {a: output, b: !output};
+        }
+    } else if(i.b) {
+       var output = flip(0.5);
+       return {a: output, b: !output};
+    } else {
+       return {a: false, b: false};
+    }
+};
+
+
+var main = function() {
+    var r1 = ladder({a: true, b: false});
+    var r2 = ladder(r1);
+    var r3 = ladder(r2);
+    var r4 = ladder(r3);
+    var r5 = ladder(r4);
+    var r6 = ladder(r5);
+    var r7 = ladder(r6);
+    var r8 = ladder(r7);
+    var r9 = ladder(r8);
+    var r10 = ladder(r9);
+
+    var r11 = ladder(r10);
+    var r12 = ladder(r11);
+    var r13 = ladder(r12);
+    var r14 = ladder(r13);
+    var r15 = ladder(r14);
+    var r16 = ladder(r15);
+    var r17 = ladder(r16);
+    var r18 = ladder(r17);
+    var r19 = ladder(r18);
+    var r20 = ladder(r19);
+    var r21 = ladder(r20);
+    var r22 = ladder(r21);
+    var r23 = ladder(r22);
+    return r23;
+}
+
+var dist = Infer({method: 'enumerate', samples: 10}, function() {
+  return main();
+});
+
+display(dist);

@@ -1,0 +1,149 @@
+var diamondnetwork = function(i1) {
+    if(!i1) {
+        return false;
+    }
+    var i2 = flip(0.5);
+    var i3 = !i2;
+    if(i2) {
+       var fail = flip(0.0001);
+       if(fail) {
+          return false;
+       } else {
+         return true;
+       }
+    } else {
+      return true;
+    }
+};
+
+var main = function() {
+    var r1 = diamondnetwork(true);
+    var r2 = diamondnetwork(r1);
+    var r3 = diamondnetwork(r2);
+    var r4 = diamondnetwork(r3);
+    var r5 = diamondnetwork(r4);
+    var r6 = diamondnetwork(r5);
+    var r7 = diamondnetwork(r6);
+    var r8 = diamondnetwork(r7);
+    var r9 = diamondnetwork(r8);
+    var r10 = diamondnetwork(r9);
+
+
+    var r11 = diamondnetwork(r10);
+    var r12 = diamondnetwork(r11);
+    var r13 = diamondnetwork(r12);
+    var r14 = diamondnetwork(r13);
+    var r15 = diamondnetwork(r14);
+    var r16 = diamondnetwork(r15);
+    var r17 = diamondnetwork(r16);
+    var r18 = diamondnetwork(r17);
+    var r19 = diamondnetwork(r18);
+    var r20 = diamondnetwork(r19);
+
+    var r21 = diamondnetwork(r20);
+    var r22 = diamondnetwork(r21);
+    var r23 = diamondnetwork(r22);
+//    var r24 = diamondnetwork(r23);
+//    var r25 = diamondnetwork(r24);
+//    var r26 = diamondnetwork(r25);
+//    var r27 = diamondnetwork(r26);
+//    var r28 = diamondnetwork(r27);
+//    var r29 = diamondnetwork(r28);
+//    var r30 = diamondnetwork(r29);
+return r23;
+//
+//    var r31 = diamondnetwork(r30);
+//    var r32 = diamondnetwork(r31);
+//    var r33 = diamondnetwork(r32);
+//    var r34 = diamondnetwork(r33);
+//    var r35 = diamondnetwork(r34);
+//    var r36 = diamondnetwork(r35);
+//    var r37 = diamondnetwork(r36);
+//    var r38 = diamondnetwork(r37);
+//    var r39 = diamondnetwork(r38);
+//    var r40 = diamondnetwork(r39);
+//
+//
+//    var r41 = diamondnetwork(r40);
+//    var r42 = diamondnetwork(r41);
+//    var r43 = diamondnetwork(r42);
+//    var r44 = diamondnetwork(r43);
+//    var r45 = diamondnetwork(r44);
+//    var r46 = diamondnetwork(r45);
+//    var r47 = diamondnetwork(r46);
+//    var r48 = diamondnetwork(r47);
+//    var r49 = diamondnetwork(r48);
+//    var r50 = diamondnetwork(r49);
+//    var r51 = diamondnetwork(r50);
+//    var r52 = diamondnetwork(r51);
+//    var r53 = diamondnetwork(r52);
+//    var r54 = diamondnetwork(r53);
+//    var r55 = diamondnetwork(r54);
+//    var r56 = diamondnetwork(r55);
+//    var r57 = diamondnetwork(r56);
+//    var r58 = diamondnetwork(r57);
+//    var r59 = diamondnetwork(r58);
+//    var r60 = diamondnetwork(r59);
+//
+//    var r61 = diamondnetwork(r60);
+//    var r62 = diamondnetwork(r61);
+//    var r63 = diamondnetwork(r62);
+//    var r64 = diamondnetwork(r63);
+//    var r65 = diamondnetwork(r64);
+//    var r66 = diamondnetwork(r65);
+//    var r67 = diamondnetwork(r66);
+//    var r68 = diamondnetwork(r67);
+//    var r69 = diamondnetwork(r68);
+//    var r70 = diamondnetwork(r69);
+//
+//    var r71 = diamondnetwork(r70);
+//    var r72 = diamondnetwork(r71);
+//    var r73 = diamondnetwork(r72);
+//    var r74 = diamondnetwork(r73);
+//    var r75 = diamondnetwork(r74);
+//    var r76 = diamondnetwork(r75);
+//    var r77 = diamondnetwork(r76);
+//    var r78 = diamondnetwork(r77);
+//    var r79 = diamondnetwork(r78);
+//    var r80 = diamondnetwork(r79);
+//
+//    var r81 = diamondnetwork(r80);
+//    var r82 = diamondnetwork(r81);
+//    var r83 = diamondnetwork(r82);
+//    var r84 = diamondnetwork(r83);
+//    var r85 = diamondnetwork(r84);
+//    var r86 = diamondnetwork(r85);
+//    var r87 = diamondnetwork(r86);
+//    var r88 = diamondnetwork(r87);
+//    var r89 = diamondnetwork(r88);
+//    var r90 = diamondnetwork(r89);
+//
+//   r91 = diamondnetwork(r90);
+//   r92 = diamondnetwork(r91);
+//   r93 = diamondnetwork(r92);
+//   r94 = diamondnetwork(r93);
+//   r95 = diamondnetwork(r94);
+//   r96 = diamondnetwork(r95);
+//   r97 = diamondnetwork(r96);
+//   r98 = diamondnetwork(r97);
+//   r99 = diamondnetwork(r98);
+//    r100 = diamondnetwork(r99);
+//
+//    r101 = diamondnetwork(r100);
+//    r102 = diamondnetwork(r101);
+//    r103 = diamondnetwork(r102);
+//    r104 = diamondnetwork(r103);
+//    r105 = diamondnetwork(r104);
+//    r106 = diamondnetwork(r105);
+//    r107 = diamondnetwork(r106);
+//    r108 = diamondnetwork(r107);
+//    r109 = diamondnetwork(r108);
+//    r110 = diamondnetwork(r109);
+//    return r110;
+}
+
+var dist = Infer({method: 'enumerate', samples: 10}, function() {
+  return main();
+});
+
+display(dist);
