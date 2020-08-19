@@ -8,6 +8,7 @@ B /Users/sholtzen/.opam/4.09.0+flambda/lib/base_bigstring
 B /Users/sholtzen/.opam/4.09.0+flambda/lib/base_quickcheck
 B /Users/sholtzen/.opam/4.09.0+flambda/lib/bin_prot
 B /Users/sholtzen/.opam/4.09.0+flambda/lib/bin_prot/shape
+B /Users/sholtzen/.opam/4.09.0+flambda/lib/biniou
 B /Users/sholtzen/.opam/4.09.0+flambda/lib/bytes
 B /Users/sholtzen/.opam/4.09.0+flambda/lib/core
 B /Users/sholtzen/.opam/4.09.0+flambda/lib/core/error_checking_mutex
@@ -17,6 +18,7 @@ B /Users/sholtzen/.opam/4.09.0+flambda/lib/core_kernel/bounded_int_table
 B /Users/sholtzen/.opam/4.09.0+flambda/lib/core_kernel/flags
 B /Users/sholtzen/.opam/4.09.0+flambda/lib/core_kernel/version_util
 B /Users/sholtzen/.opam/4.09.0+flambda/lib/cudd
+B /Users/sholtzen/.opam/4.09.0+flambda/lib/easy-format
 B /Users/sholtzen/.opam/4.09.0+flambda/lib/fieldslib
 B /Users/sholtzen/.opam/4.09.0+flambda/lib/jane-street-headers
 B /Users/sholtzen/.opam/4.09.0+flambda/lib/menhirLib
@@ -48,7 +50,8 @@ B /Users/sholtzen/.opam/4.09.0+flambda/lib/stdlib-shims
 B /Users/sholtzen/.opam/4.09.0+flambda/lib/time_now
 B /Users/sholtzen/.opam/4.09.0+flambda/lib/typerep
 B /Users/sholtzen/.opam/4.09.0+flambda/lib/variantslib
-B ../_build/default/bench/.dicebench.eobjs/byte
+B /Users/sholtzen/.opam/4.09.0+flambda/lib/yojson
+B ../_build/default/bin/.dice.eobjs/byte
 B ../_build/default/lib/.diceLib.objs/byte
 S /Users/sholtzen/.opam/4.09.0+flambda/lib/base
 S /Users/sholtzen/.opam/4.09.0+flambda/lib/base/base_internalhash_types
@@ -59,6 +62,7 @@ S /Users/sholtzen/.opam/4.09.0+flambda/lib/base_bigstring
 S /Users/sholtzen/.opam/4.09.0+flambda/lib/base_quickcheck
 S /Users/sholtzen/.opam/4.09.0+flambda/lib/bin_prot
 S /Users/sholtzen/.opam/4.09.0+flambda/lib/bin_prot/shape
+S /Users/sholtzen/.opam/4.09.0+flambda/lib/biniou
 S /Users/sholtzen/.opam/4.09.0+flambda/lib/bytes
 S /Users/sholtzen/.opam/4.09.0+flambda/lib/core
 S /Users/sholtzen/.opam/4.09.0+flambda/lib/core/error_checking_mutex
@@ -68,6 +72,7 @@ S /Users/sholtzen/.opam/4.09.0+flambda/lib/core_kernel/bounded_int_table
 S /Users/sholtzen/.opam/4.09.0+flambda/lib/core_kernel/flags
 S /Users/sholtzen/.opam/4.09.0+flambda/lib/core_kernel/version_util
 S /Users/sholtzen/.opam/4.09.0+flambda/lib/cudd
+S /Users/sholtzen/.opam/4.09.0+flambda/lib/easy-format
 S /Users/sholtzen/.opam/4.09.0+flambda/lib/fieldslib
 S /Users/sholtzen/.opam/4.09.0+flambda/lib/jane-street-headers
 S /Users/sholtzen/.opam/4.09.0+flambda/lib/menhirLib
@@ -99,6 +104,7 @@ S /Users/sholtzen/.opam/4.09.0+flambda/lib/stdlib-shims
 S /Users/sholtzen/.opam/4.09.0+flambda/lib/time_now
 S /Users/sholtzen/.opam/4.09.0+flambda/lib/typerep
 S /Users/sholtzen/.opam/4.09.0+flambda/lib/variantslib
+S /Users/sholtzen/.opam/4.09.0+flambda/lib/yojson
 S .
 S ../lib
 FLG -ppx '/Users/sholtzen/Documents/Programming/dice/_build/default/.ppx/57ef275c515ec1fe105f6ff0979f5a61/ppx.exe --as-ppx'
