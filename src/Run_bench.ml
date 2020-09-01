@@ -6,30 +6,37 @@ open Util
 open Lexing
 open Lexer
 
+let bench_prog (p: CoreGrammar.program) =
+  let n = 5 in
+  let i = (List.init n ~f:(fun i -> i)) in
+  let l = List.map i ~f:(fun i ->
+    let t0 = Unix.gettimeofday () in
+    let _res = CoreGrammar.compile_program p in
+    let t1 = Unix.gettimeofday () in
+    (t1 -. t0)) in
+  let fn = float_of_int n in
+  let mean =  (List.fold l ~init:0.0 ~f:(+.)) /. fn in
+  let stddev = Float.sqrt ((List.fold l ~init:0.0 ~f:(fun acc i -> acc +. Float.square (i -. mean))) /. fn) in
+  (mean, stddev)
+
+
 let run_benches () =
   let benches = dir_contents "benchmarks"
                 |> List.filter ~f:(String.is_suffix ~suffix:".dice")
-                |> List.map ~f:(fun filename -> (filename, (fun () ->
-                    let contents = In_channel.read_all filename in
-                    let buf = Lexing.from_string contents in
-                    let parsed = try Parser.program Lexer.token buf with
-                      | SyntaxError msg ->
-                        fprintf stderr "%a: %s\n" print_position buf msg;
-                        failwith (Format.sprintf "Error parsing %s" contents)
-                      | Parser.Error ->
-                        fprintf stderr "%a: syntax error\n" print_position buf;
-                        failwith (Format.sprintf "Error parsing %s" contents) in
-                    (parsed, CoreGrammar.compile_program (CoreGrammar.from_external_prog parsed))
-                  ))) in
-  print_endline (Format.sprintf "Benchmark\tTime (s)\t#Paths (log10)\tBDD Size");
+                |> List.map ~f:(fun filename -> (filename, In_channel.read_all filename)) in
+  print_endline (Format.sprintf "Benchmark\tTime (s)\tStddev (s)");
   List.iter benches ~f:(fun (name, bench) ->
-      let t0 = Unix.gettimeofday () in
-      let (parsed, res) = bench () in
-      let st = [res.body.state; VarState.Leaf(VarState.BddLeaf(res.body.z))] in
-      let sz = VarState.state_size st in
-      let t1 = Unix.gettimeofday () in
-      print_endline (Format.sprintf "%s\t%f\t%s\t%d"
-                       name (t1 -. t0) (LogProbability.to_string 10.0 (Passes.num_paths parsed)) sz);
+      let buf = Lexing.from_string bench in
+      let parsed = try Parser.program Lexer.token buf with
+        | SyntaxError msg ->
+          fprintf stderr "%a: %s\n" print_position buf msg;
+          failwith (Format.sprintf "Error parsing %s" bench)
+        | Parser.Error ->
+          fprintf stderr "%a: syntax error\n" print_position buf;
+          failwith (Format.sprintf "Error parsing %s" bench) in
+
+      let (t, stddev) = bench_prog (CoreGrammar.from_external_prog parsed) in
+      print_endline (Format.sprintf "%s\t%f\t%f" name t stddev)
     )
 
 let gen_caesar (str: int list) =
@@ -52,19 +59,13 @@ let key1  = discrete(0.038461538,0.038461538,0.038461538,0.038461538,0.038461538
 (** [bench_caesar] runs the Caesar cipher scaling benchmarks.
     [inline_functions] is true if functions are inlined, false otherwise *)
 let bench_caesar inline_functions =
-  Format.printf "Length\tTime (s)\tBDD Size\n";
+  Format.printf "Length\tTime (s)\tStddev\n";
   let lst = [1; 100; 250; 500; 1000; 2500; 5000; 10000] in
   List.iter lst ~f:(fun len ->
-      let t0 = Unix.gettimeofday () in
       let caesar = gen_caesar (List.init len ~f:(fun i -> Random.int_incl 0 25)) in
-      let res = (if inline_functions then Passes.inline_functions caesar else caesar)
-                |> CoreGrammar.from_external_prog
-                |> CoreGrammar.compile_program in
-      let sz = Cudd.Bdd.size res.body.z in
-      let t1 = Unix.gettimeofday () in
-      let numpaths = Passes.num_paths caesar in
-      print_endline (Format.sprintf "%d\t%f\t%s\t%d" len ((t1 -. t0) *. 1000.0)
-                       (LogProbability.to_string 10.0 numpaths) sz);
+      let inlined = (if inline_functions then Passes.inline_functions caesar else caesar) in
+      let (t, stddev) = bench_prog (CoreGrammar.from_external_prog inlined) in
+      Format.printf "%d\t%f\t%f\n" len t stddev
     )
 
 
@@ -90,19 +91,13 @@ let key1  = discrete(0.038461538,0.038461538,0.038461538,0.038461538,0.038461538
     in the encryption. [inline_functions] is true if functions are inlined,
     false otherwise *)
 let bench_caesar_error inline_functions =
-  Format.printf "Length\tTime (ms)\tBDD Size\n";
+  Format.printf "Length\tTime (s)\tStddev\n";
   let lst = [1; 100; 250; 500; 1000; 2500; 5000; 10000] in
   List.iter lst ~f:(fun len ->
-      let t0 = Unix.gettimeofday () in
       let caesar = gen_caesar_error (List.init len ~f:(fun i -> Random.int_incl 0 25)) in
-      let res = (if inline_functions then Passes.inline_functions caesar else caesar)
-                |> CoreGrammar.from_external_prog
-                |> CoreGrammar.compile_program in
-      let sz = Cudd.Bdd.size res.body.z in
-      let t1 = Unix.gettimeofday () in
-      let numpaths = Passes.num_paths caesar in
-      print_endline (Format.sprintf "%d\t%f\t%s\t%d" len ((t1 -. t0) *. 1000.0)
-                       (LogProbability.to_string 10.0 numpaths) sz);
+      let inlined = (if inline_functions then Passes.inline_functions caesar else caesar) in
+      let (t, stddev) = bench_prog (CoreGrammar.from_external_prog inlined) in
+      Format.printf "%d\t%f\t%f\n" len t stddev
     )
 
 
@@ -125,19 +120,14 @@ fun diamond(s1: bool) {
   parse_with_error (Lexing.from_string !prog)
 
 let bench_diamond inline_functions =
-  Format.printf "Length\tTime (ms)\tBDD Size\n";
+  Format.printf "Length\tTime (s)\tStddev\n";
   let lst = [1; 100; 200; 300; 400; 500; 700; 800; 900; 1000; 2000; 3000; 4000; 5000] in
   List.iter lst ~f:(fun len ->
-      let caesar = gen_diamond (len + 1) in
-      let inlined = if inline_functions then Passes.inline_functions caesar else caesar in
-      let t0 = Unix.gettimeofday () in
-      let res = CoreGrammar.from_external_prog inlined
-                |> CoreGrammar.compile_program in
-      let sz = VarState.state_size [res.body.state] in
-      let t1 = Unix.gettimeofday () in
-      let numpaths = Passes.num_paths caesar in
-      print_endline (Format.sprintf "%d\t%f\t%s\t%d" len ((t1 -. t0) *. 1000.0)
-                       (LogProbability.to_string 10.0 numpaths) sz);
+      let caesar = gen_diamond len in
+      let inlined = (if inline_functions then Passes.inline_functions caesar else caesar) in
+      let (t, stddev) = bench_prog (CoreGrammar.from_external_prog inlined) in
+      flush_all ();
+      Format.printf "%d\t%f\t%f\n" len t stddev
     )
 
 
@@ -163,19 +153,13 @@ prog := Format.sprintf "%s\n%s" !prog "x" ;
   parse_with_error (Lexing.from_string !prog)
 
 let bench_ladder inline_functions =
-  Format.printf "Length\tTime (ms)\tBDD Size\n";
+  Format.printf "Length\tTime (s)\tStddev\n";
   let lst = [1; 100; 200; 300; 400; 500; 700; 800; 900; 1000; 2000; 3000; 4000; 5000] in
   List.iter lst ~f:(fun len ->
-      let caesar = gen_ladder (len + 1) in
-      let inlined = if inline_functions then Passes.inline_functions caesar else caesar in
-      let t0 = Unix.gettimeofday () in
-      let res = CoreGrammar.from_external_prog inlined
-                |> CoreGrammar.compile_program in
-      let sz = VarState.state_size [res.body.state] in
-      let t1 = Unix.gettimeofday () in
-      let numpaths = Passes.num_paths caesar in
-      print_endline (Format.sprintf "%d\t%f\t%s\t%d" len ((t1 -. t0) *. 1000.0)
-                       (LogProbability.to_string 10.0 numpaths) sz);
+      let caesar = gen_ladder len in
+      let inlined = (if inline_functions then Passes.inline_functions caesar else caesar) in
+      let (t, stddev) = bench_prog (CoreGrammar.from_external_prog inlined) in
+      Format.printf "%d\t%f\t%f\n" len t stddev
     )
 
 
@@ -194,19 +178,13 @@ prog := Format.sprintf "%s\n%s" !prog "x" ;
   parse_with_error (Lexing.from_string !prog)
 
 let bench_motiv inline_functions =
-  Format.printf "Length\tTime (ms)\tBDD Size\n";
+  Format.printf "Length\tTime (s)\tStddev\n";
   let lst = [1; 100; 200; 300; 400; 500; 700; 800; 900; 1000; 2000; 3000; 4000; 5000] in
   List.iter lst ~f:(fun len ->
-      let caesar = gen_motiv (len + 1) in
-      let inlined = if inline_functions then Passes.inline_functions caesar else caesar in
-      let t0 = Unix.gettimeofday () in
-      let res = CoreGrammar.from_external_prog inlined
-                |> CoreGrammar.compile_program in
-      let sz = VarState.state_size [res.body.state] in
-      let t1 = Unix.gettimeofday () in
-      let numpaths = Passes.num_paths caesar in
-      print_endline (Format.sprintf "%d\t%f\t%s\t%d" len ((t1 -. t0) *. 1000.0)
-                       (LogProbability.to_string 10.0 numpaths) sz);
+      let caesar = gen_motiv len in
+      let inlined = (if inline_functions then Passes.inline_functions caesar else caesar) in
+      let (t, stddev) = bench_prog (CoreGrammar.from_external_prog inlined) in
+      Format.printf "%d\t%f\t%f\n" len t stddev
     )
 
 
