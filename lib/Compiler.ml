@@ -65,6 +65,11 @@ let rec gen_sym_type ctx (t:typ) : Bdd.dt btree =
     let s1 = gen_sym_type ctx t1 and s2 = gen_sym_type ctx t2 in
     Node(s1, s2)
 
+let rec is_const (st: Bdd.dt btree) =
+  match st with
+  | Leaf(v) -> Bdd.is_cst v
+  | Node(l, r) -> (is_const l) && (is_const r)
+
 let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled_expr =
   let binop_helper f e1 e2 =
     let c1 = compile_expr ctx tenv env e1 in
@@ -99,16 +104,21 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
 
   | Ite(g, thn, els) ->
     let cg = compile_expr ctx tenv env g in
-    let cthn = compile_expr ctx tenv env thn in
-    let cels = compile_expr ctx tenv env els in
-    let gbdd = extract_leaf cg.state in
-    let zipped = zip_tree cthn.state cels.state in
-    let v' = map_tree zipped (fun (thn_state, els_state) ->
-        Bdd.dor (Bdd.dand gbdd thn_state) (Bdd.dand (Bdd.dnot gbdd) els_state)
-      ) in
-    let z' = Bdd.dand cg.z (Bdd.dor (Bdd.dand cthn.z gbdd)
-                              (Bdd.dand cels.z (Bdd.dnot gbdd))) in
-    {state=v'; z=z'; flips = List.append cg.flips (List.append cthn.flips cels.flips)}
+    if is_const cg.state then
+      let v = extract_leaf cg.state in
+      let r = compile_expr ctx tenv env (if Bdd.is_true v then thn else els) in
+      {state=r.state; z=Bdd.dand cg.z r.z; flips = cg.flips @ r.flips}
+    else
+      let cthn = compile_expr ctx tenv env thn in
+      let cels = compile_expr ctx tenv env els in
+      let gbdd = extract_leaf cg.state in
+      let zipped = zip_tree cthn.state cels.state in
+      let v' = map_tree zipped (fun (thn_state, els_state) ->
+          Bdd.dor (Bdd.dand gbdd thn_state) (Bdd.dand (Bdd.dnot gbdd) els_state)
+        ) in
+      let z' = Bdd.dand cg.z (Bdd.dor (Bdd.dand cthn.z gbdd)
+                                (Bdd.dand cels.z (Bdd.dnot gbdd))) in
+      {state=v'; z=z'; flips = List.append cg.flips (List.append cthn.flips cels.flips)}
 
   | Fst(e) ->
     let c = compile_expr ctx tenv env e in
