@@ -653,10 +653,11 @@ let rec from_external_typ (t:EG.typ) : CG.typ =
     let l = List.init sz ~f:(fun _ -> CG.TBool) in
     let rec mk_dfs_typ l =
       match l with
-      | [] -> failwith "Internal Error: Invalid int type"
       | [x] -> x
       | x::xs ->
-        CG.TTuple(x, mk_dfs_typ xs) in
+        CG.TTuple(x, mk_dfs_typ xs)
+      | [] -> failwith "Internal Error: Invalid int type"
+    in
     mk_dfs_typ l
   | TTuple(t1, t2) -> TTuple(from_external_typ t1, from_external_typ t2)
   | _ -> failwith "Internal Error: unreachable"

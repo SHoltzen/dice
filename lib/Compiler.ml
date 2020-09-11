@@ -114,10 +114,9 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
       let gbdd = extract_leaf cg.state in
       let zipped = zip_tree cthn.state cels.state in
       let v' = map_tree zipped (fun (thn_state, els_state) ->
-          Bdd.dor (Bdd.dand gbdd thn_state) (Bdd.dand (Bdd.dnot gbdd) els_state)
+          Bdd.ite gbdd thn_state els_state
         ) in
-      let z' = Bdd.dand cg.z (Bdd.dor (Bdd.dand cthn.z gbdd)
-                                (Bdd.dand cels.z (Bdd.dnot gbdd))) in
+      let z' = Bdd.dand cg.z (Bdd.ite gbdd cthn.z cels.z) in
       {state=v'; z=z'; flips = List.append cg.flips (List.append cthn.flips cels.flips)}
 
   | Fst(e) ->

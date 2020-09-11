@@ -183,6 +183,53 @@ let bench_ladder inline_functions =
                        (LogProbability.to_string 10.0 numpaths) sz);
     )
 
+(* let gen_nb numvars numiter =
+ *   let typ = List.fold (List.init (numvars - 1) ~f:(fun i -> "bool")) ~init:"bool"
+ *       ~f:(fun acc _ -> Format.sprintf "(bool, %s)" acc) in
+ *   let l1 = List.map (List.init (numvars) ~f:(fun i -> float_of_int i)) ~f:(fun i ->
+ *       Format.sprintf "flip %f" (1.0 /. i)
+ *     ) in
+ *   let l2 = List.map (List.init (numvars) ~f:(fun i -> i)) ~f:(fun i ->
+ *       Format.sprintf "if flip %f then " (1.0 /. i)
+ *     ) in
+ *   let prog = ref "
+ * fun ladder(s1: bool, s2: bool) {
+ *       if s1 then
+ *         if flip 0.001 then
+ *           (false, false)
+ *         else
+ *            let f = flip 0.5 in (f, !f)
+ *       else if s2 then
+ *            let f = flip 0.5 in (f, !f)
+ *       else (false, false)
+ * }
+ *       let x = (true, false) in
+ * " in
+ *   for _ = 1 to n do
+ *       let new_ln = Format.sprintf "let x = ladder(fst x, snd x) in" in
+ *       prog := Format.sprintf "%s\n%s" !prog new_ln;
+ *   done;
+ * prog := Format.sprintf "%s\n%s" !prog "x" ;
+ *   parse_with_error (Lexing.from_string !prog)
+ * 
+ * let bench_nb inline_functions =
+ *   Format.printf "Length\tTime (ms)\tBDD Size\n";
+ *   let lst = [1; 100; 200; 300; 400; 500; 700; 800; 900; 1000; 2000; 3000; 4000; 5000] in
+ *   List.iter lst ~f:(fun len ->
+ *       let caesar = gen_ladder (len + 1) in
+ *       let inlined = if inline_functions then Passes.inline_functions caesar else caesar in
+ *       let t0 = Unix.gettimeofday () in
+ *       let res = Passes.from_external_prog inlined
+ *                 |> snd
+ *                 |> Compiler.compile_program in
+ *       let sz = VarState.state_size [res.body.state] in
+ *       let t1 = Unix.gettimeofday () in
+ *       let numpaths = Passes.num_paths caesar in
+ *       print_endline (Format.sprintf "%d\t%f\t%s\t%d" len ((t1 -. t0) *. 1000.0)
+ *                        (LogProbability.to_string 10.0 numpaths) sz);
+ *     ) *)
+
+
 
 
 let command =
