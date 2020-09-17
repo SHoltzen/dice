@@ -37,6 +37,7 @@ let ctx_man = Man.make_d ()
 
 let new_context ~lazy_eval () =
   let man = ctx_man in
+  (* Man.enable_autodyn man Man.REORDER_LINEAR; *)
   Man.disable_autodyn man;
   let weights = Hashtbl.Poly.create () in
   let names = Hashtbl.Poly.create () in
@@ -47,20 +48,11 @@ let new_context ~lazy_eval () =
    funcs = Hashtbl.Poly.create ();
    lazy_eval = lazy_eval}
 
-let new_var ctx =
-  Bdd.newvar ctx.man
-  (* match Stack.pop ctx.free_stack with
-   * | None -> Bdd.newvar ctx.man
-   * | Some(a) -> a *)
-
-let free_var _ _ = ()
-  (* Stack.push ctx.free_stack var *)
-
 (** generates a symbolic representation for a variable of the given type *)
 let rec gen_sym_type ctx (t:typ) : Bdd.dt btree =
   match t with
   | TBool ->
-    let bdd = new_var ctx in Leaf(bdd)
+    let bdd = Bdd.newvar ctx in Leaf(bdd)
   | TTuple(t1, t2) ->
     let s1 = gen_sym_type ctx t1 and s2 = gen_sym_type ctx t2 in
     Node(s1, s2)
@@ -134,7 +126,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     {state=v'; z=c.z; flips=c.flips}
 
   | Flip(f) ->
-    let new_f = new_var ctx in
+    let new_f = Bdd.newvar ctx.man in
     let var_lbl = Bdd.topvar new_f in
     let var_name = (Format.sprintf "f%d" !flip_id) in
     flip_id := !flip_id + 1;
@@ -148,17 +140,15 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
 
   | Let(x, e1, e2) ->
     let c1 = compile_expr ctx tenv env e1 in
-    let sz = VarState.state_size [c1.state; Leaf(c1.z)] in
-    let num_leaves = List.length (VarState.collect_leaves c1.state) in
     let t = (type_of tenv e1) in
     let tenv' = Map.Poly.set tenv ~key:x ~data:t in
-    if sz < num_leaves * 100 then (* this value is a heuristic *)
+    if is_const c1.state then (* this value is a heuristic *)
       let env' = Map.Poly.set env ~key:x ~data:c1.state in
       let c2 = compile_expr ctx tenv' env' e2 in
       {state=c2.state; z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips}
     else
       (* create a temp variable *)
-      let tmp = gen_sym_type ctx t in
+      let tmp = gen_sym_type ctx.man t in
       let env' = Map.Poly.set env ~key:x ~data:tmp in
       let c2 = compile_expr ctx tenv' env' e2 in
       (* do substitution *)
@@ -194,7 +184,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
 
     let cargs = List.map args ~f:(compile_expr ctx tenv env) in
     let new_flips = List.map func.body.flips ~f:(fun f ->
-        let newv = new_var ctx in
+        let newv = Bdd.newvar ctx.man in
         let lvl = Bdd.topvar newv in
         (match Hashtbl.Poly.find ctx.weights (Bdd.topvar f) with
          | Some(v) -> Hashtbl.Poly.add_exn ctx.weights ~key:lvl ~data:v
@@ -221,15 +211,14 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     {state=final_state; z=Bdd.dand argz final_z; flips=new_flips @ argflips} in
  r
 
-
-let compile_func ctx tenv (f: func) : compiled_func =
+let compile_func (ctx: compile_context) tenv (f: func) : compiled_func =
   (* set up the context; need both a list and a map, so build both together *)
   let new_tenv = List.fold ~init:tenv f.args ~f:(fun acc (name, typ) ->
       Map.Poly.add_exn acc ~key:name ~data:typ
     ) in
   let (args, env) = List.fold f.args ~init:([], Map.Poly.empty)
       ~f:(fun (lst, map) (name, typ) ->
-          let placeholder_arg = gen_sym_type ctx typ in
+          let placeholder_arg = gen_sym_type ctx.man typ in
           (List.append lst [placeholder_arg], Map.Poly.set map ~key:name ~data:placeholder_arg)
         ) in
   (* now compile the function body with these arguments *)

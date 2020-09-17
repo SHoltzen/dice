@@ -618,8 +618,8 @@ let expression_tests =
   "test_double_flip">::test_double_flip;
   "test_typecheck">::test_typecheck_1;
   "test_caesar_iterate">::test_caesar_iterate;
-  "test_pmc1">::test_pmc1;
-  "test_pmc2">::test_pmc2;
+  (* "test_pmc1">::test_pmc1;
+   * "test_pmc2">::test_pmc2; *)
 
   "test_swap">::test_swap;
 ]
