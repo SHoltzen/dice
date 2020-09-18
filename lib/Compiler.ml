@@ -184,37 +184,41 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv)
    *   let _, r = sequential_sample (Bdd.dtrue ctx.man) sube.state in
    *   {state=r; z=Bdd.dtrue ctx.man; flips=[]} *)
 
-  (* | FuncCall(name, args) ->
-   *   let func = try Hashtbl.Poly.find_exn ctx.funcs name
-   *     with _ -> failwith (Format.sprintf "Could not find function '%s'." name) in
-   * 
-   *   let cargs = List.map args ~f:(compile_expr ctx tenv env) in
-   *   let new_flips = List.map func.body.flips ~f:(fun f ->
-   *       let newv = Bdd.newvar ctx.man in
-   *       let lvl = Bdd.topvar newv in
-   *       (match Hashtbl.Poly.find ctx.weights (Bdd.topvar f) with
-   *        | Some(v) -> Hashtbl.Poly.add_exn ctx.weights ~key:lvl ~data:v
-   *        | None -> ());
-   *       newv) in
-   *   let swapA = List.to_array (List.map new_flips ~f:(fun cur -> Bdd.topvar cur)) in
-   *   let swapB = List.to_array (List.map func.body.flips ~f:(fun cur -> Bdd.topvar cur)) in
-   *   let refreshed_state = map_tree func.body.state (fun bdd -> Bdd.swapvariables bdd swapA swapB) in
-   *   let refreshed_z = Bdd.swapvariables func.body.z swapA swapB in
-   * 
-   *   let swap_idx =
-   *     List.map func.args ~f:(fun arg ->
-   *         List.to_array (List.map (collect_leaves arg) ~f:(Bdd.topvar)))
-   *     |> Array.concat in
-   *   let swap_bdd =
-   *     List.map cargs ~f:(fun arg ->
-   *         List.to_array (collect_leaves arg.state))
-   *     |> Array.concat in
-   *   let argz = List.fold cargs ~init:(Bdd.dtrue ctx.man) ~f:(fun acc i -> Bdd.dand i.z acc) in
-   *   let argflips = List.fold cargs ~init:[] ~f:(fun acc i -> acc @ i.flips) in
-   *   let final_state = map_tree refreshed_state (fun bdd ->
-   *       Bdd.labeled_vector_compose bdd swap_bdd swap_idx) in
-   *   let final_z = Bdd.labeled_vector_compose refreshed_z swap_bdd swap_idx in
-   *   {state=final_state; z=Bdd.dand argz final_z; flips=new_flips @ argflips} *)
+  | FuncCall(name, args) ->
+    let func = try Hashtbl.Poly.find_exn ctx.funcs name
+      with _ -> failwith (Format.sprintf "Could not find function '%s'." name) in
+
+    let curz = ref z in
+    let cursubst = ref subst in
+    let cargs = List.map args ~f:(fun i ->
+        let r = compile_expr ctx tenv env !cursubst !curz i in
+        curz := r.z;
+        cursubst := r.subst;
+        r) in
+    let new_flips = List.map func.body.flips ~f:(fun f ->
+        let newv = Bdd.newvar ctx.man in
+        let lvl = Bdd.topvar newv in
+        (match Hashtbl.Poly.find ctx.weights (Bdd.topvar f) with
+         | Some(v) -> Hashtbl.Poly.add_exn ctx.weights ~key:lvl ~data:v
+         | None -> ());
+        newv) in
+    let swapA = List.to_array (List.map new_flips ~f:(fun cur -> Bdd.topvar cur)) in
+    let swapB = List.to_array (List.map func.body.flips ~f:(fun cur -> Bdd.topvar cur)) in
+    let refreshed_state = map_tree func.body.state (fun bdd -> Bdd.swapvariables bdd swapA swapB) in
+    let refreshed_z = Bdd.swapvariables func.body.z swapA swapB in
+    let swap_idx =
+      List.map func.args ~f:(fun arg ->
+          List.to_array (List.map (collect_leaves arg) ~f:(Bdd.topvar)))
+      |> Array.concat in
+    let swap_bdd =
+      List.map cargs ~f:(fun arg ->
+          List.to_array (collect_leaves arg.state))
+      |> Array.concat in
+    let argflips = List.fold cargs ~init:[] ~f:(fun acc i -> acc @ i.flips) in
+    let final_state = map_tree refreshed_state (fun bdd ->
+        Bdd.labeled_vector_compose bdd swap_bdd swap_idx) in
+    let final_z = Bdd.labeled_vector_compose refreshed_z swap_bdd swap_idx in
+    {state=final_state; z=Bdd.dand !curz final_z; flips=new_flips @ argflips; subst= !cursubst}
   in r
 
 let compile_func (ctx: compile_context) tenv (f: func) : compiled_func =
