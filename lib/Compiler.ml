@@ -83,13 +83,13 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv)
     let v = Bdd.dnot (extract_leaf c.state) in
     {state=Leaf(v); subst=c.subst; z=c.z; flips=c.flips}
 
-  | True -> {state=Leaf(Bdd.dtrue ctx.man); subst=[]; z=Bdd.dtrue ctx.man; flips=[]}
+  | True -> {state=Leaf(Bdd.dtrue ctx.man); subst=subst; z=Bdd.dtrue ctx.man; flips=[]}
 
-  | False -> {state=Leaf(Bdd.dfalse ctx.man); subst=[]; z=Bdd.dtrue ctx.man; flips=[]}
+  | False -> {state=Leaf(Bdd.dfalse ctx.man); subst=subst; z=Bdd.dtrue ctx.man; flips=[]}
 
   | Ident(s) ->
     (match Map.Poly.find env s with
-     | Some(r) -> {state=r; z=Bdd.dtrue ctx.man; flips=[]; subst=[]}
+     | Some(r) -> {state=r; z=Bdd.dtrue ctx.man; flips=[]; subst=subst}
      | _ -> failwith (sprintf "Could not find variable '%s'" s))
 
   | Tup(e1, e2) ->
@@ -135,7 +135,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv)
     flip_id := !flip_id + 1;
     Hashtbl.Poly.add_exn ctx.weights ~key:var_lbl ~data:(1.0-.f, f);
     Hashtbl.add_exn ctx.name_map ~key:var_lbl ~data:var_name;
-    {state=Leaf(new_f); z=Bdd.dtrue ctx.man; flips=[new_f]; subst=[]}
+    {state=Leaf(new_f); z=Bdd.dtrue ctx.man; flips=[new_f]; subst=subst}
 
   | Observe(g) ->
     let c = compile_expr ctx tenv env subst z g in
@@ -145,8 +145,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv)
     let c1 = compile_expr ctx tenv env subst z e1 in
     let t = (type_of tenv e1) in
     let tenv' = Map.Poly.set tenv ~key:x ~data:t in
-    if true then (* this value is a heuristic *)
-    (* if is_const c1.state then (\* this value is a heuristic *\) *)
+    if is_const c1.state then (* this value is a heuristic *)
       let env' = Map.Poly.set env ~key:x ~data:c1.state in
       let c2 = compile_expr ctx tenv' env' c1.subst c1.z e2 in
       {state=c2.state; z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips; subst=c2.subst}
@@ -159,8 +158,6 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv)
       (* do substitution *)
       let swap_idx = List.to_array (List.map (collect_leaves tmp) ~f:(Bdd.topvar)) in
       let swap_bdd = List.to_array (collect_leaves c1.state) in
-      (* Format.printf "Composing BDD of size %d into %d, num vars: %d\n" (VarState.state_size [c1.state]) (VarState.state_size [c2.state]) ();
-       * flush_all (); *)
       let final_state = map_tree c2.state (fun bdd -> Bdd.labeled_vector_compose bdd swap_bdd swap_idx) in
       let final_z = Bdd.labeled_vector_compose c2.z swap_bdd swap_idx in
       {state=final_state; z=Bdd.dand c1.z final_z; flips=List.append c1.flips c2.flips; subst = c2.subst}
@@ -192,7 +189,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv)
             if Bdd.is_true obs then Bdd.dand acc st
             else Bdd.dand acc (Bdd.dnot st)
           ) in
-    {state=r; z=obs; subst = subst; flips=[]}
+    {state=r; z=Bdd.dand obs z; subst = subst; flips=[]}
 
   | FuncCall(name, args) ->
     let func = try Hashtbl.Poly.find_exn ctx.funcs name
