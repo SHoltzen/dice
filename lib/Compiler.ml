@@ -165,24 +165,34 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv)
       let final_z = Bdd.labeled_vector_compose c2.z swap_bdd swap_idx in
       {state=final_state; z=Bdd.dand c1.z final_z; flips=List.append c1.flips c2.flips; subst = c2.subst}
 
-  (* | Sample(e) ->
-   *   let sube = compile_expr ctx tenv env e in
-   *   (\* perform sequential sampling *\)
-   *   let rec sequential_sample cur_obs state =
-   *     (match state with
-   *      | Leaf(bdd) ->
-   *        let t = Wmc.wmc (Bdd.dand (Bdd.dand cur_obs bdd) sube.z) ctx.weights in
-   *        let curz = Wmc.wmc (Bdd.dand sube.z cur_obs) ctx.weights in
-   *        let rndvalue = Random.float 1.0 in
-   *        if compare_float rndvalue (t /. curz) < 0 then (bdd, Leaf(Bdd.dtrue ctx.man)) else (Bdd.dnot bdd, Leaf(Bdd.dfalse ctx.man))
-   *      | Node(l, r) ->
-   *        let lbdd, lres = sequential_sample cur_obs l in
-   *        let rbdd, rres = sequential_sample lbdd r in
-   *        (rbdd, Node(lres, rres))
-   *     ) in
-   *   (\* let obs = List.fold (List.zip_exn (collect_leaves )) *\)
-   *   let _, r = sequential_sample (Bdd.dtrue ctx.man) sube.state in
-   *   {state=r; z=Bdd.dtrue ctx.man; flips=[]} *)
+  | Sample(e) ->
+    let c = compile_expr ctx tenv env subst z e in
+    (* substitute *)
+    let comp = List.fold ~init:c.state c.subst ~f:(fun acc (arg, subst) ->
+        VarState.map_tree acc (fun treebdd -> Bdd.compose (Bdd.topvar arg) subst treebdd)
+      ) in
+    let z' = List.fold ~init:c.z c.subst ~f:(fun acc (arg, subst) ->
+        Bdd.compose (Bdd.topvar arg) subst acc
+      ) in
+    let rec sequential_sample cur_obs state =
+      (match state with
+       | Leaf(bdd) ->
+         let t = Wmc.wmc (Bdd.dand (Bdd.dand cur_obs bdd) z') ctx.weights in
+         let curz = Wmc.wmc (Bdd.dand z' cur_obs) ctx.weights in
+         let rndvalue = Random.float 1.0 in
+         if compare_float rndvalue (t /. curz) < 0 then (bdd, Leaf(Bdd.dtrue ctx.man)) else (Bdd.dnot bdd, Leaf(Bdd.dfalse ctx.man))
+       | Node(l, r) ->
+         let lbdd, lres = sequential_sample cur_obs l in
+         let rbdd, rres = sequential_sample lbdd r in
+         (rbdd, Node(lres, rres))
+      ) in
+    let _, r = sequential_sample (Bdd.dtrue ctx.man) comp in
+    let obs = List.fold ~init:(Bdd.dtrue ctx.man) (List.zip_exn (collect_leaves comp) (collect_leaves r))
+        ~f:(fun acc (st, obs) ->
+            if Bdd.is_true obs then Bdd.dand acc st
+            else Bdd.dand acc (Bdd.dnot st)
+          ) in
+    {state=r; z=obs; subst = subst; flips=[]}
 
   | FuncCall(name, args) ->
     let func = try Hashtbl.Poly.find_exn ctx.funcs name

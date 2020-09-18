@@ -252,11 +252,7 @@ let rec type_of (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast =
     let s2 = expect_t e2 s.startpos TBool in
     (TBool, Iff(s, s1, s2))
   | Sample(s, e1) ->
-    if ctx.in_func then
-      raise (Type_error (Format.sprintf "Type error at line %d column %d: \
-                                         Sampling within functions is not permitted"
-                           s.startpos.pos_lnum s.startpos.pos_cnum));
-    let t, e = type_of ctx (Map.Poly.empty) e1 in
+    let t, e = type_of ctx env e1 in
     (t, Sample(s, (t, e)))
   | Xor(s, e1, e2) ->
     let s1 = expect_t e1 s.startpos TBool in
