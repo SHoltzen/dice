@@ -196,20 +196,24 @@ let build_cdfg (p: program) =
   let r = cdfg_e tbl Map.Poly.empty p.body in
   (r, tbl)
 
-(** depfth-first topological sort **)
+(** depth-first topological sort **)
 let dfs_ts (cdfg: cdfg) =
   let map = Hashtbl.Poly.create () in
   let count = ref 0 in
-  let rec visit n =
-    Hashtbl.Poly.set map ~key:n ~data:!count;
-    (* Format.printf "Mapped %d -> %d\n" n !count; *)
-    count := !count + 1;
-    let l = Hashtbl.Poly.find_exn cdfg n in
-    Set.iter l ~f:(fun i ->
-        if not (Hashtbl.Poly.mem map i) then visit i
+  let rec visit (n: int) =
+    if Hashtbl.Poly.mem map n then () else
+      (let parlist : int List.t = Set.Poly.to_list (Hashtbl.Poly.find_exn cdfg n) in
+       List.iter parlist ~f:(fun i ->
+           (* Format.printf "Parent of %d: %d\n" n i; *)
+           visit i
+         );
+       Hashtbl.Poly.set map ~key:n ~data:!count;
+       (* Format.printf "Mapped %d -> %d\n" n !count; *)
+       count := !count + 1;
       ) in
-  Hashtbl.Poly.iter_keys cdfg ~f:(fun n ->
-      if not (Hashtbl.Poly.mem map n) then visit n
+  let l = Hashtbl.Poly.keys cdfg |> List.sort ~compare:Int.compare |> List.rev in
+  List.iter l ~f:(fun n ->
+      visit n
     );
   map
 

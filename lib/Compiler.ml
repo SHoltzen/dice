@@ -145,6 +145,7 @@ let rec compile_expr (ctx: compile_context) (tenv: CG.tenv)
     let c1 = compile_expr ctx tenv env subst z e1 in
     let t = (VO.type_of tenv e1) in
     let tenv' = Map.Poly.set tenv ~key:x ~data:t in
+    (* if true then *)
     if is_const c1.state then (* this value is a heuristic *)
       let env' = Map.Poly.set env ~key:x ~data:c1.state in
       let c2 = compile_expr ctx tenv' env' c1.subst c1.z e2 in
@@ -158,7 +159,12 @@ let rec compile_expr (ctx: compile_context) (tenv: CG.tenv)
       (* do substitution *)
       let swap_idx = List.to_array (List.map (collect_leaves tmp) ~f:(Bdd.topvar)) in
       let swap_bdd = List.to_array (collect_leaves c1.state) in
-      let final_state = map_tree c2.state (fun bdd -> Bdd.labeled_vector_compose bdd swap_bdd swap_idx) in
+      let final_state = map_tree c2.state (fun bdd ->
+          List.fold ~init:bdd newsubst ~f:(fun acc (tmp, e1c) ->
+              Bdd.compose (Bdd.topvar tmp) e1c acc
+            )
+          (* Bdd.labeled_vector_compose bdd swap_bdd swap_idx *)
+        ) in
       let final_z = Bdd.labeled_vector_compose c2.z swap_bdd swap_idx in
       {state=final_state; z=Bdd.dand c1.z final_z; flips=List.append c1.flips c2.flips; subst = c2.subst}
 
