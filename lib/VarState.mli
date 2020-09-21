@@ -13,6 +13,8 @@ val collect_leaves: 'a btree -> 'a List.t
 val zip_tree : 'a btree -> 'b btree -> ('a * 'b) btree
 
 val extract_leaf : 'a btree -> 'a
+val extract_l : 'a btree -> 'a btree
+val extract_r : 'a btree -> 'a btree
 
 (** [get_table] gets a list of all possible instantiations of BDDs in [st]. *)
 val get_table: Bdd.dt btree ->

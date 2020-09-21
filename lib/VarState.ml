@@ -25,6 +25,17 @@ let extract_leaf a =
   | Leaf(a) -> a
   | _ -> failwith "Attempting to extract non-leaf node"
 
+let extract_l a =
+  match a with
+  | Node(l, _) -> l
+  | _ -> failwith "Attempting to extract left non-node"
+
+let extract_r a =
+  match a with
+  | Node(_, r) -> r
+  | _ -> failwith "Attempting to extract right non-node"
+
+
 let rec zip_tree (s1: 'a btree) (s2: 'b btree) =
   match (s1, s2) with
   | (Leaf(a), Leaf(b)) -> Leaf((a, b))

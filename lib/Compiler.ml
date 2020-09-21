@@ -1,10 +1,12 @@
+(** The core compilation engine for Dice *)
+
 open Core
 open Cudd
 open Wmc
 open VarState
-open CoreGrammar
+module CG = CoreGrammar
+module VO = VarOrder
 
-let flip_id = ref 1
 
 type subst = (Bdd.dt * Bdd.dt) List.t
 
@@ -35,10 +37,9 @@ type compiled_program = {
 
 type env = (String.t, Bdd.dt btree) Map.Poly.t (* map from variable identifiers to BDDs*)
 
-let ctx_man = Man.make_d ()
 
-let new_context () =
-  let man = ctx_man in
+let new_context count =
+  let man = Man.make_d ~numVars:count () in
   (* Man.enable_autodyn man Man.REORDER_LINEAR; *)
   Man.disable_autodyn man;
   let weights = Hashtbl.Poly.create () in
@@ -49,7 +50,7 @@ let new_context () =
    funcs = Hashtbl.Poly.create ();}
 
 (** generates a symbolic representation for a variable of the given type *)
-let rec gen_sym_type ctx (t:typ) : Bdd.dt btree =
+let rec gen_sym_type ctx (t:CG.typ) : Bdd.dt btree =
   match t with
   | TBool ->
     let bdd = Bdd.newvar ctx in Leaf(bdd)
@@ -64,8 +65,8 @@ let rec is_const (st: Bdd.dt btree) =
 
 type state = Bdd.dt btree
 
-let rec compile_expr (ctx: compile_context) (tenv: tenv)
-    (env: env) (subst: subst) (z: Bdd.dt) e : compiled_expr =
+let rec compile_expr (ctx: compile_context) (tenv: CG.tenv)
+    (env: env) (subst: subst) (z: Bdd.dt) (e: VO.texpr) : compiled_expr =
   let binop_helper f e1 e2 =
     let c1 = compile_expr ctx tenv env subst z e1 in
     let c2 = compile_expr ctx tenv env c1.subst c1.z e2 in
@@ -118,21 +119,20 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv)
     let c = compile_expr ctx tenv env subst z e in
     let v' = (match c.state with
      | Node(l, _) -> l
-     | _ -> failwith (Format.sprintf "Internal Failure: calling `fst` on non-tuple at %s" (string_of_expr e))) in
+     | _ -> failwith (Format.sprintf "Internal Failure: calling `fst` on non-tuple at %s" (VO.string_of_texpr e))) in
     {state=v'; z=c.z; flips=c.flips; subst=c.subst}
 
   | Snd(e) ->
     let c = compile_expr ctx tenv env subst z e in
     let v' = (match c.state with
      | Node(_, r) -> r
-     | _ -> failwith (Format.sprintf "Internal Failure: calling `snd` on non-tuple at %s" (string_of_expr e))) in
+     | _ -> failwith (Format.sprintf "Internal Failure: calling `snd` on non-tuple at %s" (VO.string_of_texpr e))) in
     {state=v'; z=c.z; flips=c.flips; subst=c.subst}
 
-  | Flip(f) ->
-    let new_f = Bdd.newvar ctx.man in
+  | Flip(f, idx) ->
+    let new_f = Bdd.ithvar ctx.man idx in
     let var_lbl = Bdd.topvar new_f in
-    let var_name = (Format.sprintf "f%d" !flip_id) in
-    flip_id := !flip_id + 1;
+    let var_name = (Format.sprintf "f%d" idx) in
     Hashtbl.Poly.add_exn ctx.weights ~key:var_lbl ~data:(1.0-.f, f);
     Hashtbl.add_exn ctx.name_map ~key:var_lbl ~data:var_name;
     {state=Leaf(new_f); z=Bdd.dtrue ctx.man; flips=[new_f]; subst=subst}
@@ -141,9 +141,9 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv)
     let c = compile_expr ctx tenv env subst z g in
     {state=Leaf(Bdd.dtrue ctx.man); z=Bdd.dand (extract_leaf c.state) c.z; flips=c.flips; subst=c.subst}
 
-  | Let(x, e1, e2) ->
+  | Let(x, e1, e2, tree) ->
     let c1 = compile_expr ctx tenv env subst z e1 in
-    let t = (type_of tenv e1) in
+    let t = (VO.type_of tenv e1) in
     let tenv' = Map.Poly.set tenv ~key:x ~data:t in
     if is_const c1.state then (* this value is a heuristic *)
       let env' = Map.Poly.set env ~key:x ~data:c1.state in
@@ -151,7 +151,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv)
       {state=c2.state; z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips; subst=c2.subst}
     else
       (* create a temp variable *)
-      let tmp = gen_sym_type ctx.man t in
+      let tmp = VarState.map_tree tree (fun idx -> Bdd.ithvar ctx.man idx) in
       let env' = Map.Poly.set env ~key:x ~data:tmp in
       let newsubst = List.zip_exn (collect_leaves tmp) (collect_leaves c1.state) in
       let c2 = compile_expr ctx tenv' env' (newsubst @ subst) c1.z e2 in
@@ -168,7 +168,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv)
     let comp = List.fold ~init:c.state c.subst ~f:(fun acc (arg, subst) ->
         VarState.map_tree acc (fun treebdd -> Bdd.compose (Bdd.topvar arg) subst treebdd)
       ) in
-    let z' = List.fold ~init:c.z c.subst ~f:(fun acc (arg, subst) ->
+    let z' = List.fold ~init:(Bdd.dand z c.z) c.subst ~f:(fun acc (arg, subst) ->
         Bdd.compose (Bdd.topvar arg) subst acc
       ) in
     let rec sequential_sample cur_obs state =
@@ -177,6 +177,8 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv)
          let t = Wmc.wmc (Bdd.dand (Bdd.dand cur_obs bdd) z') ctx.weights in
          let curz = Wmc.wmc (Bdd.dand z' cur_obs) ctx.weights in
          let rndvalue = Random.float 1.0 in
+         Format.printf "z: %f, v: %f, accepted: %s\n" curz t
+           (if compare_float rndvalue (t /. curz) < 0 then "yes" else "no");
          if compare_float rndvalue (t /. curz) < 0 then (bdd, Leaf(Bdd.dtrue ctx.man)) else (Bdd.dnot bdd, Leaf(Bdd.dfalse ctx.man))
        | Node(l, r) ->
          let lbdd, lres = sequential_sample cur_obs l in
@@ -228,7 +230,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv)
     {state=final_state; z=Bdd.dand !curz final_z; flips=new_flips @ argflips; subst= !cursubst}
   in r
 
-let compile_func (ctx: compile_context) tenv (f: func) : compiled_func =
+let compile_func (ctx: compile_context) tenv (f: VO.func) : compiled_func =
   (* set up the context; need both a list and a map, so build both together *)
   let new_tenv = List.fold ~init:tenv f.args ~f:(fun acc (name, typ) ->
       Map.Poly.add_exn acc ~key:name ~data:typ
@@ -242,19 +244,20 @@ let compile_func (ctx: compile_context) tenv (f: func) : compiled_func =
   let body = compile_expr ctx new_tenv env [] (Bdd.dtrue ctx.man) f.body in
   {args = args; body = body}
 
-let compile_program (p:program) : compiled_program =
+let compile_program (p:CG.program) : compiled_program =
   (* first compile the functions in topological order *)
-  let ctx = new_context () in
+  let (count, vp) = VO.from_cg_prog p in
+  let ctx = new_context count in
   let tenv = ref Map.Poly.empty in
-  List.iter p.functions ~f:(fun func ->
+  List.iter vp.functions ~f:(fun func ->
       let c = compile_func ctx !tenv func in
-      tenv := Map.Poly.add_exn !tenv ~key:func.name ~data:(type_of_fun !tenv func);
+      tenv := Map.Poly.add_exn !tenv ~key:func.name ~data:(VO.type_of_fun !tenv func);
       try Hashtbl.Poly.add_exn ctx.funcs ~key:func.name ~data:c
       with _ -> failwith (Format.sprintf "Function names must be unique: %s found twice" func.name)
     );
   (* now compile the main body, which is the result of the program *)
   let env = Map.Poly.empty in
-  let c = compile_expr ctx !tenv env [] (Bdd.dtrue ctx.man) p.body in
+  let c = compile_expr ctx !tenv env [] (Bdd.dtrue ctx.man) vp.body in
   (* do substitutions *)
   let subst = List.fold ~init:c.state c.subst ~f:(fun acc (arg, subst) ->
       VarState.map_tree acc (fun treebdd -> Bdd.compose (Bdd.topvar arg) subst treebdd)
@@ -276,16 +279,12 @@ module I = Parser.MenhirInterpreter
 open Lexing
 open Lexer
 
-
 exception Syntax_error of string
-
 
 let print_position outx lexbuf =
   let pos = lexbuf.lex_curr_p in
   fprintf outx "%s:%d:%d" pos.pos_fname
     pos.pos_lnum (pos.pos_cnum - pos.pos_bol + 1)
-
-
 
 (** [parse_and_prob] parses and computes the probability for string [txt] *)
 let parse_and_prob ?debug txt =

@@ -1,4 +1,5 @@
 open Core
+open Cudd
 
 type expr =
   | And of expr * expr
