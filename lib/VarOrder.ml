@@ -158,6 +158,7 @@ let build_cdfg (p: program) =
       Leaf(Set.union s1 s2)
     | Not(e1)
     | Observe(e1) -> cdfg_e cdfg env e1
+    | Sample(e) -> cdfg_e cdfg env e
     | True
     | False -> Leaf(Set.Poly.empty)
     | Ident(x) ->
@@ -225,6 +226,7 @@ let rec update_order map e =
   | Eq(e1, e2) -> Eq(update_order map e1, update_order map e2)
   | Not(e1) -> Not(update_order map e1)
   | Observe(e1) -> Observe(update_order map e1)
+  | Sample(e1) -> Sample(update_order map e1)
   | True -> True
   | False -> False
   | Ident(x) -> Ident(x)

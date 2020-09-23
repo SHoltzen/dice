@@ -195,9 +195,11 @@ let rec compile_expr (ctx: compile_context) (tenv: CG.tenv)
     let obs = List.fold ~init:(Bdd.dtrue ctx.man) (List.zip_exn (collect_leaves comp) (collect_leaves r))
         ~f:(fun acc (st, obs) ->
             if Bdd.is_true obs then Bdd.dand acc st
-            else Bdd.dand acc (Bdd.dnot st)
+            else if Bdd.is_false obs then Bdd.dand acc (Bdd.dnot st)
+            else failwith "unreachable"
           ) in
     {state=r; z=Bdd.dand obs z; subst = subst; flips=[]}
+    (* {state=r; z=z; subst = subst; flips=[]} *)
 
   | FuncCall(name, args) ->
     let func = try Hashtbl.Poly.find_exn ctx.funcs name
