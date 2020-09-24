@@ -10,8 +10,6 @@ let next_line lexbuf =
     { pos with pos_bol = lexbuf.lex_curr_pos;
                pos_lnum = pos.pos_lnum + 1
     }
-
-
 }
 
 let int = '-'? ['0'-'9'] ['0'-'9']*
@@ -53,6 +51,8 @@ rule token =
     | "sample"                  { SAMPLE }
     | "else"                    { ELSE }
     | "discrete"                { DISCRETE }
+    | "discrete_sym"            { DISCRETE_SYM }
+    | "flip_sym"                { FLIP_SYM }
     | "then"                    { THEN }
     | "true"                    { TRUE }
     | "false"                   { FALSE }

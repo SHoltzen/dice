@@ -16,6 +16,7 @@ type expr =
   | True
   | False
   | Flip of float
+  | FlipSym of String.t
   | Let of String.t * expr * expr
   | FuncCall of String.t * expr List.t
   | Observe of expr

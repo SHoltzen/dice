@@ -134,6 +134,16 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     Hashtbl.add_exn ctx.name_map ~key:var_lbl ~data:var_name;
     {state=Leaf(new_f); z=Bdd.dtrue ctx.man; flips=[new_f]}
 
+  | FlipSym(v) ->
+    let new_f = Bdd.newvar ctx.man in
+    (* let var_lbl = Bdd.topvar new_f in
+     * let var_name = (Format.sprintf "f%d" !flip_id) in *)
+    (* flip_id := !flip_id + 1; *)
+    (* Hashtbl.Poly.add_exn ctx.weights ~key:var_lbl ~data:(1.0-.f, f);
+     * Hashtbl.add_exn ctx.name_map ~key:var_lbl ~data:var_name; *)
+    {state=Leaf(new_f); z=Bdd.dtrue ctx.man; flips=[new_f]}
+
+
   | Observe(g) ->
     let c = compile_expr ctx tenv env g in
     {state=Leaf(Bdd.dtrue ctx.man); z=Bdd.dand (extract_leaf c.state) c.z; flips=c.flips}

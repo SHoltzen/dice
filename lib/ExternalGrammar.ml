@@ -40,10 +40,12 @@ type eexpr =
   | Not of source * eexpr
   | Ite of source * eexpr * eexpr * eexpr
   | Flip of source * float
+  | FlipSym of source * String.t
   | Let of source * String.t * eexpr * eexpr
   | Observe of source * eexpr
   | Ident of source * String.t
   | Discrete of source * float List.t
+  | DiscreteSym of source * String.t * int (*label, size *)
   | Int of source * int * int (* value, size *)
   | Eq of source * eexpr * eexpr
   | LeftShift of source * eexpr * int
@@ -72,8 +74,6 @@ type func = { name: String.t; args: arg List.t; body: eexpr}
 type program = { functions: func List.t; body: eexpr }
 [@@deriving sexp_of]
 
-
-
 exception Type_error of String.t
 
 let get_src e =
@@ -92,6 +92,8 @@ let get_src e =
   | Lte(s, _, _)
   | Gt(s, _, _)
   | Int(s, _, _)
+  | FlipSym(s, _)
+  | DiscreteSym(s, _, _)
   | Iff(s, _, _)
   | Gte(s, _, _) -> s
   | IntConst(s, _) -> s

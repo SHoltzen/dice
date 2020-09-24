@@ -27,6 +27,8 @@ let inline_functions (p: EG.program) =
     | And(s, e1, e2) ->
       let s1 = helper e1 in
       let s2 = helper e2 in And(s, s1, s2)
+    | FlipSym(_)
+    | DiscreteSym(_) -> e
     | LeftShift(s, e1, i) ->
       let s1 = helper e1 in LeftShift(s, s1, i)
     | RightShift(s, e1, i) ->
@@ -145,11 +147,6 @@ let rec all_assignments mgr l =
         ~f:(fun (constr, bdd) -> And(Not(cur_constraint), constr), Bdd.dand (Bdd.dnot cur_bdd) bdd) in
     l1 @ l2
 
-let fold_with_seen l ~init ~f =
-  let (_, r) = List.fold l ~init:(([], init)) ~f:(fun (seen, acc) i ->
-      let r = f seen acc i in
-      ([i] @ seen, r)) in
-  r
 
 (* given a list of expressions [e1; e2; e3; ..] makes a
    tuple that looks like (e1, (e2, (e3, ...)))*)
@@ -177,6 +174,8 @@ type ast =
   | LeftShift of source * tast * int
   | RightShift of source * tast * int
   | Sample of source * tast
+  | FlipSym of source * String.t
+  | DiscreteSym of source * String.t * int
   | Or of source * tast * tast
   | Iff of source * tast * tast
   | Xor of source * tast * tast
@@ -243,6 +242,7 @@ let rec type_of (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast =
     let s1 = expect_t e1 s.startpos TBool in
     let s2 = expect_t e2 s.startpos TBool in
     (TBool, And(s, s1, s2))
+  | FlipSym(s, v) -> (TBool, FlipSym(s, v))
   | Or(s, e1, e2) ->
     let s1 = expect_t e1 s.startpos TBool in
     let s2 = expect_t e2 s.startpos TBool in
@@ -306,6 +306,7 @@ let rec type_of (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast =
       raise (Type_error (Format.sprintf "Type error at line %d column %d: discrete parameters must sum to 1, got %f"
                            src.startpos.pos_lnum src.startpos.pos_cnum sum))
     else (TInt(num_binary_digits ((List.length l) - 1)), Discrete(src, l))
+  | DiscreteSym(s, v, sz) -> (TInt(sz), DiscreteSym(s, v, sz))
   | LeftShift(s, e1, i) ->
     let (t, e) = type_of ctx env e1 in
     (t, LeftShift(s, (t, e), i))
@@ -399,6 +400,13 @@ let rec and_of_l l =
   | [x] -> x
   | x::xs -> CG.And(x, and_of_l xs)
 
+let fold_with_seen l ~init ~f =
+  let (_, r) = List.fold l ~init:(([], init)) ~f:(fun (seen, acc) i ->
+      let r = f seen acc i in
+      ([i] @ seen, r)) in
+  r
+
+
 let rec gen_discrete mgr (l: float List.t) =
   let open Cudd in
   let open CG in
@@ -434,6 +442,58 @@ let rec gen_discrete mgr (l: float List.t) =
        | [(_, param)] -> [cur_name, Flip(param)]
        | (_, param)::xs ->
          let ifbody = List.fold xs ~init:(Flip(param)) ~f:(fun acc (guard, param) -> Ite(guard, Flip(param), acc)) in
+         [cur_name, ifbody]
+      ) @ acc
+    ) in
+  (* now finally build the entire let assignment *)
+  let inner_body = mk_dfs_tuple (List.map bits ~f:fst) in
+  List.fold assgn ~init:inner_body ~f:(fun acc (Ident(name), body) -> Let(name, body, acc))
+
+
+let rec gen_discrete_sym mgr id sz =
+  (* this function is a total hack job and I hate it.  *)
+  let open Cudd in
+  let open CG in
+  let l = List.init sz ~f:(fun _ -> 0.0) in
+  let bits = List.init (num_binary_digits ((List.length l) - 1)) ~f:(fun i -> (Ident(Format.sprintf "d%d" i), Bdd.newvar mgr)) in
+  let numbits = List.length bits in
+  let bitcube = List.fold bits ~init:(Bdd.dtrue mgr) ~f:(fun acc i -> Bdd.dand acc (snd i)) in
+  let add = List.foldi l ~init:(Add.cst mgr 0.0) ~f:(fun idx acc param ->
+      let bitvec = List.zip_exn (int_to_bin numbits idx) (bits) in
+      let indicator = List.fold bitvec ~init:(Bdd.dtrue mgr) ~f:(fun acc (v, (_, b)) ->
+          let curv = if v = 1 then b else Bdd.dnot b in
+          Bdd.dand acc curv
+        ) in
+      let leaf = Add.cst mgr param in
+      Add.ite indicator leaf acc
+    ) in
+  (* now make the list of flip assignments *)
+  let sum_add a = Add.dval (Add.exist bitcube a) in
+  let count = ref 0 in
+  let assgn = fold_with_seen bits ~init:[] ~f:(fun seen acc (cur_name, cur_bit) ->
+      let all_assgn = all_assignments mgr seen in
+      let l = List.map all_assgn ~f:(fun (cur_constraint, cur_bdd) ->
+          let p1 = sum_add (Add.mul add (Add.of_bdd (Bdd.dand cur_bit cur_bdd))) in
+          let p2 = sum_add (Add.mul add (Add.of_bdd (Bdd.dand cur_bdd (Bdd.dnot cur_bit)))) in
+          if within_epsilon p1 0.0 then
+            (cur_constraint, 0.)
+          else
+            (cur_constraint, (p1 /. (p1 +. p2)))
+        ) in
+      (* now build the expression *)
+      (match l with
+       | [] -> failwith "unreachable"
+       | [(_, _)] ->
+         let c = !count in
+         count := !count + 1;
+         [cur_name, FlipSym(Format.sprintf "%s%d" id c)]
+       | (_, param)::xs ->
+         let c = !count in
+         count := !count + 1;
+         let ifbody = List.fold xs ~init:(FlipSym(Format.sprintf "%s%d" id c)) ~f:(fun acc (guard, _) ->
+             let c = !count in
+             count := !count + 1;
+             Ite(guard, FlipSym(Format.sprintf "%s%d" id c), acc)) in
          [cur_name, ifbody]
       ) @ acc
     ) in
@@ -604,8 +664,10 @@ let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) 
   | Gte(s, e1, e2) -> from_external_expr_h ctx tenv (TBool, Not(s, (TBool, Lt(s, e1, e2))))
   | Not(_, e) -> Not(from_external_expr_h ctx tenv e)
   | Flip(_, f) -> Flip(f)
+  | FlipSym(_, v) -> FlipSym(v)
   | Ident(_, s) -> Ident(s)
   | Discrete(_, l) -> gen_discrete ctx l
+  | DiscreteSym(_, v, sz) -> gen_discrete_sym ctx v sz
   | Int(_, sz, v) ->
     let bits = int_to_bin sz v
                |> List.map ~f:(fun i -> if i = 1 then CG.True else CG.False) in
