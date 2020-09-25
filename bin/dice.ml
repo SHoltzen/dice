@@ -44,8 +44,19 @@ let get_lexing_position lexbuf =
   let column = p.Lexing.pos_cnum - p.Lexing.pos_bol + 1 in
   (line_number, column)
 
+let build_subst paramfile =
+  let lines = In_channel.read_lines paramfile in
+  let tbl = Hashtbl.Poly.create () in
+  List.iter lines ~f:(fun line ->
+      let (key::rst) = String.split ~on:'\t' line in
+      let (arg1::arg2::[]) = List.map rst ~f:(fun i ->
+          float_of_string i) in
+      Hashtbl.Poly.add_exn tbl ~key:(key) ~data:(arg1, arg2)
+    );
+  tbl
+
 let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
-    ~inline_functions ~sample_amount ~optimize lexbuf : result List.t = try
+    ~inline_functions ~sample_amount ~optimize ~params lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
   let (t, internal) =
@@ -60,33 +71,45 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
   match sample_amount with
   | None ->
     let compiled = Compiler.compile_program internal in
-    let zbdd = compiled.body.z in
-    let z = Wmc.wmc zbdd compiled.ctx.weights in
-    let res = if skip_table then res else res @
-      (let table = VarState.get_table compiled.body.state t in
-       let probs = List.map table ~f:(fun (label, bdd) ->
-           if Util.within_epsilon z 0.0 then (label, 0.0) else
-             let prob = (Wmc.wmc (Bdd.dand bdd zbdd) compiled.ctx.weights) /. z in
-             (label, prob)) in
-       let l = [["Value"; "Probability"]] @ List.map probs ~f:(fun (typ, prob) ->
-           let rec print_pretty e =
-             match e with
-             | `Int(v) -> string_of_int v
-             | `True -> "true"
-             | `False -> "false"
-             | `Tup(l, r) -> Format.sprintf "(%s, %s)" (print_pretty l) (print_pretty r)
-             | _ -> failwith "ouch" in
-           [print_pretty typ; string_of_float prob]
-         ) in
-       [TableRes("Joint Distribution", l)]
+    let substl = if List.length params = 0 then [("Joint Distribution", Hashtbl.Poly.create ())]
+      else List.map params ~f:(fun param ->
+          (Format.sprintf "Joint Distribution (Substituting '%s')" param, build_subst param)) in
+    let res = res @ if skip_table then [] else List.map substl ~f:(fun (name, cursubst) ->
+        (* update the weight function with cursubst *)
+        let curweight = Hashtbl.Poly.copy compiled.ctx.weights in
+        Hashtbl.Poly.iteri cursubst ~f:(fun ~key ~data ->
+            (* find the variables to be substituted *)
+            let vars = Hashtbl.Poly.find_exn compiled.ctx.subst key in
+            List.iter vars ~f:(fun topvar ->
+                Hashtbl.Poly.add_exn curweight ~key:topvar ~data
+              )
+          );
+        let zbdd = compiled.body.z in
+        let z = Wmc.wmc zbdd curweight in
+        let table = VarState.get_table compiled.body.state t in
+              let probs = List.map table ~f:(fun (label, bdd) ->
+                  if Util.within_epsilon z 0.0 then (label, 0.0) else
+                    let prob = (Wmc.wmc (Bdd.dand bdd zbdd) curweight) /. z in
+                    (label, prob)) in
+              let l = [["Value"; "Probability"]] @ List.map probs ~f:(fun (typ, prob) ->
+                  let rec print_pretty e =
+                    match e with
+                    | `Int(v) -> string_of_int v
+                    | `True -> "true"
+                    | `False -> "false"
+                    | `Tup(l, r) -> Format.sprintf "(%s, %s)" (print_pretty l) (print_pretty r)
+                    | _ -> failwith "ouch" in
+                  [print_pretty typ; string_of_float prob]
+                ) in
+        TableRes(name, l)
       ) in
-    (* if print_info then (Format.printf "==========BDD Manager Info==========\n"; Man.print_info compiled.ctx.man); *)
     let res = if print_size then
         res @ [StringRes("Final compiled BDD size",
                          string_of_int (VarState.state_size [compiled.body.state; VarState.Leaf(compiled.body.z)]))]
       else res in
     res
   | Some(n) ->
+    if List.length params > 0 then failwith "sampling with parameter replace not supported yet";
     let sz = ref 0 in
     let rec draw_sample (prob, oldz) n =
       if n = 0 then (prob, oldz)
@@ -138,6 +161,7 @@ let command =
      and print_parsed = flag "-show-parsed" no_arg ~doc:" print parsed dice program"
      and optimize = flag "-optimize" no_arg ~doc:" optimize dice program before compilation"
      and inline_functions = flag "-inline-functions" no_arg ~doc:" inline all function calls"
+     and params = flag "-param" (listed string) ~doc:"specify parameter file"
      and print_internal = flag "-show-internal" no_arg ~doc:" print desugared dice program"
      and skip_table = flag "-skip-table" no_arg ~doc:" skip printing the joint probability distribution"
      (* and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order" *)
@@ -147,7 +171,7 @@ let command =
        let lexbuf = Lexing.from_channel inx in
        lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = fname };
        let r = (parse_and_print ~print_parsed ~print_internal ~sample_amount
-                  ~print_size ~inline_functions ~skip_table ~optimize lexbuf) in
+                  ~print_size ~inline_functions ~skip_table ~optimize ~params lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res
     )

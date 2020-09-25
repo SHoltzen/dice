@@ -24,6 +24,7 @@ type compile_context = {
   lazy_eval: bool; (* true if lazy let evaluation *)
   free_stack: Bdd.dt Stack.t;
   funcs: (String.t, compiled_func) Hashtbl.Poly.t;
+  subst: (String.t, int List.t) Hashtbl.Poly.t; (* map from symbolic names to their generated variables *)
 }
 
 type compiled_program = {
@@ -46,7 +47,9 @@ let new_context ~lazy_eval () =
    free_stack = Stack.create ();
    weights = weights;
    funcs = Hashtbl.Poly.create ();
-   lazy_eval = lazy_eval}
+   lazy_eval = lazy_eval;
+   subst = Hashtbl.Poly.create ();
+  }
 
 (** generates a symbolic representation for a variable of the given type *)
 let rec gen_sym_type ctx (t:typ) : Bdd.dt btree =
@@ -136,6 +139,10 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
 
   | FlipSym(v) ->
     let new_f = Bdd.newvar ctx.man in
+    (match Hashtbl.Poly.find ctx.subst v with
+     | Some(l) -> Hashtbl.Poly.set ctx.subst ~key:v ~data:(l @ [Bdd.topvar new_f])
+     | None -> Hashtbl.Poly.set ctx.subst ~key:v ~data:([Bdd.topvar new_f])
+    );
     (* let var_lbl = Bdd.topvar new_f in
      * let var_name = (Format.sprintf "f%d" !flip_id) in *)
     (* flip_id := !flip_id + 1; *)

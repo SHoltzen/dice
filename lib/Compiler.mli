@@ -22,6 +22,7 @@ type compile_context = {
   lazy_eval: bool; (* true if lazy let evaluation *)
   free_stack: Bdd.dt Stack.t; (* a stack of unallocated BDD variables, for reuse *)
   funcs: (String.t, compiled_func) Hashtbl.Poly.t;
+  subst: (String.t, int List.t) Hashtbl.Poly.t; (* map from symbolic names to their generated variables *)
 }
 
 type compiled_program = {
