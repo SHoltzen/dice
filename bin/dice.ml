@@ -44,14 +44,23 @@ let get_lexing_position lexbuf =
   let column = p.Lexing.pos_cnum - p.Lexing.pos_bol + 1 in
   (line_number, column)
 
+let subst_mgr = Man.make_d ()
+
 let build_subst paramfile =
   let lines = In_channel.read_lines paramfile in
   let tbl = Hashtbl.Poly.create () in
   List.iter lines ~f:(fun line ->
-      let (key::rst) = String.split ~on:'\t' line in
-      let (arg1::arg2::[]) = List.map rst ~f:(fun i ->
-          float_of_string i) in
-      Hashtbl.Poly.add_exn tbl ~key:(key) ~data:(arg1, arg2)
+      match String.split ~on:'\t' line with
+      | (key::arg1::arg2::[]) ->
+        let arg1 = float_of_string arg1 and arg2 = float_of_string arg2 in
+        Hashtbl.Poly.add_exn tbl ~key:(key) ~data:(arg1, arg2)
+      | (key::rst) ->
+        let params = List.map rst ~f:float_of_string in
+        let subst = Passes.get_discrete_subst subst_mgr key params in
+        Hashtbl.Poly.iteri subst ~f:(fun ~key ~data ->
+            Hashtbl.Poly.add_exn tbl ~key ~data
+          )
+      | _ -> failwith ""
     );
   tbl
 
@@ -79,6 +88,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
         let curweight = Hashtbl.Poly.copy compiled.ctx.weights in
         Hashtbl.Poly.iteri cursubst ~f:(fun ~key ~data ->
             (* find the variables to be substituted *)
+            Format.printf "subst %s\n" key;
             let vars = Hashtbl.Poly.find_exn compiled.ctx.subst key in
             List.iter vars ~f:(fun topvar ->
                 Hashtbl.Poly.add_exn curweight ~key:topvar ~data

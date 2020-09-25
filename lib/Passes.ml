@@ -306,7 +306,7 @@ let rec type_of (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast =
       raise (Type_error (Format.sprintf "Type error at line %d column %d: discrete parameters must sum to 1, got %f"
                            src.startpos.pos_lnum src.startpos.pos_cnum sum))
     else (TInt(num_binary_digits ((List.length l) - 1)), Discrete(src, l))
-  | DiscreteSym(s, v, sz) -> (TInt(sz), DiscreteSym(s, v, sz))
+  | DiscreteSym(s, v, sz) -> (TInt(sz), DiscreteSym(s, v, 1 lsl sz))
   | LeftShift(s, e1, i) ->
     let (t, e) = type_of ctx env e1 in
     (t, LeftShift(s, (t, e), i))
@@ -500,6 +500,58 @@ let rec gen_discrete_sym mgr id sz =
   (* now finally build the entire let assignment *)
   let inner_body = mk_dfs_tuple (List.map bits ~f:fst) in
   List.fold assgn ~init:inner_body ~f:(fun acc (Ident(name), body) -> Let(name, body, acc))
+
+let get_discrete_subst mgr id l =
+  (* the hack job continues *)
+  let open Cudd in
+  let open CG in
+  let tbl = Hashtbl.Poly.create () in
+  let bits = List.init (num_binary_digits ((List.length l) - 1)) ~f:(fun i -> (Ident(Format.sprintf "d%d" i), Bdd.newvar mgr)) in
+  let numbits = List.length bits in
+  let bitcube = List.fold bits ~init:(Bdd.dtrue mgr) ~f:(fun acc i -> Bdd.dand acc (snd i)) in
+  let add = List.foldi l ~init:(Add.cst mgr 0.0) ~f:(fun idx acc param ->
+      let bitvec = List.zip_exn (int_to_bin numbits idx) (bits) in
+      let indicator = List.fold bitvec ~init:(Bdd.dtrue mgr) ~f:(fun acc (v, (_, b)) ->
+          let curv = if v = 1 then b else Bdd.dnot b in
+          Bdd.dand acc curv
+        ) in
+      let leaf = Add.cst mgr param in
+      Add.ite indicator leaf acc
+    ) in
+  (* now make the list of flip assignments *)
+  let sum_add a = Add.dval (Add.exist bitcube a) in
+  let count = ref 0 in
+  let _assgn = fold_with_seen bits ~init:[] ~f:(fun seen acc (cur_name, cur_bit) ->
+      let all_assgn = all_assignments mgr seen in
+      let l = List.map all_assgn ~f:(fun (cur_constraint, cur_bdd) ->
+          let p1 = sum_add (Add.mul add (Add.of_bdd (Bdd.dand cur_bit cur_bdd))) in
+          let p2 = sum_add (Add.mul add (Add.of_bdd (Bdd.dand cur_bdd (Bdd.dnot cur_bit)))) in
+          if within_epsilon p1 0.0 then
+            (cur_constraint, 0.)
+          else
+            (cur_constraint, (p1 /. (p1 +. p2)))
+        ) in
+      (* now build the expression *)
+      (match l with
+       | [] -> failwith "unreachable"
+       | [(_, param)] ->
+         let c = !count in
+         count := !count + 1;
+         Hashtbl.Poly.add_exn tbl ~key:(Format.sprintf "%s%d" id c) ~data:(1.0 -. param, param);
+         [cur_name, FlipSym(Format.sprintf "%s%d" id c)]
+       | (_, param)::xs ->
+         let c = !count in
+         count := !count + 1;
+         Hashtbl.Poly.add_exn tbl ~key:(Format.sprintf "%s%d" id c) ~data:(1.0 -. param, param);
+         let ifbody = List.fold xs ~init:(FlipSym(Format.sprintf "%s%d" id c)) ~f:(fun acc (guard, param) ->
+             let c = !count in
+             count := !count + 1;
+             Hashtbl.Poly.add_exn tbl ~key:(Format.sprintf "%s%d" id c) ~data:(1.0 -. param, param);
+             Ite(guard, FlipSym(Format.sprintf "%s%d" id c), acc)) in
+         [cur_name, ifbody]
+      ) @ acc
+    ) in
+  tbl
 
 
 let rec nth_snd i inner =
