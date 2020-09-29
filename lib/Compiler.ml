@@ -145,7 +145,6 @@ let rec compile_expr (ctx: compile_context) (tenv: CG.tenv)
     let c1 = compile_expr ctx tenv env subst z e1 in
     let t = (VO.type_of tenv e1) in
     let tenv' = Map.Poly.set tenv ~key:x ~data:t in
-    (* if true then *)
     if is_const c1.state then (* this value is a heuristic *)
       let env' = Map.Poly.set env ~key:x ~data:c1.state in
       let c2 = compile_expr ctx tenv' env' c1.subst c1.z e2 in
@@ -163,7 +162,6 @@ let rec compile_expr (ctx: compile_context) (tenv: CG.tenv)
           List.fold ~init:bdd newsubst ~f:(fun acc (tmp, e1c) ->
               Bdd.compose (Bdd.topvar tmp) e1c acc
             )
-          (* Bdd.labeled_vector_compose bdd swap_bdd swap_idx *)
         ) in
       let final_z = Bdd.labeled_vector_compose c2.z swap_bdd swap_idx in
       {state=final_state; z=Bdd.dand c1.z final_z; flips=List.append c1.flips c2.flips; subst = c2.subst}
@@ -254,7 +252,7 @@ let compile_func (ctx: compile_context) tenv (f: VO.func) : compiled_func =
 
 let compile_program (p:CG.program) : compiled_program =
   (* first compile the functions in topological order *)
-  let (count, vp) = VO.from_cg_prog p in
+  let (count, vp) = VO.from_cg_prog VO.DFS p in
   let ctx = new_context count in
   let tenv = ref Map.Poly.empty in
   List.iter vp.functions ~f:(fun func ->

@@ -8,6 +8,10 @@ open VarState
 
 module CG = CoreGrammar
 
+type strategy =
+    Default
+  | DFS
+
 type texpr =
   | And of texpr * texpr
   | Or of texpr * texpr
@@ -97,15 +101,33 @@ let rec mk_tree (c: int ref) (t:CG.typ) : int VarState.btree =
     let v = !c in
     c := !c + 1;
     Leaf(v)
-  | TTuple(l, r) -> Node(mk_tree c l, mk_tree c r)
+  | TTuple(l, r) ->
+    let l = mk_tree c l in
+    let r = mk_tree c r in
+    Node(l, r)
 
 let rec from_cg_h (count: int ref) (t: CG.tenv) (e: CG.expr) : texpr =
   match e with
-  | And(l, r) -> And(from_cg_h count t l, from_cg_h count t r)
-  | Or(l, r) -> Or(from_cg_h count t l, from_cg_h count t r)
-  | Eq(l, r) -> Eq(from_cg_h count t l, from_cg_h count t r)
-  | Xor(l, r) -> Xor(from_cg_h count t l, from_cg_h count t r)
-  | Tup(l, r) -> Tup(from_cg_h count t l, from_cg_h count t r)
+  | And(l, r) ->
+    let l = from_cg_h count t l in
+    let r = from_cg_h count t r in
+    And(l, r)
+  | Or(l, r) ->
+    let l = from_cg_h count t l in
+    let r = from_cg_h count t r in
+    Or(l, r)
+  | Eq(l, r) ->
+    let l = from_cg_h count t l in
+    let r = from_cg_h count t r in
+    Eq(l, r)
+  | Xor(l, r) ->
+    let l = from_cg_h count t l in
+    let r = from_cg_h count t r in
+    Xor(l, r)
+  | Tup(l, r) ->
+    let l = from_cg_h count t l in
+    let r = from_cg_h count t r in
+    Tup(l, r)
   | Not(e) -> Not(from_cg_h count t e)
   | Ident(s) -> Ident(s)
   | Sample(e) -> Sample(from_cg_h count t e)
@@ -118,9 +140,10 @@ let rec from_cg_h (count: int ref) (t: CG.tenv) (e: CG.expr) : texpr =
     count := !count + 1;
     Flip(f, i)
   | Ite(g, thn, els) ->
-    Ite(from_cg_h count t g,
-        from_cg_h count t thn,
-        from_cg_h count t els)
+    let g = from_cg_h count t g in
+    let thn = from_cg_h count t thn in
+    let els = from_cg_h count t els in
+    Ite(g, thn, els)
   | Let(x, e1, e2) ->
     let te1 = CG.type_of t e1 in
     let rece1 = from_cg_h count t e1 in
@@ -243,7 +266,7 @@ let rec update_order map e =
   | _ -> failwith "not implemented"
 
 
-let from_cg_prog (p: CG.program) =
+let from_cg_prog strategy (p: CG.program) =
   let count = ref 0 in
   let (tenv, functions) = List.fold p.functions ~init:(Map.Poly.empty, []) ~f:(fun (tenv, flst) i ->
       let tenvwithargs = List.fold i.args ~init:tenv ~f:(fun acc (name, typ) ->
@@ -255,10 +278,12 @@ let from_cg_prog (p: CG.program) =
       (tenv', flst @ [conv])
     ) in
   let convbody = from_cg_h count tenv p.body in
-  let prog = {functions = functions; body = convbody} in
-  let (_, cdfg) = build_cdfg prog in (** todo here: use the returned BDD?*)
-  let order = dfs_ts cdfg in
-  let updated = update_order order prog.body in
-  (* Format.printf "Before: %s\n\n" (string_of_texpr prog.body);
-   * Format.printf "After: %s\n\n" (string_of_texpr updated); *)
-  (!count, {functions=functions; body=updated})
+  match strategy with
+  | Default ->
+    (!count, {functions=functions; body=convbody})
+  | DFS ->
+    let prog = {functions = functions; body = convbody} in
+    let (_, cdfg) = build_cdfg prog in (** todo here: use the returned BDD?*)
+    let order = dfs_ts cdfg in
+    let updated = update_order order prog.body in
+    (!count, {functions=functions; body=updated})
