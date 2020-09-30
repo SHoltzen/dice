@@ -12,6 +12,8 @@ type strategy =
     Default
   | DFS
 
+(** A tagged expression where, each time a new logical variable is introduced,
+    it is tagged with its order *)
 type texpr =
   | And of texpr * texpr
   | Or of texpr * texpr
@@ -26,9 +28,9 @@ type texpr =
   | Ite of texpr * texpr * texpr
   | True
   | False
-  | Flip of float * int
-  | Let of String.t * texpr * texpr * (int btree)
-  | FuncCall of String.t * texpr List.t
+  | Flip of float * int (** the int is order of the flip *)
+  | Let of String.t * texpr * texpr * (int btree) (** the int btree is the order of the argument *)
+  | FuncCall of String.t * texpr List.t (* TODO update this with the flips that are created by calling this function *)
   | Observe of texpr
 [@@deriving sexp_of]
 and fcall = {
@@ -95,6 +97,9 @@ let string_of_prog e =
   Sexp.to_string_hum (sexp_of_program e)
 
 
+(** create a new variable tree
+   `c` is a counter that tracks that tracks which variable is currently the last
+   in the order *)
 let rec mk_tree (c: int ref) (t:CG.typ) : int VarState.btree =
   match t with
   | TBool ->
@@ -106,6 +111,15 @@ let rec mk_tree (c: int ref) (t:CG.typ) : int VarState.btree =
     let r = mk_tree c r in
     Node(l, r)
 
+(** creates a tagged AST from a core grammar AST. The goal here is simply to associate each
+    created logical variable with a unique identifier.
+
+    By default, this should be the same as the depth-first order used by the compiler.
+
+    TOOD: Make sure that this is the case. I suspect right now that these orders
+    are different, and that using the default ordering from this module will
+    cause a serious performance regression.
+*)
 let rec from_cg_h (count: int ref) (t: CG.tenv) (e: CG.expr) : texpr =
   match e with
   | And(l, r) ->
@@ -165,17 +179,22 @@ let from_cg_func count (tenv: CG.tenv) (f: CG.func) : func =
    args = f.args;
    body = conv}
 
-(** a map from each variable to its parents *)
+(** a map from each variable to its parents. This encodes a dependency graph. *)
 type cdfg = (int, int Set.Poly.t) Hashtbl.Poly.t
-type env = (String.t, (int Set.Poly.t) btree) Map.Poly.t (* map from variable identifiers to BDDs*)
+(** a map from each identifier to the variables that it depends on *)
+type env = (String.t, (int Set.Poly.t) btree) Map.Poly.t
 
 let build_cdfg (p: program) =
+  (** construct a CDFG for an expression. Returns a `btree` of sets of integers
+      for handling tuples. *)
   let rec cdfg_e (cdfg: cdfg) (env: env) e =
     match e with
     | And(e1, e2)
     | Or(e1, e2)
     | Eq(e1, e2)
     | Xor(e1, e2) ->
+      (* for binary expressions, simply take the union of whichever dependencies are
+         present in the two children *)
       let s1 = extract_leaf (cdfg_e cdfg env e1) in
       let s2 = extract_leaf (cdfg_e cdfg env e2) in
       Leaf(Set.union s1 s2)
@@ -185,21 +204,24 @@ let build_cdfg (p: program) =
     | True
     | False -> Leaf(Set.Poly.empty)
     | Ident(x) ->
+      (* this is why we have the environment map *)
       Map.Poly.find_exn env x
-    | Fst(e) -> extract_l (cdfg_e cdfg env e)
+    | Fst(e) ->
+      extract_l (cdfg_e cdfg env e)
     | Snd(e) -> extract_r (cdfg_e cdfg env e)
     | Tup(e1, e2) ->
       let s1 = cdfg_e cdfg env e1 in
       let s2 = cdfg_e cdfg env e2 in
       Node(s1, s2)
     | Flip(_, v) ->
+      (* for flips, depend only on the flip's Boolean indicator *)
       Hashtbl.Poly.add_exn cdfg ~key:v ~data:Set.Poly.empty;
       Leaf(Set.Poly.of_list [v])
     | Ite(g, thn, els) ->
       let gdeps = extract_leaf (cdfg_e cdfg env g) in
       let thndeps = cdfg_e cdfg env thn in
       let elsdeps = cdfg_e cdfg env els in
-      (* union all deps *)
+      (* take the union all the dependencies of the guard, then branch, and else-branch *)
       map_tree (zip_tree thndeps elsdeps) (fun (l, r) ->
           Set.Poly.union_list [l; r; gdeps]
         )
@@ -220,7 +242,13 @@ let build_cdfg (p: program) =
   let r = cdfg_e tbl Map.Poly.empty p.body in
   (r, tbl)
 
-(** depth-first topological sort **)
+(** This is a variable ordering function that takes a CDFG as an argument
+    and produces a possible variable ordering. Produces a map from variable
+    identifiers to their new positions in the order.
+
+    It perform a depth-first topological sort.
+    TODO: Test this and make sure that it is correct
+ *)
 let dfs_ts (cdfg: cdfg) =
   let map = Hashtbl.Poly.create () in
   let count = ref 0 in
@@ -241,6 +269,7 @@ let dfs_ts (cdfg: cdfg) =
     );
   map
 
+(** Updates the order of a tagged AST `e` according to `map` *)
 let rec update_order map e =
   match e with
   | And(e1, e2) -> And(update_order map e1, update_order map e2)
@@ -268,6 +297,8 @@ let rec update_order map e =
 
 let from_cg_prog strategy (p: CG.program) =
   let count = ref 0 in
+  (* TODO right now, functions are not handled by variable reordering. We would
+     add this feature here. *)
   let (tenv, functions) = List.fold p.functions ~init:(Map.Poly.empty, []) ~f:(fun (tenv, flst) i ->
       let tenvwithargs = List.fold i.args ~init:tenv ~f:(fun acc (name, typ) ->
           Map.Poly.set acc ~key:name ~data:typ
