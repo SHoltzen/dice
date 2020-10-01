@@ -236,7 +236,9 @@ let build_cdfg (p: program) =
           Hashtbl.Poly.add_exn cdfg ~key:curx ~data:curdep;
         ) in
       e2deps
-    | _ -> failwith "not implemented" in
+    | FuncCall(_) ->
+      (* TODO implement me *)
+      failwith "not implemented" in
   (* ignore functions for now *)
   let tbl : cdfg = Hashtbl.Poly.create () in
   let r = cdfg_e tbl Map.Poly.empty p.body in
