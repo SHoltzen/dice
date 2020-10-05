@@ -678,6 +678,19 @@ let from_external_func mgr (tenv: EG.tenv) (f: EG.func) : (EG.typ * CG.func) =
        args = args;
        body = conv})
 
+let from_external_func_optimize mgr (tenv: EG.tenv) (f: EG.func) : (EG.typ * CG.func) =
+  (* add the arguments to the type environment *)
+  let tenvwithargs = List.fold f.args ~init:tenv ~f:(fun acc (name, typ) ->
+      Map.Poly.set acc ~key:name ~data:typ
+    ) in
+  let (t, conv) = from_external_expr mgr true tenvwithargs f.body in
+  let optbody = Optimization.do_optimize conv !n in
+  (* convert arguments *)
+  let args = List.map f.args ~f:from_external_arg in
+  (TFunc(List.map f.args ~f:snd, t), {name = f.name;
+        args = args;
+        body = optbody})
+
 let from_external_prog (p: EG.program) : (EG.typ * CG.program) =
   let mgr = Cudd.Man.make_d () in
   let (tenv, functions) = List.fold p.functions ~init:(Map.Poly.empty, []) ~f:(fun (tenv, flst) i ->
@@ -691,7 +704,7 @@ let from_external_prog (p: EG.program) : (EG.typ * CG.program) =
   let from_external_prog_optimize (p: EG.program) : (EG.typ * CG.program) =
     let mgr = Cudd.Man.make_d () in
     let (tenv, functions) = List.fold p.functions ~init:(Map.Poly.empty, []) ~f:(fun (tenv, flst) i ->
-        let (t, conv) = from_external_func mgr tenv i in
+        let (t, conv) = from_external_func_optimize mgr tenv i in
         let tenv' = Map.Poly.set tenv ~key:i.name ~data:t in
         (tenv', flst @ [conv])
       ) in

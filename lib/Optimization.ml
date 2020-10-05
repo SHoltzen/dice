@@ -92,7 +92,6 @@ let rec downPass (e: CG.expr)
   (t: tree)
     : CG.expr * (String.t * float * (String.t * CG.expr) list * bool) list =
   (* Return the variable name of the replacement flip *)
-  (* TODO: bug where used flips aren't removed! *)
   let rec replace (f: float) (fl:  (String.t * float * (String.t * CG.expr) list * bool) list) 
     : (String.t * ((String.t * float * (String.t * CG.expr) list * bool) list)) option =
     match fl with
