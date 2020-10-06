@@ -88,7 +88,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
         let curweight = Hashtbl.Poly.copy compiled.ctx.weights in
         Hashtbl.Poly.iteri cursubst ~f:(fun ~key ~data ->
             (* find the variables to be substituted *)
-            Format.printf "subst %s\n" key;
+            (* Format.printf "subst %s\n" key; *)
             let vars = Hashtbl.Poly.find_exn compiled.ctx.subst key in
             List.iter vars ~f:(fun topvar ->
                 Hashtbl.Poly.add_exn curweight ~key:topvar ~data
