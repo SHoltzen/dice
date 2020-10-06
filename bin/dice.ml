@@ -45,11 +45,7 @@ let get_lexing_position lexbuf =
   (line_number, column)
 
 let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
-<<<<<<< HEAD
     ~inline_functions ~sample_amount ~flip_lifting ~branch_elimination ~determinism lexbuf : result List.t = try
-=======
-    ~inline_functions ~sample_amount ~show_recursive_calls ~optimize lexbuf : result List.t = try
->>>>>>> master
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
   let optimize = flip_lifting or branch_elimination or determinism in
