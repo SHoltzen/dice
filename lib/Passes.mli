@@ -10,4 +10,4 @@ val num_paths : ExternalGrammar.program -> LogProbability.t
 
 val from_external_prog: ExternalGrammar.program -> (ExternalGrammar.typ * CoreGrammar.program)
 
-val from_external_prog_optimize: ExternalGrammar.program -> (ExternalGrammar.typ * CoreGrammar.program)
+val from_external_prog_optimize: ExternalGrammar.program -> bool -> bool -> bool -> (ExternalGrammar.typ * CoreGrammar.program)

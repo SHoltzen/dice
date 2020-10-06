@@ -45,16 +45,17 @@ let get_lexing_position lexbuf =
   (line_number, column)
 
 let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
-    ~inline_functions ~sample_amount ~optimize lexbuf : result List.t = try
+    ~inline_functions ~sample_amount ~flip_lifting ~branch_elimination ~determinism lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
+  let optimize = flip_lifting or branch_elimination or determinism in
   let (t, internal) =
     if inline_functions && optimize then
-      (from_external_prog_optimize (Passes.inline_functions parsed))
+      (from_external_prog_optimize (Passes.inline_functions parsed) flip_lifting branch_elimination determinism)
     else if inline_functions && not optimize then
       (from_external_prog (Passes.inline_functions parsed))
     else if not inline_functions && optimize then
-      (from_external_prog_optimize parsed)
+      (from_external_prog_optimize parsed flip_lifting branch_elimination determinism)
     else from_external_prog parsed in
   let res = if print_internal then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog internal)] else res in
   match sample_amount with
@@ -136,7 +137,9 @@ let command =
      and print_size = flag "-show-size" no_arg ~doc:" show the size of the final compiled BDD"
      and sample_amount = flag "-sample" (optional int) ~doc:" number of samples to draw"
      and print_parsed = flag "-show-parsed" no_arg ~doc:" print parsed dice program"
-     and optimize = flag "-optimize" no_arg ~doc:" optimize dice program before compilation"
+     and flip_lifting = flag "-flip-lifting" no_arg ~doc:" optimize dice program before compilation using flip lifting"
+     and branch_elimination = flag "-branch-elimination" no_arg ~doc:" optimize dice program before compilation using branch elimination"
+     and determinism = flag "-determinism" no_arg ~doc:" optimize dice program before compilation using determinism"
      and inline_functions = flag "-inline-functions" no_arg ~doc:" inline all function calls"
      and print_internal = flag "-show-internal" no_arg ~doc:" print desugared dice program"
      and skip_table = flag "-skip-table" no_arg ~doc:" skip printing the joint probability distribution"
@@ -147,7 +150,7 @@ let command =
        let lexbuf = Lexing.from_channel inx in
        lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = fname };
        let r = (parse_and_print ~print_parsed ~print_internal ~sample_amount
-                  ~print_size ~inline_functions ~skip_table ~optimize lexbuf) in
+                  ~print_size ~inline_functions ~skip_table ~flip_lifting ~branch_elimination ~determinism lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res
     )
