@@ -45,7 +45,11 @@ let get_lexing_position lexbuf =
   (line_number, column)
 
 let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
+<<<<<<< HEAD
     ~inline_functions ~sample_amount ~flip_lifting ~branch_elimination ~determinism lexbuf : result List.t = try
+=======
+    ~inline_functions ~sample_amount ~show_recursive_calls ~optimize lexbuf : result List.t = try
+>>>>>>> master
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
   let optimize = flip_lifting or branch_elimination or determinism in
@@ -81,7 +85,9 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
          ) in
        [TableRes("Joint Distribution", l)]
       ) in
-    (* if print_info then (Format.printf "==========BDD Manager Info==========\n"; Man.print_info compiled.ctx.man); *)
+    let res = if show_recursive_calls then res @ [StringRes("Number of recursive calls",
+                                                            Format.sprintf "%f" (Man.num_recursive_calls compiled.ctx.man))]
+      else res in
     let res = if print_size then
         res @ [StringRes("Final compiled BDD size",
                          string_of_int (VarState.state_size [compiled.body.state; VarState.Leaf(compiled.body.z)]))]
@@ -143,6 +149,7 @@ let command =
      and inline_functions = flag "-inline-functions" no_arg ~doc:" inline all function calls"
      and print_internal = flag "-show-internal" no_arg ~doc:" print desugared dice program"
      and skip_table = flag "-skip-table" no_arg ~doc:" skip printing the joint probability distribution"
+     and show_recursive_calls = flag "-num-recursive-calls" no_arg ~doc:" show the number of recursive calls invoked during compilation"
      (* and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order" *)
      and json = flag "-json" no_arg ~doc:" print output as JSON"
      in fun () ->
