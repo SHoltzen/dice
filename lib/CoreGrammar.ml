@@ -104,11 +104,16 @@ let string_of_prog_unparsed p =
     | Let(x, e1, e2) ->
       let s1 = pr_expr e1 in
       let s2 = pr_expr e2 in
-      Format.asprintf "@[<hov 2>%s@ %s@ %s@;%s@;%s@.@]%s" "let" x "=" s1 "in" s2
-    | Flip(f) -> Format.asprintf "flip %s" (flo f)
-    | True -> Format.asprintf "true"
-    | False -> Format.asprintf "false"
-    | _ -> Format.sprintf ""
+      Format.dprintf "@[<hov 2>%s@ %s@ %s@;%t@;%s@.@]%t" "let" x "=" s1 "in" s2
+    | Ite(g, thn, els) ->
+      let s0 = pr_expr g in
+      let s1 = pr_expr thn in
+      let s2 = pr_expr els in
+      Format.dprintf "@[<hov>@[<hov 2>%s@ %t@ %s@\n%t@]@\n@[<hov 2>%s@\n%t@]@]" "if" s0 "then" s1 "else" s2
+    | Flip(f) -> Format.dprintf "flip %s" (flo f)
+    | True -> Format.dprintf "true"
+    | False -> Format.dprintf "false"
+    | _ -> Format.dprintf ""
   in 
 
-  Format.asprintf "@[<hov 2>%s@]\n" (pr_expr e)
+  Format.asprintf "@[<hov 2>%t@]\n" (pr_expr e)
