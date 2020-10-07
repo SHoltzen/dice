@@ -45,7 +45,7 @@ let get_lexing_position lexbuf =
   (line_number, column)
 
 let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
-    ~inline_functions ~sample_amount ~show_recursive_calls ~optimize lexbuf : result List.t = try
+    ~inline_functions ~sample_amount ~show_recursive_calls ~optimize ~print_unparsed lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
   let (t, internal) =
@@ -57,6 +57,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
       (from_external_prog_optimize parsed)
     else from_external_prog parsed in
   let res = if print_internal then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog internal)] else res in
+  let res = if print_unparsed then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog_unparsed internal)] else res in
   match sample_amount with
   | None ->
     let compiled = Compiler.compile_program internal in
@@ -141,6 +142,7 @@ let command =
      and optimize = flag "-optimize" no_arg ~doc:" optimize dice program before compilation"
      and inline_functions = flag "-inline-functions" no_arg ~doc:" inline all function calls"
      and print_internal = flag "-show-internal" no_arg ~doc:" print desugared dice program"
+     and print_unparsed = flag "-show-unparsed" no_arg ~doc:" print unparsed desugared dice program"
      and skip_table = flag "-skip-table" no_arg ~doc:" skip printing the joint probability distribution"
      and show_recursive_calls = flag "-num-recursive-calls" no_arg ~doc:" show the number of recursive calls invoked during compilation"
      (* and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order" *)
@@ -150,7 +152,7 @@ let command =
        let lexbuf = Lexing.from_channel inx in
        lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = fname };
        let r = (parse_and_print ~print_parsed ~print_internal ~sample_amount
-                  ~print_size ~inline_functions ~skip_table ~optimize ~show_recursive_calls lexbuf) in
+                  ~print_size ~inline_functions ~skip_table ~optimize ~show_recursive_calls ~print_unparsed lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res
     )

@@ -93,3 +93,22 @@ type program = {
 let string_of_prog e =
   Sexp.to_string_hum (sexp_of_program e)
 
+let string_of_prog_unparsed p =
+  let e = p.body in
+  let functions = p.functions in 
+
+  let flo f = Format.asprintf "%f" f in
+
+  let rec pr_expr e = 
+    match e with
+    | Let(x, e1, e2) ->
+      let s1 = pr_expr e1 in
+      let s2 = pr_expr e2 in
+      Format.asprintf "@[<hov 2>%s@ %s@ %s@;%s@;%s@.@]%s" "let" x "=" s1 "in" s2
+    | Flip(f) -> Format.asprintf "flip %s" (flo f)
+    | True -> Format.asprintf "true"
+    | False -> Format.asprintf "false"
+    | _ -> Format.sprintf ""
+  in 
+
+  Format.asprintf "@[<hov 2>%s@]\n" (pr_expr e)
