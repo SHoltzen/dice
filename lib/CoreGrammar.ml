@@ -97,24 +97,44 @@ let string_of_prog_unparsed p =
   let e = p.body in
   let functions = p.functions in 
 
-  let flo f = Format.asprintf "%f" f in
+  let flo f = Format.asprintf "%f" f 
+  and string_of_op e = 
+    match e with 
+    | And(_, _) -> "&&"
+    | Xor(_, _) -> "^"
+    | Eq(_, _) -> "=="
+    | Or(_, _) -> "||"
+    | Observe(_) -> "observe"
+    | Fst(_) -> "fst"
+    | Snd(_) -> "snd"
+    | _ -> ""
+  in
 
   let rec pr_expr e = 
     match e with
     | Let(x, e1, e2) ->
       let s1 = pr_expr e1 in
       let s2 = pr_expr e2 in
-      Format.dprintf "@[<hov 2>let@ %s@ =@;%t@;in@.@]%t" x s1 s2
+      Format.dprintf "@[<hv>@[let@ %s@ =@;<1 2>%t@;in@]@\n%t@]" x s1 s2
     | Ite(g, thn, els) ->
       let s0 = pr_expr g in
       let s1 = pr_expr thn in
       let s2 = pr_expr els in
       Format.dprintf "@[<hv>@[if@;<1 2>%t@;then@]@;<1 2>@[%t@]@;else@;<1 2>@[%t@]@]" s0 s1 s2
-    | And(e1, e2) -> 
+    | And(e1, e2) | Xor(e1, e2) | Eq(e1, e2) | Or(e1, e2) -> 
       let s1 = pr_expr e1 in
       let s2 = pr_expr e2 in
-      Format.dprintf "@[<hov 2>%t@ %s@;%t@]" s1 "&&" s2
-    (* | Xor(_, _) | Eq(_, _) | Or(_, _) | Not(_) | True | False | Flip(_) | Observe(_) -> *)
+      Format.dprintf "@[<hov 2>%t@ %s@;%t@]" s1 (string_of_op e) s2
+    | Tup(e1, e2) ->
+      let s1 = pr_expr e1 in
+      let s2 = pr_expr e2 in
+      Format.dprintf "@[<hov 2>(%t,@ %t)@]" s1 s2
+    | Not(e1) -> 
+      let s1 = pr_expr e1 in
+      Format.dprintf "!%t" s1
+    | Observe(e1) | Fst(e1) | Snd(e1) ->
+      let s1 = pr_expr e1 in
+      Format.dprintf "@[<hov 2>%s@ %t@]" (string_of_op e) s1
     | Flip(f) -> Format.dprintf "flip %s" (flo f)
     | Ident(s) -> Format.dprintf "%s" s
     | True -> Format.dprintf "true"
