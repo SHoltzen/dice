@@ -107,6 +107,7 @@ let string_of_prog_unparsed p =
     | Observe(_) -> "observe"
     | Fst(_) -> "fst"
     | Snd(_) -> "snd"
+    | Sample(_) -> "sample"
     | _ -> ""
   in
 
@@ -132,7 +133,7 @@ let string_of_prog_unparsed p =
     | Not(e1) -> 
       let s1 = pr_expr e1 in
       Format.dprintf "!%t" s1
-    | Observe(e1) | Fst(e1) | Snd(e1) ->
+    | Observe(e1) | Fst(e1) | Snd(e1) | Sample(e1) ->
       let s1 = pr_expr e1 in
       Format.dprintf "@[<hov 2>%s@ %t@]" (string_of_op e) s1
     | Flip(f) -> Format.dprintf "flip %s" (flo f)
@@ -148,7 +149,6 @@ let string_of_prog_unparsed p =
       Format.dprintf "@[<hov 2>%s(%t)@]" id args_s
     | True -> Format.dprintf "true"
     | False -> Format.dprintf "false"
-    | _ -> Format.dprintf ""
   in 
 
   Format.asprintf "@[<hov 2>%t@]\n" (pr_expr e)
