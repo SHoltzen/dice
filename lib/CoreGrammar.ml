@@ -137,6 +137,15 @@ let string_of_prog_unparsed p =
       Format.dprintf "@[<hov 2>%s@ %t@]" (string_of_op e) s1
     | Flip(f) -> Format.dprintf "flip %s" (flo f)
     | Ident(s) -> Format.dprintf "%s" s
+    | FuncCall(id, args) ->
+      let args_s = 
+        match args with
+        | [] -> Format.dprintf ""
+        | head::[] -> Format.dprintf "%t" (pr_expr head)
+        | head::tail -> 
+          List.fold tail ~init:(Format.dprintf "%t" (pr_expr head)) ~f:(fun prev arg -> Format.dprintf "%t,@ %t" prev (pr_expr arg))
+      in
+      Format.dprintf "@[<hov 2>%s(%t)@]" id args_s
     | True -> Format.dprintf "true"
     | False -> Format.dprintf "false"
     | _ -> Format.dprintf ""
