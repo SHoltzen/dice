@@ -165,6 +165,6 @@ let string_of_prog_unparsed p =
         | (var, typ)::tail -> 
           List.fold tail ~init:(Format.dprintf "%s: %s" var (string_of_type typ)) ~f:(fun prev (var, typ) -> Format.dprintf "%t,@ %t" prev (Format.dprintf "%s: %s" var (string_of_type typ)))
     in
-    Format.dprintf "@[%t\n@[fun@ %s(%t)@]@\n@[{@;<1 2>%t@;}@]@]\n" prev func.name string_of_args (pr_func func.body)
+    Format.dprintf "@[%t\n@[fun@ %s(%t)@]@\n@<100>{@;<1 2>%t@;}@]\n" prev func.name string_of_args (pr_func func.body)
   ) in
   Format.asprintf "%s%s" (Format.asprintf "%t\n" string_of_functions) (Format.asprintf "%t\n" (pr_func body))
