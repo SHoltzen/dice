@@ -94,11 +94,10 @@ let string_of_prog e =
   Sexp.to_string_hum (sexp_of_program e)
 
 let string_of_prog_unparsed p =
-  let e = p.body in
+  let body = p.body in
   let functions = p.functions in 
 
-  let flo f = Format.asprintf "%f" f 
-  and string_of_op e = 
+  let string_of_op e = 
     match e with 
     | And(_, _) -> "&&"
     | Xor(_, _) -> "^"
@@ -111,7 +110,14 @@ let string_of_prog_unparsed p =
     | _ -> ""
   in
 
-  let rec pr_expr e = 
+  let rec pr_func e = 
+    Format.dprintf "@[<hov 2>%t@]" (pr_expr e)
+  and string_of_type typ = 
+    match typ with
+    | TBool -> "bool"
+    | TTuple(t1, t2) -> Format.asprintf "(%s, %s)" (string_of_type t1) (string_of_type t2)
+  and
+  pr_expr e = 
     match e with
     | Let(x, e1, e2) ->
       let s1 = pr_expr e1 in
@@ -136,7 +142,7 @@ let string_of_prog_unparsed p =
     | Observe(e1) | Fst(e1) | Snd(e1) | Sample(e1) ->
       let s1 = pr_expr e1 in
       Format.dprintf "@[<hov 2>%s@ %t@]" (string_of_op e) s1
-    | Flip(f) -> Format.dprintf "flip %s" (flo f)
+    | Flip(f) -> Format.dprintf "flip %s" (Format.asprintf "%f" f)
     | Ident(s) -> Format.dprintf "%s" s
     | FuncCall(id, args) ->
       let args_s = 
@@ -150,5 +156,15 @@ let string_of_prog_unparsed p =
     | True -> Format.dprintf "true"
     | False -> Format.dprintf "false"
   in 
-
-  Format.asprintf "@[<hov 2>%t@]\n" (pr_expr e)
+  
+  let string_of_functions = List.fold functions ~init:(Format.dprintf "") ~f:(fun prev func -> 
+    let string_of_args = 
+      match func.args with
+        | [] -> Format.dprintf ""
+        | (var, typ)::[] -> Format.dprintf "%s: %s" var (string_of_type typ)
+        | (var, typ)::tail -> 
+          List.fold tail ~init:(Format.dprintf "%s: %s" var (string_of_type typ)) ~f:(fun prev (var, typ) -> Format.dprintf "%t,@ %t" prev (Format.dprintf "%s: %s" var (string_of_type typ)))
+    in
+    Format.dprintf "@[%t\n@[fun@ %s(%t)@]@\n@[{@;<1 2>%t@;}@]@]\n" prev func.name string_of_args (pr_func func.body)
+  ) in
+  Format.asprintf "%s%s" (Format.asprintf "%t\n" string_of_functions) (Format.asprintf "%t\n" (pr_func body))
