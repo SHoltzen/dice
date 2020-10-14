@@ -4,9 +4,11 @@ see the research article [here](https://arxiv.org/abs/2005.09089). To cite
 `dice`, please use:
 ```
 @article{holtzen2020dice,
-  title={Dice: Compiling Discrete Probabilistic Programs for Scalable Inference},
-  author={Holtzen, Steven and Van den Broeck, Guy and Millstein, Todd},
-  journal={arXiv preprint arXiv:2005.09089},
+  title={Scaling Exact Inference for Discrete Probabilistic Programs},
+  author={Holtzen, Steven and {Van den Broeck}, Guy and Millstein, Todd},
+  booktitle={Proc. ACM Program. Lang. OOPSLA},
+  publisher={ACM},
+  doi={https://doi.org/10. 1145/342820},
   year={2020}
 }
 ```
