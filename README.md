@@ -6,9 +6,9 @@ see the research article [here](https://arxiv.org/abs/2005.09089). To cite
 @article{holtzen2020dice,
   title={Scaling Exact Inference for Discrete Probabilistic Programs},
   author={Holtzen, Steven and {Van den Broeck}, Guy and Millstein, Todd},
-  journal={Proc. ACM Program. Lang. OOPSLA},
+  journal={Proc. ACM Program. Lang. (OOPSLA)},
   publisher={ACM},
-  doi={https://doi.org/10. 1145/342820},
+  doi={https://doi.org/10.1145/342820},
   year={2020}
 }
 ```
