@@ -93,3 +93,78 @@ type program = {
 let string_of_prog e =
   Sexp.to_string_hum (sexp_of_program e)
 
+let string_of_prog_unparsed p =
+  let body = p.body in
+  let functions = p.functions in 
+
+  let string_of_op e = 
+    match e with 
+    | And(_, _) -> "&&"
+    | Xor(_, _) -> "^"
+    | Eq(_, _) -> "=="
+    | Or(_, _) -> "||"
+    | Observe(_) -> "observe"
+    | Fst(_) -> "fst"
+    | Snd(_) -> "snd"
+    | Sample(_) -> "sample"
+    | _ -> ""
+  in
+
+  let rec pr_func e = 
+    Format.dprintf "@[<hov 2>%t@]" (pr_expr e)
+  and string_of_type typ = 
+    match typ with
+    | TBool -> "bool"
+    | TTuple(t1, t2) -> Format.asprintf "(%s, %s)" (string_of_type t1) (string_of_type t2)
+  and
+  pr_expr e = 
+    match e with
+    | Let(x, e1, e2) ->
+      let s1 = pr_expr e1 in
+      let s2 = pr_expr e2 in
+      Format.dprintf "@[<hv>@[let@ %s@ =@;<1 2>%t@;in@]@\n%t@]" x s1 s2
+    | Ite(g, thn, els) ->
+      let s0 = pr_expr g in
+      let s1 = pr_expr thn in
+      let s2 = pr_expr els in
+      Format.dprintf "@[<hv>@[if@;<1 2>%t@;then@]@;<1 2>@[%t@]@;else@;<1 2>@[%t@]@]" s0 s1 s2
+    | And(e1, e2) | Xor(e1, e2) | Eq(e1, e2) | Or(e1, e2) -> 
+      let s1 = pr_expr e1 in
+      let s2 = pr_expr e2 in
+      Format.dprintf "@[<hov 2>%t@ %s@;%t@]" s1 (string_of_op e) s2
+    | Tup(e1, e2) ->
+      let s1 = pr_expr e1 in
+      let s2 = pr_expr e2 in
+      Format.dprintf "@[<hov 2>(%t,@ %t)@]" s1 s2
+    | Not(e1) -> 
+      let s1 = pr_expr e1 in
+      Format.dprintf "!%t" s1
+    | Observe(e1) | Fst(e1) | Snd(e1) | Sample(e1) ->
+      let s1 = pr_expr e1 in
+      Format.dprintf "@[<hov 2>%s@ %t@]" (string_of_op e) s1
+    | Flip(f) -> Format.dprintf "flip %s" (Format.asprintf "%f" f)
+    | Ident(s) -> Format.dprintf "%s" s
+    | FuncCall(id, args) ->
+      let args_s = 
+        match args with
+        | [] -> Format.dprintf ""
+        | head::[] -> Format.dprintf "%t" (pr_expr head)
+        | head::tail -> 
+          List.fold tail ~init:(Format.dprintf "%t" (pr_expr head)) ~f:(fun prev arg -> Format.dprintf "%t,@ %t" prev (pr_expr arg))
+      in
+      Format.dprintf "@[<hov 2>%s(%t)@]" id args_s
+    | True -> Format.dprintf "true"
+    | False -> Format.dprintf "false"
+  in 
+  
+  let string_of_functions = List.fold functions ~init:(Format.dprintf "") ~f:(fun prev func -> 
+    let string_of_args = 
+      match func.args with
+        | [] -> Format.dprintf ""
+        | (var, typ)::[] -> Format.dprintf "%s: %s" var (string_of_type typ)
+        | (var, typ)::tail -> 
+          List.fold tail ~init:(Format.dprintf "%s: %s" var (string_of_type typ)) ~f:(fun prev (var, typ) -> Format.dprintf "%t,@ %t" prev (Format.dprintf "%s: %s" var (string_of_type typ)))
+    in
+    Format.dprintf "@[%t\n@[fun@ %s(%t)@]@\n@<100>{@;<1 2>%t@;}@]\n" prev func.name string_of_args (pr_func func.body)
+  ) in
+  Format.asprintf "%s%s" (Format.asprintf "%t\n" string_of_functions) (Format.asprintf "%t\n" (pr_func body))

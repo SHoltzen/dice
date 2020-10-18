@@ -60,3 +60,4 @@ val type_of_fun : tenv -> func -> typ
 
 val string_of_expr : expr -> String.t
 val string_of_prog : program -> String.t
+val string_of_prog_unparsed : program -> String.t
