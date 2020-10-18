@@ -45,7 +45,9 @@ let get_lexing_position lexbuf =
   (line_number, column)
 
 let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
-    ~inline_functions ~sample_amount ~show_recursive_calls ~optimize ~print_unparsed lexbuf : result List.t = try
+    ~inline_functions ~sample_amount ~show_recursive_calls
+    ~flip_lifting ~branch_elimination ~determinism
+    ~print_unparsed lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
   let optimize = flip_lifting || branch_elimination || determinism in
@@ -155,7 +157,9 @@ let command =
        let lexbuf = Lexing.from_channel inx in
        lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = fname };
        let r = (parse_and_print ~print_parsed ~print_internal ~sample_amount
-                  ~print_size ~inline_functions ~skip_table ~optimize ~show_recursive_calls ~print_unparsed lexbuf) in
+                  ~print_size ~inline_functions ~skip_table ~flip_lifting
+                  ~branch_elimination ~determinism ~show_recursive_calls
+                  ~print_unparsed lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res
     )
