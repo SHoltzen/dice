@@ -67,11 +67,7 @@ let rec upPass (e: CG.expr) : float list * tree =
   in
 
   match e with
-  | Flip(f) -> 
-    if f = 0.0 || f = 1.0 then
-      [], Leaf
-    else 
-      [f], Leaf
+  | Flip(f) -> [f], Leaf
   | Ite(_, thn, els) ->
     (* let n0, t0 = upPass g in *)
     let n1, t1 = upPass thn in
@@ -287,13 +283,7 @@ let flip_code_motion (e: CG.expr) (new_n: int) : CG.expr =
 
 let rec merge_branch (e: CG.expr) : CG.expr = 
   match e with
-  | Flip(f) ->
-    if f = 0.0 then
-      False
-    else if f = 1.0 then
-      True
-    else
-      Flip(f)
+  | Flip(f) -> Flip(f)
   | Ite(g, thn, els) ->
     let n1 = merge_branch thn in
     let n2 = merge_branch els in
@@ -344,7 +334,59 @@ let rec merge_branch (e: CG.expr) : CG.expr =
     Observe(n1)
   | _ -> e
 
-let do_optimize (e: CG.expr) (new_n: int) : CG.expr = 
-  let e1 = flip_code_motion e new_n in
-  let e2 = merge_branch e1 in
+let rec redundant_flip_elimination (e: CG.expr) : CG.expr =
+  match e with 
+  | Flip(f) ->
+    if f = 0.0 then
+      False
+    else if f = 1.0 then
+      True
+    else
+      Flip(f)
+  | Ite(g, thn, els) ->
+    let n1 = redundant_flip_elimination thn in
+    let n2 = redundant_flip_elimination els in
+    Ite(g, n1, n2)
+  | Let(v, e1, e2) ->
+    let n1 = redundant_flip_elimination e1 in
+    let n2 = redundant_flip_elimination e2 in
+    Let(v, n1, n2)
+  | And(e1, e2) ->
+    let n1 = redundant_flip_elimination e1 in
+    let n2 = redundant_flip_elimination e2 in
+    And(n1, n2)
+  | Or(e1, e2) ->
+    let n1 = redundant_flip_elimination e1 in
+    let n2 = redundant_flip_elimination e2 in
+    Or(n1, n2)
+  | Xor(e1, e2) ->
+    let n1 = redundant_flip_elimination e1 in
+    let n2 = redundant_flip_elimination e2 in
+    Xor(n1, n2)
+  | Eq(e1, e2) ->
+    let n1 = redundant_flip_elimination e1 in
+    let n2 = redundant_flip_elimination e2 in
+    Eq(n1, n2)
+  | Tup(e1, e2) ->
+    let n1 = redundant_flip_elimination e1 in
+    let n2 = redundant_flip_elimination e2 in
+    Tup(n1, n2)  
+  | Snd(e1) ->
+    let n1 = redundant_flip_elimination e1 in
+    Snd(n1)
+  | Fst(e1) ->
+    let n1 = redundant_flip_elimination e1 in
+    Fst(n1)
+  | Not(e1) ->
+    let n1 = redundant_flip_elimination e1 in
+    Not(n1)
+  | Observe(e1) ->
+    let n1 = redundant_flip_elimination e1 in
+    Observe(n1)
+  | _ -> e
+
+let do_optimize (e: CG.expr) (new_n: int) (flip_lifting: bool) (branch_elimination: bool) (determinism: bool) : CG.expr = 
+  let e0 = if determinism then redundant_flip_elimination e else e in
+  let e1 = if flip_lifting then flip_code_motion e0 new_n else e0 in 
+  let e2 = if branch_elimination then merge_branch e1 else e1 in
   e2

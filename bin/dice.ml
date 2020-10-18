@@ -48,13 +48,14 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~inline_functions ~sample_amount ~show_recursive_calls ~optimize ~print_unparsed lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
+  let optimize = flip_lifting || branch_elimination || determinism in
   let (t, internal) =
     if inline_functions && optimize then
-      (from_external_prog_optimize (Passes.inline_functions parsed))
+      (from_external_prog_optimize (Passes.inline_functions parsed) flip_lifting branch_elimination determinism)
     else if inline_functions && not optimize then
       (from_external_prog (Passes.inline_functions parsed))
     else if not inline_functions && optimize then
-      (from_external_prog_optimize parsed)
+      (from_external_prog_optimize parsed flip_lifting branch_elimination determinism)
     else from_external_prog parsed in
   let res = if print_internal then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog internal)] else res in
   let res = if print_unparsed then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog_unparsed internal)] else res in
@@ -139,7 +140,9 @@ let command =
      and print_size = flag "-show-size" no_arg ~doc:" show the size of the final compiled BDD"
      and sample_amount = flag "-sample" (optional int) ~doc:" number of samples to draw"
      and print_parsed = flag "-show-parsed" no_arg ~doc:" print parsed dice program"
-     and optimize = flag "-optimize" no_arg ~doc:" optimize dice program before compilation"
+     and flip_lifting = flag "-flip-lifting" no_arg ~doc:" optimize dice program before compilation using flip lifting"
+     and branch_elimination = flag "-branch-elimination" no_arg ~doc:" optimize dice program before compilation using branch elimination"
+     and determinism = flag "-determinism" no_arg ~doc:" optimize dice program before compilation using determinism"
      and inline_functions = flag "-inline-functions" no_arg ~doc:" inline all function calls"
      and print_internal = flag "-show-internal" no_arg ~doc:" print desugared dice program"
      and print_unparsed = flag "-show-unparsed" no_arg ~doc:" print unparsed desugared dice program"

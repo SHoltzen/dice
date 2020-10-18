@@ -298,7 +298,7 @@ let parse_optimize_and_prob ?debug txt =
   | Parser.Error ->
     fprintf stderr "%a: syntax error\n" print_position buf;
     failwith (Format.sprintf "Error parsing %s" txt) in
-  let (_, transformed) = Passes.from_external_prog_optimize parsed in
+  let (_, transformed) = Passes.from_external_prog_optimize parsed true true true in
   (match debug with
    | Some(true)->
      Format.printf "Program: %s\n" (ExternalGrammar.string_of_prog parsed);
