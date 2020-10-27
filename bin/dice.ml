@@ -46,7 +46,7 @@ let get_lexing_position lexbuf =
 
 let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~inline_functions ~sample_amount ~show_recursive_calls
-    ~flip_lifting ~branch_elimination ~determinism
+    ~flip_lifting ~branch_elimination ~determinism ~print_state_bdd
     ~print_unparsed lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
@@ -90,6 +90,10 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     let res = if print_size then
         res @ [StringRes("Final compiled BDD size",
                          string_of_int (VarState.state_size [compiled.body.state; VarState.Leaf(compiled.body.z)]))]
+      else res in
+    let res = if print_state_bdd then
+        res @ [StringRes("State BDD (graphviz format)",
+                         BddUtil.dump_dot_multiroot compiled.ctx.name_map compiled.body.state)]
       else res in
     res
   | Some(n) ->
@@ -147,6 +151,7 @@ let command =
      and determinism = flag "-determinism" no_arg ~doc:" optimize dice program before compilation using determinism"
      and inline_functions = flag "-inline-functions" no_arg ~doc:" inline all function calls"
      and print_internal = flag "-show-internal" no_arg ~doc:" print desugared dice program"
+     and print_state_bdd = flag "-print-state-bdd" no_arg ~doc:" print final compiled state BDD (in graphviz format)"
      and print_unparsed = flag "-show-unparsed" no_arg ~doc:" print unparsed desugared dice program"
      and skip_table = flag "-skip-table" no_arg ~doc:" skip printing the joint probability distribution"
      and show_recursive_calls = flag "-num-recursive-calls" no_arg ~doc:" show the number of recursive calls invoked during compilation"
@@ -158,7 +163,7 @@ let command =
        lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = fname };
        let r = (parse_and_print ~print_parsed ~print_internal ~sample_amount
                   ~print_size ~inline_functions ~skip_table ~flip_lifting
-                  ~branch_elimination ~determinism ~show_recursive_calls
+                  ~branch_elimination ~determinism ~show_recursive_calls ~print_state_bdd
                   ~print_unparsed lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res
