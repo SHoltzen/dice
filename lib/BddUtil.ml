@@ -63,9 +63,7 @@ let dump_dot_multiroot (m: name_map) (b: Bdd.dt VarState.btree) : String.t =
       let (thn, els) = (Bdd.dthen b, Bdd.delse b) in
       let (s1, s_thn) = dump_dot_h s m thn seen in
       let (s2, s_els) = dump_dot_h s1 m els seen in
-      (* Format.printf "var %s\n" name; *)
       let r = (Format.sprintf "%s%s [label = \"%s\" ]\n%s -> %s\n%s -> %s [style=dashed]\n" s2 name lbl name s_thn name s_els, name) in
-      (* Format.printf "%s\n\n" (fst r); *)
       r in
   let tbl = Hashtbl.Poly.create () in
   let rec print_h s curlbl (b: Bdd.dt VarState.btree) =
@@ -78,5 +76,4 @@ let dump_dot_multiroot (m: name_map) (b: Bdd.dt VarState.btree) : String.t =
       let l_s = print_h s (Format.sprintf "%sl" curlbl) l in
       print_h l_s (Format.sprintf "%sr" curlbl) r
   in
-  (* let (r, _) = dump_dot_h "" m b (Hashtbl.Poly.create ()) in *)
   Format.sprintf "digraph D { %s } " (print_h "" "" b)

@@ -129,9 +129,9 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     let new_f = Bdd.newvar ctx.man in
     let var_lbl = Bdd.topvar new_f in
     let var_name = (Format.sprintf "f%d" !flip_id) in
+    Hashtbl.add_exn ctx.name_map ~key:var_lbl ~data:var_name;
     flip_id := !flip_id + 1;
     Hashtbl.Poly.add_exn ctx.weights ~key:var_lbl ~data:(1.0-.f, f);
-    Hashtbl.add_exn ctx.name_map ~key:var_lbl ~data:var_name;
     {state=Leaf(new_f); z=Bdd.dtrue ctx.man; flips=[new_f]}
 
   | Observe(g) ->
@@ -193,8 +193,13 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
 
     let cargs = List.map args ~f:(compile_expr ctx tenv env) in
     let new_flips = List.map func.body.flips ~f:(fun f ->
+        let cur_name = Hashtbl.find_exn ctx.name_map (Bdd.topvar f) in
+        let var_name = (Format.sprintf "%s_%d" cur_name !flip_id) in
+        flip_id := !flip_id + 1;
+
         let newv = Bdd.newvar ctx.man in
         let lvl = Bdd.topvar newv in
+        Hashtbl.add_exn ctx.name_map ~key:lvl ~data:var_name;
         (match Hashtbl.Poly.find ctx.weights (Bdd.topvar f) with
          | Some(v) -> Hashtbl.Poly.add_exn ctx.weights ~key:lvl ~data:v
          | None -> ());
