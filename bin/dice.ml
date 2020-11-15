@@ -47,7 +47,7 @@ let get_lexing_position lexbuf =
 let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~inline_functions ~sample_amount ~show_recursive_calls
     ~flip_lifting ~branch_elimination ~determinism ~print_state_bdd
-    ~print_unparsed lexbuf : result List.t = try
+    ~show_function_size ~print_unparsed lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
   let optimize = flip_lifting || branch_elimination || determinism in
@@ -87,6 +87,12 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     let res = if show_recursive_calls then res @ [StringRes("Number of recursive calls",
                                                             Format.sprintf "%f" (Man.num_recursive_calls compiled.ctx.man))]
       else res in
+    let res = if show_function_size then
+        let all_sizes = List.map (Hashtbl.to_alist compiled.ctx.funcs) ~f:(fun (key, data) ->
+            let sz = VarState.state_size [data.body.state; VarState.Leaf(data.body.z)] in
+            StringRes(Format.sprintf "Size of function '%s'" key, string_of_int sz)
+          ) in
+        res @ all_sizes else res in
     let res = if print_size then
         res @ [StringRes("Final compiled BDD size",
                          string_of_int (VarState.state_size [compiled.body.state; VarState.Leaf(compiled.body.z)]))]
@@ -149,6 +155,7 @@ let command =
      and flip_lifting = flag "-flip-lifting" no_arg ~doc:" optimize dice program before compilation using flip lifting"
      and branch_elimination = flag "-branch-elimination" no_arg ~doc:" optimize dice program before compilation using branch elimination"
      and determinism = flag "-determinism" no_arg ~doc:" optimize dice program before compilation using determinism"
+     and show_function_size = flag "-show-function-size" no_arg ~doc:" print size of all function BDDs"
      and inline_functions = flag "-inline-functions" no_arg ~doc:" inline all function calls"
      and print_internal = flag "-show-internal" no_arg ~doc:" print desugared dice program"
      and print_state_bdd = flag "-print-state-bdd" no_arg ~doc:" print final compiled state BDD (in graphviz format)"
@@ -164,7 +171,7 @@ let command =
        let r = (parse_and_print ~print_parsed ~print_internal ~sample_amount
                   ~print_size ~inline_functions ~skip_table ~flip_lifting
                   ~branch_elimination ~determinism ~show_recursive_calls ~print_state_bdd
-                  ~print_unparsed lexbuf) in
+                  ~show_function_size ~print_unparsed lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res
     )
