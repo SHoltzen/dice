@@ -87,14 +87,46 @@ let state_size (states : Bdd.dt btree List.t) =
       let leaves = collect_leaves i in
       List.fold leaves ~init:acc ~f:(fun acc bdd -> acc + (helper bdd)) )
 
+
+let rec subst_state_h tbl varset x state f =
+  if Bdd.is_cst f then f else
+    match Hashtbl.Poly.find tbl f with
+    | Some(x) -> x
+    | None ->
+      let res = (match (x, state) with
+       | ([], []) -> f
+       | (x::xs, state::states) ->
+         let var = Bdd.topvar f in
+         (* if we have passed all variables *)
+         if not (Set.Poly.mem varset var) then f
+         else if var == x then
+           (* subst for children, then compose in current variable *)
+           let subst_thn = subst_state_h tbl varset xs states (Bdd.dthen f) in
+           let subst_els = subst_state_h tbl varset xs states (Bdd.delse f) in
+           Bdd.ite state subst_thn subst_els
+         else if not (List.mem xs var ~equal:(==)) then
+           failwith "Out of order"
+         else
+           (* skip this var,state pair *)
+           subst_state_h tbl varset xs states f
+       | _ -> failwith "unreachable"
+        ) in
+      let _x = Hashtbl.Poly.add tbl ~key:f ~data:res in
+      res
+
 (** substitute the variable x for the state `state` in f *)
 let subst_state (x: Bdd.dt btree) (state: Bdd.dt btree) (f: Bdd.dt btree) =
+  (* let tbl = Hashtbl.Poly.create () in
+   * let xlst = (List.map ~f:Bdd.topvar (collect_leaves x)) in
+   * let varset = Set.Poly.of_list xlst in
+   * map_tree f (fun i ->
+   *     subst_state_h tbl varset xlst (collect_leaves state) i
+   *   ) *)
   let newsubst = List.zip_exn (collect_leaves x) (collect_leaves state) in
   List.fold ~init:f newsubst ~f:(fun acc (tmp, e1c) ->
       map_tree acc (fun bdd ->
           Bdd.compose (Bdd.topvar tmp) e1c bdd
         )
     )
-
 
 

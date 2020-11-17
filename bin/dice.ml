@@ -65,9 +65,9 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
   | None ->
     let compiled = Compiler.compile_program internal in
     let zbdd = compiled.body.z in
-    let z = Wmc.wmc zbdd compiled.ctx.weights in
     let res = if skip_table then res else res @
-      (let table = VarState.get_table compiled.body.state t in
+       (let z = Wmc.wmc zbdd compiled.ctx.weights in
+       let table = VarState.get_table compiled.body.state t in
        let probs = List.map table ~f:(fun (label, bdd) ->
            if Util.within_epsilon z 0.0 then (label, 0.0) else
              let prob = (Wmc.wmc (Bdd.dand bdd zbdd) compiled.ctx.weights) /. z in
@@ -105,7 +105,10 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
       else res in
     let res = if print_state_bdd then
         res @ [StringRes("State BDD (graphviz format)",
-                         BddUtil.dump_dot_multiroot compiled.ctx.name_map compiled.body.state)]
+                         BddUtil.dump_dot_multiroot compiled.ctx.name_map compiled.body.state);
+               StringRes("State accepting BDD (graphviz format)",
+                        BddUtil.dump_dot_multiroot compiled.ctx.name_map (VarState.Leaf(compiled.body.z)))
+              ]
       else res in
     res
   | Some(n) ->
