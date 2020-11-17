@@ -68,7 +68,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     let c2 = compile_expr ctx tenv env e2 in
     let v = Leaf(f (extract_leaf c1.state) (extract_leaf c2.state)) in
     let z = Bdd.dand c1.z c2.z in
-    {state=v; z=z; flips=List.append c1.flips c2.flips} in
+    {state=v; z=z; flips=c1.flips @ c2.flips} in
 
   let r = match e with
   | And(e1, e2) -> binop_helper Bdd.dand e1 e2
@@ -92,7 +92,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
   | Tup(e1, e2) ->
     let c1 = compile_expr ctx tenv env e1 in
     let c2 = compile_expr ctx tenv env e2 in
-    {state=Node(c1.state, c2.state); z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips}
+    {state=Node(c1.state, c2.state); z=Bdd.dand c1.z c2.z; flips=c1.flips @ c2.flips}
 
   | Ite(g, thn, els) ->
     let cg = compile_expr ctx tenv env g in
@@ -109,7 +109,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
           Bdd.ite gbdd thn_state els_state
         ) in
       let z' = Bdd.dand cg.z (Bdd.ite gbdd cthn.z cels.z) in
-      {state=v'; z=z'; flips = List.append cg.flips (List.append cthn.flips cels.flips)}
+      {state=v'; z=z'; flips = cg.flips @ cthn.flips @ cels.flips}
 
   | Fst(e) ->
     let c = compile_expr ctx tenv env e in
@@ -143,31 +143,18 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     let t = (type_of tenv e1) in
     let tenv' = Map.Poly.set tenv ~key:x ~data:t in
     (* if true then (\* this value is a heuristic *\) *)
+    let tmp = gen_sym_type ctx.man t in
     if is_const c1.state then (* this value is a heuristic *)
       let env' = Map.Poly.set env ~key:x ~data:c1.state in
       let c2 = compile_expr ctx tenv' env' e2 in
       {state=c2.state; z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips}
     else
       (* create a temp variable *)
-      let tmp = gen_sym_type ctx.man t in
       let env' = Map.Poly.set env ~key:x ~data:tmp in
       let c2 = compile_expr ctx tenv' env' e2 in
-      let newsubst = List.zip_exn (collect_leaves tmp) (collect_leaves c1.state) in
-
-      (* do substitution *)
-      let swap_idx = List.to_array (List.map (collect_leaves tmp) ~f:(Bdd.topvar)) in
-      let swap_bdd = List.to_array (collect_leaves c1.state) in
-      (* Format.printf "Composing BDD of size %d into %d, num vars: %d\n" (VarState.state_size [c1.state]) (VarState.state_size [c2.state]) ();
-       * flush_all (); *)
-      let final_state = map_tree c2.state (fun bdd ->
-          List.fold ~init:bdd newsubst ~f:(fun acc (tmp, e1c) ->
-              Bdd.compose (Bdd.topvar tmp) e1c acc
-            )
-          (* Bdd.labeled_vector_compose bdd swap_bdd swap_idx *)
-        ) in
-
-      let final_z = Bdd.labeled_vector_compose c2.z swap_bdd swap_idx in
-      {state=final_state; z=Bdd.dand c1.z final_z; flips=List.append c1.flips c2.flips}
+      let final_state = subst_state tmp c1.state c2.state in
+      let final_z = extract_leaf (subst_state tmp c1.state (Leaf(c2.z))) in
+      {state=final_state; z=Bdd.dand c1.z final_z; flips=c1.flips @ c2.flips}
 
   | Sample(e) ->
     let sube = compile_expr ctx tenv env e in
@@ -192,6 +179,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
       with _ -> failwith (Format.sprintf "Could not find function '%s'." name) in
 
     let cargs = List.map args ~f:(compile_expr ctx tenv env) in
+    (* first refresh all the flips... *)
     let new_flips = List.map func.body.flips ~f:(fun f ->
         let cur_name = Hashtbl.find_exn ctx.name_map (Bdd.topvar f) in
         let var_name = (Format.sprintf "%s_%d" cur_name !flip_id) in
@@ -209,19 +197,17 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     let refreshed_state = map_tree func.body.state (fun bdd -> Bdd.swapvariables bdd swapA swapB) in
     let refreshed_z = Bdd.swapvariables func.body.z swapA swapB in
 
-    let swap_idx =
-      List.map func.args ~f:(fun arg ->
-          List.to_array (List.map (collect_leaves arg) ~f:(Bdd.topvar)))
-      |> Array.concat in
-    let swap_bdd =
-      List.map cargs ~f:(fun arg ->
-          List.to_array (collect_leaves arg.state))
-      |> Array.concat in
     let argz = List.fold cargs ~init:(Bdd.dtrue ctx.man) ~f:(fun acc i -> Bdd.dand i.z acc) in
+
+    (* now substitute all the arguments in *)
     let argflips = List.fold cargs ~init:[] ~f:(fun acc i -> acc @ i.flips) in
-    let final_state = map_tree refreshed_state (fun bdd ->
-        Bdd.labeled_vector_compose bdd swap_bdd swap_idx) in
-    let final_z = Bdd.labeled_vector_compose refreshed_z swap_bdd swap_idx in
+    let zippedargs = (List.zip_exn func.args cargs) in
+    let final_state = List.fold ~init:refreshed_state zippedargs ~f:(fun acc (x, c) ->
+        subst_state x c.state acc
+      ) in
+    let final_z = List.fold ~init:refreshed_z zippedargs ~f:(fun acc (x, c) ->
+        extract_leaf (subst_state x c.state (Leaf(acc)))
+      ) in
     {state=final_state; z=Bdd.dand argz final_z; flips=new_flips @ argflips} in
  r
 
@@ -233,7 +219,10 @@ let compile_func (ctx: compile_context) tenv (f: func) : compiled_func =
   let (args, env) = List.fold f.args ~init:([], Map.Poly.empty)
       ~f:(fun (lst, map) (name, typ) ->
           let placeholder_arg = gen_sym_type ctx.man typ in
-          (List.append lst [placeholder_arg], Map.Poly.set map ~key:name ~data:placeholder_arg)
+          List.iteri (VarState.collect_leaves placeholder_arg) ~f:(fun idx i  ->
+              Hashtbl.Poly.add_exn ctx.name_map ~key:(Bdd.topvar i) ~data:(Format.sprintf "%s%d" name idx);
+            );
+          (lst @ [placeholder_arg], Map.Poly.set map ~key:name ~data:placeholder_arg)
         ) in
   (* now compile the function body with these arguments *)
   let body = compile_expr ctx new_tenv env f.body in

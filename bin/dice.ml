@@ -47,7 +47,7 @@ let get_lexing_position lexbuf =
 let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~inline_functions ~sample_amount ~show_recursive_calls
     ~flip_lifting ~branch_elimination ~determinism ~print_state_bdd
-    ~show_function_size ~print_unparsed lexbuf : result List.t = try
+    ~show_function_size ~print_unparsed ~print_function_bdd lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
   let optimize = flip_lifting || branch_elimination || determinism in
@@ -93,6 +93,12 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
             StringRes(Format.sprintf "Size of function '%s'" key, string_of_int sz)
           ) in
         res @ all_sizes else res in
+    let res = if print_function_bdd then
+        let all_bdds = List.map (Hashtbl.to_alist compiled.ctx.funcs) ~f:(fun (key, data) ->
+            let bdd = BddUtil.dump_dot_multiroot compiled.ctx.name_map data.body.state in
+            StringRes(Format.sprintf "BDD for function '%s'" key, bdd)
+          ) in
+        res @ all_bdds else res in
     let res = if print_size then
         res @ [StringRes("Final compiled BDD size",
                          string_of_int (VarState.state_size [compiled.body.state; VarState.Leaf(compiled.body.z)]))]
@@ -159,6 +165,7 @@ let command =
      and inline_functions = flag "-inline-functions" no_arg ~doc:" inline all function calls"
      and print_internal = flag "-show-internal" no_arg ~doc:" print desugared dice program"
      and print_state_bdd = flag "-print-state-bdd" no_arg ~doc:" print final compiled state BDD (in graphviz format)"
+     and print_function_bdd = flag "-print-function-bdd" no_arg ~doc:" print final compiled function state BDD (in graphviz format)"
      and print_unparsed = flag "-show-unparsed" no_arg ~doc:" print unparsed desugared dice program"
      and skip_table = flag "-skip-table" no_arg ~doc:" skip printing the joint probability distribution"
      and show_recursive_calls = flag "-num-recursive-calls" no_arg ~doc:" show the number of recursive calls invoked during compilation"
@@ -171,7 +178,7 @@ let command =
        let r = (parse_and_print ~print_parsed ~print_internal ~sample_amount
                   ~print_size ~inline_functions ~skip_table ~flip_lifting
                   ~branch_elimination ~determinism ~show_recursive_calls ~print_state_bdd
-                  ~show_function_size ~print_unparsed lexbuf) in
+                  ~show_function_size ~print_unparsed ~print_function_bdd lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res
     )

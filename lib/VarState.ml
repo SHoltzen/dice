@@ -87,3 +87,14 @@ let state_size (states : Bdd.dt btree List.t) =
       let leaves = collect_leaves i in
       List.fold leaves ~init:acc ~f:(fun acc bdd -> acc + (helper bdd)) )
 
+(** substitute the variable x for the state `state` in f *)
+let subst_state (x: Bdd.dt btree) (state: Bdd.dt btree) (f: Bdd.dt btree) =
+  let newsubst = List.zip_exn (collect_leaves x) (collect_leaves state) in
+  List.fold ~init:f newsubst ~f:(fun acc (tmp, e1c) ->
+      map_tree acc (fun bdd ->
+          Bdd.compose (Bdd.topvar tmp) e1c bdd
+        )
+    )
+
+
+

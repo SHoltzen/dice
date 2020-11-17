@@ -22,3 +22,6 @@ val get_table: Bdd.dt btree ->
 (** [state_size] computes the total number of unique nodes in the list of
     varstates [states] *)
 val state_size: Bdd.dt btree Core.List.t -> int
+
+(** [subst_state] : x -> state -> f -> bdd, substitutes the variable x for the state `state` in f *)
+val subst_state : Bdd.dt btree -> Bdd.dt btree -> Bdd.dt btree -> Bdd.dt btree
