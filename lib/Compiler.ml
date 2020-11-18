@@ -286,7 +286,8 @@ let compile_program (p:CG.program) : compiled_program =
   let (count, vp) = VO.from_cg_prog VO.Default p in
   let ctx = new_context count in
   let tenv = ref Map.Poly.empty in
-  List.iter (Map.Poly.to_alist vp.functions) ~f:(fun (name, func) ->
+  List.iter p.functions ~f:(fun cg_func ->
+      let func = Map.Poly.find_exn vp.functions cg_func.name in
       let c = compile_func ctx !tenv func in
       tenv := Map.Poly.add_exn !tenv ~key:func.name ~data:(VO.type_of_fun !tenv func);
       try Hashtbl.Poly.add_exn ctx.funcs ~key:func.name ~data:c
