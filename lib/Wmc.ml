@@ -6,6 +6,8 @@ type weight = (int, (float*float)) Hashtbl.Poly.t
 
 (** Perform a weighted model count of the BDD `bdd` with weight function `w` *)
 let wmc bdd (w: weight) =
+  print_endline "\n\nCalling WMC on BDD:<<";
+  BddUtil.dump_dot (Hashtbl.Poly.create ()) bdd;
   (* internal memoized recursive weighted model count *)
   let rec wmc_rec bdd w cache : float=
     if Bdd.is_true bdd then 1.0
@@ -23,4 +25,6 @@ let wmc bdd (w: weight) =
         let new_weight = (highw *. thnw) +. (loww *. elsw) in
         Hashtbl.Poly.add_exn cache ~key:bdd ~data:new_weight;
         new_weight in
-  wmc_rec bdd w (Hashtbl.Poly.create ())
+  let out = wmc_rec bdd w (Hashtbl.Poly.create ()) in
+  print_endline "\n>>WMC ended\n";
+  out

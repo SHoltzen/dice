@@ -34,5 +34,6 @@ let dump_dot (m: name_map) (b:Bdd.dt) =
       name in
   Format.printf "digraph D {\n";
   let _ : String.t = dump_dot_h m b (Hashtbl.Poly.create ()) in
-  Format.printf "}"
+  Format.printf "}";
+  Format.print_flush ()
 

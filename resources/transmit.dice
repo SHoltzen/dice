@@ -1,0 +1,8 @@
+fun leaky_transmit(a: bool) {
+  a
+}
+
+let msg = true in
+let t1 = leaky_transmit(msg && flip 0.9) in
+t1 || flip 0.6
+

@@ -30,7 +30,7 @@ type texpr =
   | False
   | Flip of float * int (** the int is order of the flip *)
   | Let of String.t * texpr * texpr * (int btree) (** the int btree is the order of the argument *)
-  | FuncCall of String.t * texpr List.t (* TODO update this with the flips that are created by calling this function *)
+  | FuncCall of String.t * texpr List.t * (int, int) Map.Poly.t * (int * int)
   | Observe of texpr
 [@@deriving sexp_of]
 and fcall = {
@@ -67,7 +67,7 @@ let rec type_of env e : CG.typ =
     (* let t2 = type_of env els in *)
     (* assert (t1 == t2); *)
     t1
-  | FuncCall(id, _) ->
+  | FuncCall(id, _, _, _) ->
     (try Map.Poly.find_exn env id
     with _ -> failwith (Format.sprintf "Could not find function '%s' during typechecking" id))
 
@@ -77,8 +77,15 @@ type func = {
   name: String.t;
   args: CG.arg List.t;
   body: texpr;
+
+  local_bools: int List.t;
+  arg_bools: int List.t;
 }
 [@@deriving sexp_of]
+
+type fenv = (String.t, func) Map.Poly.t
+[@@deriving sexp_of]
+
 
 let type_of_fun env f : CG.typ =
   (* set up the type environment and then type the body *)
@@ -88,7 +95,7 @@ let type_of_fun env f : CG.typ =
   type_of new_env f.body
 
 type program = {
-  functions: func List.t;
+  functions: fenv;
   body: texpr;
 }
 [@@deriving sexp_of]
@@ -120,64 +127,88 @@ let rec mk_tree (c: int ref) (t:CG.typ) : int VarState.btree =
     are different, and that using the default ordering from this module will
     cause a serious performance regression.
 *)
-let rec from_cg_h (count: int ref) (t: CG.tenv) (e: CG.expr) : texpr =
+let rec from_cg_h (count: int ref) (t: CG.tenv) (f:fenv) (e: CG.expr) : texpr =
   match e with
   | And(l, r) ->
-    let l = from_cg_h count t l in
-    let r = from_cg_h count t r in
+    let l = from_cg_h count t f l in
+    let r = from_cg_h count t f r in
     And(l, r)
   | Or(l, r) ->
-    let l = from_cg_h count t l in
-    let r = from_cg_h count t r in
+    let l = from_cg_h count t f l in
+    let r = from_cg_h count t f r in
     Or(l, r)
   | Eq(l, r) ->
-    let l = from_cg_h count t l in
-    let r = from_cg_h count t r in
+    let l = from_cg_h count t f l in
+    let r = from_cg_h count t f r in
     Eq(l, r)
   | Xor(l, r) ->
-    let l = from_cg_h count t l in
-    let r = from_cg_h count t r in
+    let l = from_cg_h count t f l in
+    let r = from_cg_h count t f r in
     Xor(l, r)
   | Tup(l, r) ->
-    let l = from_cg_h count t l in
-    let r = from_cg_h count t r in
+    let l = from_cg_h count t f l in
+    let r = from_cg_h count t f r in
     Tup(l, r)
-  | Not(e) -> Not(from_cg_h count t e)
+  | Not(e) -> Not(from_cg_h count t f e)
   | Ident(s) -> Ident(s)
-  | Sample(e) -> Sample(from_cg_h count t e)
-  | Fst(e) -> Fst(from_cg_h count t e)
-  | Snd(e) -> Snd(from_cg_h count t e)
+  | Sample(e) -> Sample(from_cg_h count t f e)
+  | Fst(e) -> Fst(from_cg_h count t f e)
+  | Snd(e) -> Snd(from_cg_h count t f e)
   | True -> True
   | False -> False
-  | Flip(f) ->
+  | Flip(x) ->
     let i = !count in
     count := !count + 1;
-    Flip(f, i)
+    Flip(x, i)
   | Ite(g, thn, els) ->
-    let g = from_cg_h count t g in
-    let thn = from_cg_h count t thn in
-    let els = from_cg_h count t els in
+    let g = from_cg_h count t f g in
+    let thn = from_cg_h count t f thn in
+    let els = from_cg_h count t f els in
     Ite(g, thn, els)
   | Let(x, e1, e2) ->
     let te1 = CG.type_of t e1 in
-    let rece1 = from_cg_h count t e1 in
+    let rece1 = from_cg_h count t f e1 in
     let t' = Map.Poly.set t ~key:x ~data:te1 in
     let tree = mk_tree count te1 in
-    let rece2 = from_cg_h count t' e2 in
+    let rece2 = from_cg_h count t' f e2 in
     Let(x, rece1, rece2, tree)
-  | Observe(e) -> Observe(from_cg_h count t e)
-  | FuncCall(_) -> failwith "Function translation not implemented"
+  | Observe(e) -> Observe(from_cg_h count t f e)
+  | FuncCall(name, args) ->
+    let targs = List.map args (from_cg_h count t f) in
+    let func = Map.Poly.find_exn f name in
+    let bool_count = (List.length func.arg_bools) + (List.length func.local_bools) in
+    let init_count = !count in
+    let order_map_args = List.fold ~init:Map.Poly.empty ~f:(fun map i ->
+      let map' = Map.Poly.set map ~key:i ~data:!count in
+      count := !count +1;
+      map'
+    ) func.arg_bools in
+    let arg_range = (init_count, !count) in
+    let order_map = List.fold ~init:order_map_args ~f:(fun map i ->
+      let map' = Map.Poly.set map ~key:i ~data:!count in
+      count := !count +1;
+      map'
+    ) func.local_bools in
+    FuncCall(name, targs, order_map, arg_range)
 
-let from_cg_func count (tenv: CG.tenv) (f: CG.func) : func =
+
+let from_cg_func count (tenv: CG.tenv) (fenv: fenv) (f: CG.func) : func =
   (* add the arguments to the type environment *)
+  let init_count = !count in
   let tenvwithargs = List.fold f.args ~init:tenv ~f:(fun acc (name, typ) ->
+      let _tree = mk_tree count typ in
       Map.Poly.set acc ~key:name ~data:typ
     ) in
-  let conv = from_cg_h count tenvwithargs f.body in
+  let count_with_args = !count in
+  let conv = from_cg_h count tenvwithargs fenv f.body in
   (* convert arguments *)
   {name = f.name;
    args = f.args;
-   body = conv}
+   body = conv;
+
+   arg_bools = List.range init_count count_with_args;
+   local_bools = List.range count_with_args !count;
+   }
 
 (** a map from each variable to its parents. This encodes a dependency graph. *)
 type cdfg = (int, int Set.Poly.t) Hashtbl.Poly.t
@@ -301,22 +332,25 @@ let from_cg_prog strategy (p: CG.program) =
   let count = ref 0 in
   (* TODO right now, functions are not handled by variable reordering. We would
      add this feature here. *)
-  let (tenv, functions) = List.fold p.functions ~init:(Map.Poly.empty, []) ~f:(fun (tenv, flst) i ->
+  let (tenv, fenv) = List.fold p.functions ~init:(Map.Poly.empty, Map.Poly.empty) ~f:(fun (tenv, fenv) i ->
       let tenvwithargs = List.fold i.args ~init:tenv ~f:(fun acc (name, typ) ->
           Map.Poly.set acc ~key:name ~data:typ
         ) in
       let t = CG.type_of tenvwithargs i.body in
-      let conv = from_cg_func count tenv i in
+      let conv = from_cg_func count tenv fenv i in
+  (* [%sexp_of: texpr] conv.body |> Sexp.to_string_hum |> print_endline;     *)
       let tenv' = Map.Poly.set tenv ~key:i.name ~data:t in
-      (tenv', flst @ [conv])
+      let fenv' = Map.Poly.set fenv ~key:i.name ~data:conv in
+      (tenv', fenv')
     ) in
-  let convbody = from_cg_h count tenv p.body in
+  let convbody = from_cg_h count tenv fenv p.body in
+  (* print_endline ""; [%sexp_of: texpr] convbody |> Sexp.to_string_hum |> print_endline; *)
   match strategy with
   | Default ->
-    (!count, {functions=functions; body=convbody})
+    (!count, {functions=fenv; body=convbody})
   | DFS ->
-    let prog = {functions = functions; body = convbody} in
+    let prog = {functions = fenv; body = convbody} in
     let (_, cdfg) = build_cdfg prog in (** todo here: use the returned BDD?*)
     let order = dfs_ts cdfg in
     let updated = update_order order prog.body in
-    (!count, {functions=functions; body=updated})
+    (!count, {functions=fenv; body=updated})
