@@ -21,6 +21,9 @@ type compiled_expr = {
 type compiled_func = {
   args: (Bdd.dt btree) List.t;
   body: compiled_expr;
+
+  local_bools: int List.t;
+  arg_bools: int List.t;
 }
 
 type compile_context = {
@@ -199,7 +202,7 @@ let rec compile_expr (ctx: compile_context) (tenv: CG.tenv)
     {state=r; z=Bdd.dand obs z; subst = subst; flips=[]}
     (* {state=r; z=z; subst = subst; flips=[]} *)
 
-  | FuncCall(name, args, order_map, arg_range) ->
+  | FuncCall(name, args, order_map) ->
     let func = try Hashtbl.Poly.find_exn ctx.funcs name
       with _ -> failwith (Format.sprintf "Could not find function '%s'." name) in
 
@@ -228,12 +231,12 @@ let rec compile_expr (ctx: compile_context) (tenv: CG.tenv)
         Bdd.labeled_vector_compose bdd swap_bdd swap_idx) in
     let final_z = Bdd.labeled_vector_compose refreshed_z swap_bdd swap_idx in *)
     let order_pairs = Map.Poly.to_alist order_map in
-(*     print_endline "state = <<";
+    (* print_endline "state = <<";
     BddUtil.dump_dot (Hashtbl.Poly.create ()) (extract_leaf func.body.state);
-    print_endline "\n>>";
-    print_endline "";
-    Map.Poly.sexp_of_t sexp_of_int sexp_of_int order_map |> Sexp.to_string_hum |> print_endline;
-    [%sexp_of: (int, float*float) Hashtbl.Poly.t] ctx.weights |> Sexp.to_string_hum |> print_endline; *)
+    print_endline "\n>>"; *)
+    (* print_endline ""; *)
+    (* Map.Poly.sexp_of_t sexp_of_int sexp_of_int order_map |> Sexp.to_string_hum |> print_endline; *)
+    (* [%sexp_of: (int, float*float) Hashtbl.Poly.t] ctx.weights |> Sexp.to_string_hum |> print_endline; *)
     List.iter order_pairs (fun (old_id, new_id) ->
       let wts_option = Hashtbl.Poly.find ctx.weights old_id in
       match wts_option with
@@ -244,13 +247,20 @@ let rec compile_expr (ctx: compile_context) (tenv: CG.tenv)
     ) ;
     let old_ids = List.map order_pairs (fun (x,y) -> x) |> List.to_array in
     (* let new_ids = List.map order_pairs (fun (x,y) -> y) |> List.to_array in *)
-    let (arg_start, arg_end) = arg_range in
+    (* let (arg_start, arg_end) = arg_range in *)
+    let (arg_start, arg_end) =
+      if (List.length func.arg_bools) > 0 then
+        (List.nth_exn func.arg_bools 0, List.last_exn func.arg_bools)
+      else
+        (0, -1)
+      in
     let arg_leaves = List.map cargs ~f:(fun carg ->
           List.to_array (collect_leaves carg.state))
       |> Array.concat in
     let new_bdds = List.map order_pairs (fun (x,y) ->
-      if y >= arg_start && y < arg_end then Array.get arg_leaves (y - arg_start)
-      else Bdd.ithvar ctx.man y
+      if x >= arg_start && x <= arg_end then Array.get arg_leaves (x - arg_start)
+      else 
+      Bdd.ithvar ctx.man y
     ) |> List.to_array in
     let final_state = map_tree func.body.state (fun bdd ->
         Bdd.labeled_vector_compose bdd new_bdds old_ids
@@ -279,11 +289,11 @@ let compile_func (ctx: compile_context) tenv (f: VO.func) : compiled_func =
         ) in
   (* now compile the function body with these arguments *)
   let body = compile_expr ctx new_tenv env [] (Bdd.dtrue ctx.man) f.body in
-  {args = args; body = body}
+  {args = args; body = body; arg_bools = f.arg_bools; local_bools = f.local_bools}
 
 let compile_program (p:CG.program) : compiled_program =
   (* first compile the functions in topological order *)
-  let (count, vp) = VO.from_cg_prog VO.Default p in
+  let (count, vp) = VO.from_cg_prog VO.DFS p in
   let ctx = new_context count in
   let tenv = ref Map.Poly.empty in
   List.iter p.functions ~f:(fun cg_func ->

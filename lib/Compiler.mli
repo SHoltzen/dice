@@ -17,6 +17,9 @@ type compiled_expr = {
 type compiled_func = {
   args: (Bdd.dt btree) List.t;
   body: compiled_expr;
+  
+  local_bools: int List.t;
+  arg_bools: int List.t;
 }
 
 

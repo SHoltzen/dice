@@ -65,6 +65,8 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     let res = if skip_table then res else res @
       (let table = VarState.get_table compiled.body.state t in
        let probs = List.map table ~f:(fun (label, bdd) ->
+        (* BddUtil.dump_dot (Hashtbl.Poly.create ()) bdd;
+        [%sexp_of: (int, float*float) Hashtbl.Poly.t] compiled.ctx.weights |> Sexp.to_string_hum |> print_endline;  *)
            if Util.within_epsilon z 0.0 then (label, 0.0) else
              let prob = (Wmc.wmc (Bdd.dand bdd zbdd) compiled.ctx.weights) /. z in
              (label, prob)) in

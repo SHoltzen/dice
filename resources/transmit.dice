@@ -1,8 +1,13 @@
-fun leaky_transmit(a: bool) {
-  a
+fun func1(a: bool, b: (bool, bool)) {
+  let x = ((fst b) && flip 0.6, (snd b) && flip 0.7) in
+  a || (fst x) || (snd x)
 }
 
-let msg = true in
-let t1 = leaky_transmit(msg && flip 0.9) in
-t1 || flip 0.6
+fun func2(a: (bool, bool), b: bool) {
+  b || func1(b, a)
+}
+
+let msg = flip 0.8 in
+let t1 = func2((msg && flip 0.9, true), func1(msg, (flip 0.8, false))) in
+func1(t1, (flip 0.9, flip 0.9)) || flip 0.6
 
