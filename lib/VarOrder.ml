@@ -200,8 +200,8 @@ let rec from_cg_h (count: int ref) (t: CG.tenv) (f:fenv) (e: CG.expr) : texpr =
   | Let(x, e1, e2) ->
     let te1 = CG.type_of t e1 in
     let rece1 = from_cg_h count t f e1 in
-    let t' = Map.Poly.set t ~key:x ~data:te1 in
     let tree = mk_tree count te1 in
+    let t' = Map.Poly.set t ~key:x ~data:te1 in
     let rece2 = from_cg_h count t' f e2 in
     Let(x, rece1, rece2, tree)
   | Observe(e) -> Observe(from_cg_h count t f e)
@@ -382,10 +382,10 @@ let from_cg_prog strategy (p: CG.program) =
   | DFS ->
     let prog = {functions = fenv; body = convbody} in
     let (_, cdfg) = build_cdfg prog fenv in
-    (* print_endline "\nBEFORE"; [%sexp_of: texpr] prog.body |> Sexp.to_string_hum |> print_endline;
-    [%sexp_of: (int, int Set.Poly.t) Hashtbl.Poly.t] cdfg |> Sexp.to_string_hum |> print_endline; *)
+    (* print_endline "\nBEFORE"; [%sexp_of: texpr] prog.body |> Sexp.to_string_hum |> print_endline; *)
+    (* [%sexp_of: (int, int Set.Poly.t) Hashtbl.Poly.t] cdfg |> Sexp.to_string_hum |> print_endline; *)
     let order = dfs_ts ~start:dummy_count cdfg in
     
     let updated = update_order order prog.body in
-    (* print_endline "\nAFTER"; [%sexp_of: texpr] updated |> Sexp.to_string_hum |> print_endline; *)
+    (* print_endline "\nAFTER"; [%sexp_of: texpr]  updated |> Sexp.to_string_hum |> print_endline; *)
     (!count, {functions=fenv; body=updated})

@@ -60,6 +60,11 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
   match sample_amount with
   | None ->
     let compiled = Compiler.compile_program internal in
+    (* Format.printf "State:\n";
+    BddUtil.dump_dot compiled.ctx.name_map (VarState.extract_leaf compiled.body.state); Format.print_flush ();
+    Format.printf "\n\nz:\n";
+    BddUtil.dump_dot compiled.ctx.name_map compiled.body.z; Format.print_flush ();
+    Format.printf "\n\n"; *)
     let zbdd = compiled.body.z in
     let z = Wmc.wmc zbdd compiled.ctx.weights in
     let res = if skip_table then res else res @

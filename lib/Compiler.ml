@@ -241,6 +241,10 @@ let rec compile_expr (ctx: compile_context) (tenv: CG.tenv)
       let wts_option = Hashtbl.Poly.find ctx.weights old_id in
       match wts_option with
       | Some wts -> Hashtbl.Poly.add_exn ctx.weights ~key:new_id ~data: wts
+      | None -> ();
+      let var_name_option = Hashtbl.Poly.find ctx.name_map old_id in
+      match var_name_option with
+      | Some var_name -> Hashtbl.add_exn ctx.name_map ~key:new_id ~data:var_name
       | None -> ()
       (* let wts = Hashtbl.Poly.find_exn ctx.weights old_id in
       Hashtbl.Poly.add_exn ctx.weights ~key:new_id ~data: wts *)
@@ -293,7 +297,7 @@ let compile_func (ctx: compile_context) tenv (f: VO.func) : compiled_func =
 
 let compile_program (p:CG.program) : compiled_program =
   (* first compile the functions in topological order *)
-  let (count, vp) = VO.from_cg_prog VO.DFS p in
+  let (count, vp) = VO.from_cg_prog VO.Default p in
   let ctx = new_context count in
   let tenv = ref Map.Poly.empty in
   List.iter p.functions ~f:(fun cg_func ->
