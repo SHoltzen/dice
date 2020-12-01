@@ -3,24 +3,29 @@ open Cudd
 open Core
 open Wmc
 
+type subst = (Bdd.dt * Bdd.dt) List.t
+
 (** Result of compiling an expression *)
 type compiled_expr = {
   state: Bdd.dt btree;
   z: Bdd.dt;
-  flips: Bdd.dt List.t}
+  subst: subst;
+  flips: Bdd.dt List.t;
+}
 
 type compiled_func = {
   args: (Bdd.dt btree) List.t;
   body: compiled_expr;
+  local_bools: int List.t;
+  arg_bools: int List.t;
 }
-
 
 type compile_context = {
   man: Man.dt;
   name_map: (int, String.t) Hashtbl.Poly.t; (* map from variable identifiers to names, for debugging *)
   weights: weight; (* map from variables to weights *)
   lazy_eval: bool; (* true if lazy let evaluation *)
-  free_stack: Bdd.dt Stack.t; (* a stack of unallocated BDD variables, for reuse *)
+  free_stack: Bdd.dt Stack.t;
   funcs: (String.t, compiled_func) Hashtbl.Poly.t;
 }
 
