@@ -87,3 +87,12 @@ let state_size (states : Bdd.dt btree List.t) =
       let leaves = collect_leaves i in
       List.fold leaves ~init:acc ~f:(fun acc bdd -> acc + (helper bdd)) )
 
+let extract_l a =
+  match a with
+  | Node(l, _) -> l
+  | _ -> failwith "Attempting to extract left non-node"
+
+let extract_r a =
+  match a with
+  | Node(_, r) -> r
+  | _ -> failwith "Attempting to extract right non-node"
