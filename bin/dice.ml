@@ -50,15 +50,16 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~show_function_size ~print_unparsed lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
+  let parsed_norec = Passes.expand_recursion parsed in
   let optimize = flip_lifting || branch_elimination || determinism in
   let (t, internal) =
     if inline_functions && optimize then
-      (from_external_prog_optimize (Passes.inline_functions parsed) flip_lifting branch_elimination determinism)
+      (from_external_prog_optimize (Passes.inline_functions parsed_norec) flip_lifting branch_elimination determinism)
     else if inline_functions && not optimize then
-      (from_external_prog (Passes.inline_functions parsed))
+      (from_external_prog (Passes.inline_functions parsed_norec))
     else if not inline_functions && optimize then
-      (from_external_prog_optimize parsed flip_lifting branch_elimination determinism)
-    else from_external_prog parsed in
+      (from_external_prog_optimize parsed_norec flip_lifting branch_elimination determinism)
+    else from_external_prog parsed_norec in
   let res = if print_internal then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog internal)] else res in
   let res = if print_unparsed then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog_unparsed internal)] else res in
   match sample_amount with

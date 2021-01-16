@@ -1,6 +1,8 @@
 (** Passes over the external and internal grammar.
   * Implementations of syntactic sugar, optimizations, etc. *)
 
+val expand_recursion : ExternalGrammar.program -> ExternalGrammar.program
+
 (** Inline all function calls *)
 val inline_functions : ExternalGrammar.program -> ExternalGrammar.program
 

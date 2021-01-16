@@ -13,6 +13,66 @@ let fresh () =
 let within_epsilon x y =
   (Float.compare (Float.abs (x -. y)) 0.0001) < 0
 
+let rec map_eexpr f =
+  let open EG in
+  function
+  | And(s, e1, e2) -> And(s, f e1, f e2)
+  | Or(s, e1, e2) -> Or(s, f e1, f e2)
+  | Iff(s, e1, e2) -> Iff(s, f e1, f e2)
+  | Xor(s, e1, e2) -> Xor(s, f e1, f e2)
+  | Sample(s, e) -> Sample(s, f e)
+  | IntConst(s, i) -> IntConst(s, i)
+  | Not(s, e) -> Not(s, f e)
+  | Ite(s, e1, e2, e3) -> Ite(s, f e1, f e2, f e3)
+  | Flip(s, p) -> Flip(s, p)
+  | Let(s, id, e1, e2) -> Let(s, id, f e1, f e2)
+  | Observe(s, e) -> Observe(s, f e)
+  | Ident(s, id) -> Ident(s, id)
+  | Discrete(s, ps) -> Discrete(s, ps)
+  | Int(s, sz, v) -> Int(s, sz, v)
+  | Eq(s, e1, e2) -> Eq(s, f e1, f e2)
+  | LeftShift(s, e, i) -> LeftShift(s, f e, i)
+  | RightShift(s, e, i) -> RightShift(s, f e, i)
+  | Plus(s, e1, e2) -> Plus(s, f e1, f e2)
+  | Minus(s, e1, e2) -> Minus(s, f e1, f e2)
+  | Mult(s, e1, e2) -> Mult(s, f e1, f e2)
+  | Div(s, e1, e2) -> Div(s, f e1, f e2)
+  | Lte(s, e1, e2) -> Lte(s, f e1, f e2)
+  | Lt(s, e1, e2) -> Lt(s, f e1, f e2)
+  | Gte(s, e1, e2) -> Gte(s, f e1, f e2)
+  | Gt(s, e1, e2) -> Gt(s, f e1, f e2)
+  | Neq(s, e1, e2) -> Neq(s, f e1, f e2)
+  | Fst(s, e) -> Fst(s, f e)
+  | Snd(s, e) -> Snd(s, f e)
+  | Tup(s, e1, e2) -> Tup(s, f e1, f e2)
+  | FuncCall(s, fn, es) -> FuncCall(s, fn, List.map es ~f)
+  | Iter(s, fn, e, n) -> Iter(s, fn, f e, n)
+  | True s -> True s
+  | False s -> False s
+
+let recursion_limit = 10
+
+let expand_recursion (p: EG.program) =
+  let open EG in
+  let expand_func func =
+    let gen_name i = func.name ^ "$" ^ string_of_int i in
+    let rec sub f e = map_eexpr (sub f) @@ match e with
+      | FuncCall(s, fn, es) when String.(fn = func.name) -> f s es
+      | _ -> e in
+    let rename i s es = FuncCall(s, gen_name i, es) in
+    let is_recursive = ref false in
+    let body' = sub (fun s es -> is_recursive := true; rename 1 s es) func.body in
+    if !is_recursive
+      then
+        let copy i f = { func with name = gen_name i; body = sub f func.body } in
+        copy recursion_limit (fun s _ -> True s)
+        :: List.rev_append
+          (List.map (List.range 1 recursion_limit)
+            ~f:(fun i -> copy i @@ rename @@ succ i))
+          [{ func with body = body' }]
+      else [func] in
+  { p with functions = List.concat_map p.functions ~f:expand_func }
+
 let rec expand_iter s f curv k : EG.eexpr =
   assert (k >= 0);
   if k = 0 then curv else
