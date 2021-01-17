@@ -726,12 +726,24 @@ let from_external_arg (a:EG.arg) : CG.arg =
   let (name, t) = a in
   (name, from_external_typ t)
 
+let check_return_type (f: EG.func) (t : EG.typ) : unit =
+  let open EG in
+  match f.return_type with
+  | Some declared when not (type_eq declared t) ->
+    let src = get_src f.body in
+    raise (Type_error (Format.sprintf "Type error at line %d column %d: declared return type %s \
+                                       of function '%s' does not match inferred type %s"
+                       src.startpos.pos_lnum src.startpos.pos_cnum (string_of_typ declared)
+                       f.name (string_of_typ t)))
+  | _ -> ()
+
 let from_external_func mgr (tenv: EG.tenv) (f: EG.func) : (EG.typ * CG.func) =
   (* add the arguments to the type environment *)
   let tenvwithargs = List.fold f.args ~init:tenv ~f:(fun acc (name, typ) ->
       Map.Poly.set acc ~key:name ~data:typ
     ) in
   let (t, conv) = from_external_expr mgr true tenvwithargs f.body in
+  check_return_type f t;
   (* convert arguments *)
   let args = List.map f.args ~f:from_external_arg in
   (TFunc(List.map f.args ~f:snd, t), {name = f.name;
@@ -744,6 +756,7 @@ let from_external_func_optimize mgr (tenv: EG.tenv) (f: EG.func) (flip_lifting: 
       Map.Poly.set acc ~key:name ~data:typ
     ) in
   let (t, conv) = from_external_expr mgr true tenvwithargs f.body in
+  check_return_type f t;
   let optbody = Optimization.do_optimize conv !n flip_lifting branch_elimination determinism in
   (* convert arguments *)
   let args = List.map f.args ~f:from_external_arg in

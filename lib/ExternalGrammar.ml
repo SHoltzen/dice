@@ -66,7 +66,7 @@ type eexpr =
   | False of source
 [@@deriving sexp_of]
 
-type func = { name: String.t; args: arg List.t; body: eexpr}
+type func = { name: String.t; args: arg List.t; return_type: typ option; body: eexpr}
 [@@deriving sexp_of]
 
 type program = { functions: func List.t; body: eexpr }
