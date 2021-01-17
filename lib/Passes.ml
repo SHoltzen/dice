@@ -13,7 +13,7 @@ let fresh () =
 let within_epsilon x y =
   (Float.compare (Float.abs (x -. y)) 0.0001) < 0
 
-let rec map_eexpr f =
+let map_eexpr f =
   let open EG in
   function
   | And(s, e1, e2) -> And(s, f e1, f e2)
