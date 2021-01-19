@@ -52,25 +52,44 @@ let map_eexpr f =
 
 let recursion_limit = 10
 
+let unreachable e =
+  let open EG in
+  Let(gen_src, "_", Observe(gen_src, False gen_src), e)
+
+let rec gen_default_value =
+  let open EG in
+  function
+  | TBool -> False gen_src
+  | TInt sz -> Int (gen_src, sz, 0)
+  | TTuple (t1, t2) -> Tup(gen_src, gen_default_value t1, gen_default_value t2)
+  | TFunc _ -> failwith "Internal Error: gen_default_value called with function type"
+
 let expand_recursion (p: EG.program) =
   let open EG in
   let expand_func func =
-    let gen_name i = func.name ^ "$" ^ string_of_int i in
-    let rec sub f e = map_eexpr (sub f) @@ match e with
-      | FuncCall(s, fn, es) when String.(fn = func.name) -> f s es
-      | _ -> e in
-    let rename i s es = FuncCall(s, gen_name i, es) in
+    let gen_name i = Format.sprintf "%s$%d" func.name i in
     let is_recursive = ref false in
-    let body' = sub (fun s es -> is_recursive := true; rename 1 s es) func.body in
-    if !is_recursive
-      then
-        let copy i f = { func with name = gen_name i; body = sub f func.body } in
-        copy recursion_limit (fun s _ -> True s)
-        :: List.rev_append
-          (List.map (List.range 1 recursion_limit)
-            ~f:(fun i -> copy i @@ rename @@ succ i))
-          [{ func with body = body' }]
-      else [func] in
+    let rec sub i e = map_eexpr (sub i) @@ match e with
+      | FuncCall(s, fn, es) when String.(fn = func.name) ->
+        is_recursive := true;
+        FuncCall(s, gen_name i, es)
+      | _ -> e in
+    let body' = sub 0 func.body in
+    if !is_recursive then
+      match func.return_type with
+      | Some rt ->
+        let base_copy =
+          { func with name = gen_name recursion_limit
+          ; body = unreachable (gen_default_value rt) } in
+        let rec_copies = List.map (List.range 0 recursion_limit)
+          ~f:(fun i -> { func with name = gen_name i
+                       ; body = sub (succ i) func.body }) in
+        base_copy :: List.rev_append rec_copies [{ func with body = body' }]
+      | None -> raise @@ Type_error (Format.sprintf
+        "Type error in function %s: \
+          return type annotation is required for recursive functions"
+        func.name)
+    else [func] in
   { p with functions = List.concat_map p.functions ~f:expand_func }
 
 let rec expand_iter s f curv k : EG.eexpr =

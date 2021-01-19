@@ -112,7 +112,9 @@ let get_src e =
   | LeftShift(s, _, _) -> s
   | RightShift(s, _, _) -> s
 
-
+let gen_src =
+  let gen_pos = { Lexing.dummy_pos with pos_fname = "<generated>" } in
+  { startpos = gen_pos; endpos = gen_pos }
 
 let string_of_eexpr e =
   Sexp.to_string_hum (sexp_of_eexpr e)
