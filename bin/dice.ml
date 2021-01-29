@@ -50,10 +50,11 @@ let build_subst paramfile =
   let lines = In_channel.read_lines paramfile in
   let tbl = Hashtbl.Poly.create () in
   List.iter lines ~f:(fun line ->
+      if String.contains line '/' then () else
       match String.split ~on:'\t' line with
-      | (key::arg1::arg2::[]) ->
-        let arg1 = float_of_string arg1 and arg2 = float_of_string arg2 in
-        Hashtbl.Poly.add_exn tbl ~key:(key) ~data:(arg1, arg2)
+      | (key::arg1::[]) ->
+        let arg1 = float_of_string arg1 in
+        Hashtbl.Poly.add_exn tbl ~key:(key) ~data:(arg1, 1.0 -. arg1)
       | (key::rst) ->
         let params = List.map rst ~f:float_of_string in
         let subst = Passes.get_discrete_subst subst_mgr key params in
@@ -63,6 +64,12 @@ let build_subst paramfile =
       | _ -> failwith ""
     );
   tbl
+
+let rec transpose (ls : 'a list list) : 'a list list =
+  match ls with
+  | [] | [] :: _ -> []
+  | ls -> List.map ~f:(List.hd_exn) ls :: transpose (List.map ~f:(List.tl_exn) ls)
+
 
 let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~inline_functions ~sample_amount ~optimize ~params lexbuf : result List.t = try
@@ -83,36 +90,47 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     let substl = if List.length params = 0 then [("Joint Distribution", Hashtbl.Poly.create ())]
       else List.map params ~f:(fun param ->
           (Format.sprintf "Joint Distribution (Substituting '%s')" param, build_subst param)) in
-    let res = res @ if skip_table then [] else List.map substl ~f:(fun (name, cursubst) ->
-        (* update the weight function with cursubst *)
-        let curweight = Hashtbl.Poly.copy compiled.ctx.weights in
-        Hashtbl.Poly.iteri cursubst ~f:(fun ~key ~data ->
-            (* find the variables to be substituted *)
-            let vars = try Hashtbl.Poly.find_exn compiled.ctx.subst key
-              with _ -> failwith (Format.sprintf "Could not find key '%s' in parameter file" key) in
-            List.iter vars ~f:(fun topvar ->
-                Hashtbl.Poly.add_exn curweight ~key:topvar ~data
-              )
-          );
-        let zbdd = compiled.body.z in
-        let z = Wmc.wmc zbdd curweight in
-        let table = VarState.get_table compiled.body.state t in
-              let probs = List.map table ~f:(fun (label, bdd) ->
-                  if Util.within_epsilon z 0.0 then (label, 0.0) else
-                    let prob = (Wmc.wmc (Bdd.dand bdd zbdd) curweight) /. z in
-                    (label, prob)) in
-              let l = [["Value"; "Probability"]] @ List.map probs ~f:(fun (typ, prob) ->
-                  let rec print_pretty e =
-                    match e with
-                    | `Int(v) -> string_of_int v
-                    | `True -> "true"
-                    | `False -> "false"
-                    | `Tup(l, r) -> Format.sprintf "(%s, %s)" (print_pretty l) (print_pretty r)
-                    | _ -> failwith "ouch" in
-                  [print_pretty typ; string_of_float prob]
-                ) in
-        TableRes(name, l)
-      ) in
+    let res = res @ if skip_table then [] else
+                let weight_l = List.map substl ~f:(fun (_, cursubst) ->
+                    (* update the weight function with cursubst *)
+                    let curweight = Hashtbl.Poly.copy compiled.ctx.weights in
+                    Hashtbl.Poly.iteri cursubst ~f:(fun ~key ~data ->
+                        (* find the variables to be substituted *)
+                        let vars = try Hashtbl.Poly.find_exn compiled.ctx.subst key
+                          with _ -> failwith (Format.sprintf "Could not find key '%s' in parameter file" key) in
+                        List.iter vars ~f:(fun topvar ->
+                            Hashtbl.Poly.add_exn curweight ~key:topvar ~data
+                          )
+                      );
+                    curweight) in
+                let zbdd = compiled.body.z in
+                let z_l = Wmc.multi_wmc zbdd weight_l in
+                let table = VarState.get_table compiled.body.state t in
+
+                (* (probs_l[x])[y] gives x'th probability, y'th state *)
+                let probs_l = List.map table ~f:(fun (label, bdd) ->
+                    let probs = Wmc.multi_wmc (Bdd.dand bdd zbdd) weight_l in
+                    List.map (List.zip_exn probs z_l) ~f:(fun (p, z) ->
+                        if Util.within_epsilon z 0.0 then (label, 0.0) else
+                          let prob = p /. z in
+                          (label, prob))
+                      ) in
+
+                let probs_l = transpose probs_l in  (* get it into the right shape ... *)
+
+                let names_l = List.map ~f:fst substl in
+                List.map (List.zip_exn names_l probs_l) ~f:(fun (name, probs) ->
+                    let l = [["Value"; "Probability"]] @ List.map probs ~f:(fun (typ, prob) ->
+                        let rec print_pretty e =
+                          match e with
+                          | `Int(v) -> string_of_int v
+                          | `True -> "true"
+                          | `False -> "false"
+                          | `Tup(l, r) -> Format.sprintf "(%s, %s)" (print_pretty l) (print_pretty r)
+                          | _ -> failwith "ouch" in
+                        [print_pretty typ; string_of_float prob]
+                      ) in
+                    TableRes(name, l)) in
     let res = if print_size then
         res @ [StringRes("Final compiled BDD size",
                          string_of_int (VarState.state_size [compiled.body.state; VarState.Leaf(compiled.body.z)]))]
