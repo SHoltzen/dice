@@ -231,13 +231,13 @@ let rec type_of (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast =
     if (type_eq t typ) then (t, e) else
       raise (EG.Type_error(Format.sprintf "Type error at line %d column %d: expected %s, got %s"
                                       src.pos_lnum src.pos_cnum (EG.string_of_typ typ) (EG.string_of_typ t))) in
-  let expect_compatible_int (f: tast -> tast -> ast) src e1 e2 =
+  let expect_compatible_int (f: tast -> tast -> ast) src e1 e2 lbl =
     let (t1, s1) = type_of ctx env e1 and (t2, s2) = type_of ctx env e2 in
     match (t1, t2) with
     | (TInt(d1), TInt(d2)) when d1 = d2 -> (d1, f (t1, s1) (t1, s2))
     | (_, _) ->
-      raise (EG.Type_error(Format.sprintf "Type error at line %d column %d: expected compatible integer types, got %s and %s"
-                             src.pos_lnum src.pos_cnum (EG.string_of_typ t1) (EG.string_of_typ t2)))  in
+      raise (EG.Type_error(Format.sprintf "Type error at line %d column %d: expected compatible integer types for operation '%s', got %s and %s"
+                             src.pos_lnum src.pos_cnum lbl (EG.string_of_typ t1) (EG.string_of_typ t2)))  in
   match e with
   | And(s, e1, e2) ->
     let s1 = expect_t e1 s.startpos TBool in
@@ -312,23 +312,23 @@ let rec type_of (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast =
   | RightShift(s, e1, i) ->
     let (t, e) = type_of ctx env e1 in
     (t, RightShift(s, (t, e), i))
-  | Eq(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun s1 s2 -> Eq(s, s1, s2)) s.startpos e1 e2))
-  | Lt(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun e1 e2 -> Lt(s, e1, e2)) s.startpos e1 e2))
-  | Gt(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun e1 e2 -> Gt(s, e1, e2)) s.startpos e1 e2))
-  | Lte(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun e1 e2 -> Lte(s, e1, e2)) s.startpos e1 e2))
-  | Gte(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun e1 e2 -> Gte(s, e1, e2)) s.startpos e1 e2))
-  | Neq(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun e1 e2 -> Neq(s, e1, e2)) s.startpos e1 e2))
+  | Eq(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun s1 s2 -> Eq(s, s1, s2)) s.startpos e1 e2 "="))
+  | Lt(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun e1 e2 -> Lt(s, e1, e2)) s.startpos e1 e2 "<"))
+  | Gt(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun e1 e2 -> Gt(s, e1, e2)) s.startpos e1 e2 ">"))
+  | Lte(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun e1 e2 -> Lte(s, e1, e2)) s.startpos e1 e2 "<="))
+  | Gte(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun e1 e2 -> Gte(s, e1, e2)) s.startpos e1 e2 ">="))
+  | Neq(s, e1, e2) -> (TBool, snd (expect_compatible_int (fun e1 e2 -> Neq(s, e1, e2)) s.startpos e1 e2 "!="))
   | Plus(s, e1, e2) ->
-    let sz, res = expect_compatible_int (fun e1 e2 -> Plus(s, e1, e2)) s.startpos e1 e2 in
+    let sz, res = expect_compatible_int (fun e1 e2 -> Plus(s, e1, e2)) s.startpos e1 e2 "+" in
     (TInt(sz), res)
   | Minus(s, e1, e2) ->
-    let sz, res = expect_compatible_int (fun e1 e2 -> Minus(s, e1, e2)) s.startpos e1 e2 in
+    let sz, res = expect_compatible_int (fun e1 e2 -> Minus(s, e1, e2)) s.startpos e1 e2 "-" in
     (TInt(sz), res)
   | Mult(s, e1, e2) ->
-    let sz, res = expect_compatible_int (fun e1 e2 -> Mult(s, e1, e2)) s.startpos e1 e2 in
+    let sz, res = expect_compatible_int (fun e1 e2 -> Mult(s, e1, e2)) s.startpos e1 e2 "*" in
     (TInt(sz), res)
   | Div(s, e1, e2) ->
-    let sz, res = expect_compatible_int (fun e1 e2 -> Div(s, e1, e2)) s.startpos e1 e2 in
+    let sz, res = expect_compatible_int (fun e1 e2 -> Div(s, e1, e2)) s.startpos e1 e2 "/" in
     (TInt(sz), res)
   | Let(slet, x, e1, e2) ->
     let r1 = type_of ctx env e1 in

@@ -89,7 +89,8 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
       else res in
     let res = if show_function_size then
         let all_sizes = List.map (Hashtbl.to_alist compiled.ctx.funcs) ~f:(fun (key, data) ->
-            let sz = VarState.state_size [data.body.state; VarState.Leaf(data.body.z)] in
+            (* let sz = VarState.state_size [data.body.state; VarState.Leaf(data.body.z)] in *)
+            let sz = Bdd.size (VarState.extract_leaf data.body.state) in
             StringRes(Format.sprintf "Size of function '%s'" key, string_of_int sz)
           ) in
         res @ all_sizes else res in
