@@ -7,10 +7,11 @@ open Compiler
 
 let test_1 _ =
   let prog = "let x = flip 0.4 in x" in
-  assert_feq 0.4 (parse_and_prob prog);
+  let r = parse_and_prob prog in
+  assert_feq 0.4 r;
   assert_feq 0.4 (parse_optimize_and_prob prog)
-  
-let test_not test_ctx =
+
+let test_not _ =
   let prog = "let x = flip 0.4 in !x" in
   assert_feq 0.6 (parse_and_prob prog);
   assert_feq 0.6 (parse_optimize_and_prob prog)
