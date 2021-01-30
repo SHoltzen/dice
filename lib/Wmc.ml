@@ -25,25 +25,34 @@ let wmc bdd (w: weight) =
         new_weight in
   wmc_rec bdd w (Hashtbl.Poly.create ())
 
-let multi_wmc (bdd: Bdd.dt) (w: weight List.t) =
+let multi_wmc (bdd: Bdd.dt) tbl (w: weight List.t) =
+  let m = Bdd.manager bdd in
+  let numvars = Man.get_bddvar_nb m in
+  let weight_array = Array.of_list (List.map w ~f:(fun curw ->
+      let a = Array.init numvars ~f:(fun _ -> (0.0, 0.0)) in
+      Hashtbl.Poly.iteri curw ~f:(fun ~key ~data ->
+          Array.set a key data
+        );
+      a
+    )) in
   (* internal memoized recursive weighted model count *)
   let num = List.length w in
-  let rec wmc_rec bdd (w: weight List.t) cache : float List.t =
-    if Bdd.is_true bdd then List.init num ~f:(fun _ -> 1.0)
-    else if Bdd.is_false bdd then List.init num ~f:(fun _ -> 0.0)
+  let rec wmc_rec bdd cache : float Array.t =
+    if Bdd.is_true bdd then Array.init num ~f:(fun _ -> 1.0)
+    else if Bdd.is_false bdd then Array.init num ~f:(fun _ -> 0.0)
     else match Hashtbl.Poly.find cache bdd with
       | Some v -> v
       | _ ->
         (* compute weight of children *)
         let (thn, els) = (Bdd.dthen bdd, Bdd.delse bdd) in
-        let thnw = wmc_rec thn w cache and
-          elsw = wmc_rec els w cache in
+        let thnw =  wmc_rec thn cache and
+          elsw = wmc_rec els cache in
         (* compute new weight, add to cache *)
-        let probs = List.map (List.zip_exn thnw (List.zip_exn elsw w)) ~f:(fun (thn, (els, w)) ->
-            let (loww, highw) = try Hashtbl.Poly.find_exn w (Bdd.topvar bdd)
-              with _ -> failwith (Format.sprintf "Could not find variable %d" (Bdd.topvar bdd))in
+        let tv = (Bdd.topvar bdd) in
+        let probs = Array.map (Array.zip_exn thnw (Array.zip_exn elsw weight_array)) ~f:(fun (thn, (els, w)) ->
+            let (loww, highw) = Array.get w tv in
             (highw *. thn) +. (loww *. els)
           ) in
-        Hashtbl.Poly.add_exn cache ~key:bdd ~data:probs;
+        Hashtbl.Poly.add_exn cache ~key:bdd ~data:( probs);
         probs in
-  wmc_rec bdd w (Hashtbl.Poly.create ())
+  Array.to_list (wmc_rec bdd  tbl)

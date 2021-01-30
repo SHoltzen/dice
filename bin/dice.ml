@@ -90,26 +90,27 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     let substl = if List.length params = 0 then [("Joint Distribution", Hashtbl.Poly.create ())]
       else List.map params ~f:(fun param ->
           (Format.sprintf "Joint Distribution (Substituting '%s')" param, build_subst param)) in
+    let tbl = Hashtbl.Poly.create () in
     let res = res @ if skip_table then [] else
-                let weight_l = List.map substl ~f:(fun (_, cursubst) ->
+                let weight_l = List.map substl ~f:(fun (name, cursubst) ->
                     (* update the weight function with cursubst *)
                     let curweight = Hashtbl.Poly.copy compiled.ctx.weights in
                     Hashtbl.Poly.iteri cursubst ~f:(fun ~key ~data ->
                         (* find the variables to be substituted *)
                         let vars = try Hashtbl.Poly.find_exn compiled.ctx.subst key
-                          with _ -> failwith (Format.sprintf "Could not find key '%s' in parameter file" key) in
+                          with _ -> failwith (Format.sprintf "Could not find key '%s' in parameter file '%s'" key name) in
                         List.iter vars ~f:(fun topvar ->
                             Hashtbl.Poly.add_exn curweight ~key:topvar ~data
                           )
                       );
                     curweight) in
                 let zbdd = compiled.body.z in
-                let z_l = Wmc.multi_wmc zbdd weight_l in
+                let z_l = Wmc.multi_wmc zbdd tbl weight_l in
                 let table = VarState.get_table compiled.body.state t in
 
                 (* (probs_l[x])[y] gives x'th probability, y'th state *)
                 let probs_l = List.map table ~f:(fun (label, bdd) ->
-                    let probs = Wmc.multi_wmc (Bdd.dand bdd zbdd) weight_l in
+                    let probs = Wmc.multi_wmc (Bdd.dand bdd zbdd) tbl weight_l in
                     List.map (List.zip_exn probs z_l) ~f:(fun (p, z) ->
                         if Util.within_epsilon z 0.0 then (label, 0.0) else
                           let prob = p /. z in
@@ -133,7 +134,9 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
                     TableRes(name, l)) in
     let res = if print_size then
         res @ [StringRes("Final compiled BDD size",
-                         string_of_int (VarState.state_size [compiled.body.state; VarState.Leaf(compiled.body.z)]))]
+                         (* string_of_int (VarState.state_size [compiled.body.state; VarState.Leaf(compiled.body.z)]) *)
+                         string_of_float (Bdd.nbpaths (VarState.extract_leaf compiled.body.state))
+                        )]
       else res in
     res
   | Some(n) ->
