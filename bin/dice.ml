@@ -52,9 +52,17 @@ let build_subst paramfile =
   List.iter lines ~f:(fun line ->
       if String.contains line '/' then () else
       match String.split ~on:'\t' line with
+      (* | (key::arg1::[]) ->
+       *   let arg1 = float_of_string arg1 in
+       *   Hashtbl.Poly.add_exn tbl ~key:(key) ~data:(arg1, 1.0 -. arg1) *)
       | (key::arg1::[]) ->
-        let arg1 = float_of_string arg1 in
-        Hashtbl.Poly.add_exn tbl ~key:(key) ~data:(arg1, 1.0 -. arg1)
+        let p = float_of_string arg1 in
+        let params =  [p; 1.0 -. p] in
+        let subst = Passes.get_discrete_subst subst_mgr key params in
+        Hashtbl.Poly.iteri subst ~f:(fun ~key ~data ->
+            Hashtbl.Poly.add_exn tbl ~key ~data
+          )
+
       | (key::rst) ->
         let params = List.map rst ~f:float_of_string in
         let subst = Passes.get_discrete_subst subst_mgr key params in
@@ -134,8 +142,8 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
                     TableRes(name, l)) in
     let res = if print_size then
         res @ [StringRes("Final compiled BDD size",
-                         (* string_of_int (VarState.state_size [compiled.body.state; VarState.Leaf(compiled.body.z)]) *)
-                         string_of_float (Bdd.nbpaths (VarState.extract_leaf compiled.body.state))
+                         string_of_int (VarState.state_size [compiled.body.state; VarState.Leaf(compiled.body.z)])
+                         (* string_of_float (Bdd.nbpaths (VarState.extract_leaf compiled.body.state)) *)
                         )]
       else res in
     res

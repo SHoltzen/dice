@@ -1,6 +1,29 @@
 open Core
 open Cudd
 
+type ptr =
+    True
+  | False
+  | Ptr of int
+
+type bddentry = int * ptr * ptr * ((Float.t Option.t) ref)
+
+let rec import tbl (array: bddentry Array.t) (cnt: int ref) bdd : ptr =
+  if Bdd.is_true bdd then True
+  else if Bdd.is_false bdd then False
+  else match Hashtbl.Poly.find tbl bdd with
+  | Some(v) -> v
+  | None ->
+    let (thn, els) = (Bdd.dthen bdd, Bdd.delse bdd) in
+    let impthn = import tbl array cnt thn in
+    let impels = import tbl array cnt els in
+    let cur_cnt = !cnt in
+    cnt := !cnt + 1;
+    let v = (Bdd.topvar bdd, impthn, impels, ref None) in
+    Array.set array cur_cnt v;
+    Hashtbl.Poly.add_exn tbl ~key:bdd ~data:(Ptr(cur_cnt));
+    Ptr(cur_cnt)
+
 (** map from variable index to (low weight, high weight) *)
 type weight = (int, (float*float)) Hashtbl.Poly.t
 
@@ -33,9 +56,59 @@ let wmc bdd (w: weight) =
    *       new_weight in
    * wmc_rec bdd w (Hashtbl.Poly.create ()) *)
 
+let rec wmc_internal (arr: bddentry Array.t) (w: weight) bdd =
+  match bdd with
+  | True -> 1.0
+  | False -> 0.0
+  | Ptr(v) ->
+    let (lvl, low, high, v) = Array.get arr v in
+    (match !v with
+     | Some(r) -> r
+     | None ->
+       let wmcl = wmc_internal arr w low in
+       let wmch = wmc_internal arr w high in
+       let (loww, highw) = Hashtbl.Poly.find_exn w lvl in
+       let res = wmcl *. loww +. wmch *. highw in
+       v := Some(res);
+       res)
+
+
+let rec clear_wmc (arr: bddentry Array.t) bdd  =
+  match bdd with
+  | True -> ()
+  | False -> ()
+  | Ptr(v) ->
+    let (_, low, high, v) = Array.get arr v in
+    (match !v with
+     | Some(_) ->
+       v := None;
+       clear_wmc arr low;
+       clear_wmc arr high
+     | None -> ()
+    )
+
+
 let multi_wmc (bdd: Bdd.dt) _ (w: weight List.t) =
+  Format.printf "starting\n";
+  let sz = (Bdd.size bdd) in
+  let arr : bddentry Array.t = Array.init ( sz)
+      ~f:(fun _ -> (0, True, True, ref None)) in
+  let tbl = Hashtbl.Poly.create () in
+  Format.printf "converting, size: %d \n" sz;
+  flush_all();
+  let internal = import tbl arr (ref 0) bdd in
+
+  Format.printf "converted\n";
+  flush_all();
   List.map w ~f:(fun w ->
-      wmc bdd w
+      Format.printf "wmc\n";
+      flush_all();
+      let r = wmc_internal arr w internal in
+      Format.printf "clear\n";
+      flush_all();
+      clear_wmc arr internal;
+      Format.printf "cleared\n";
+      r
     )
   (* let m = Bdd.manager bdd in
    * let numvars = Man.get_bddvar_nb m in
