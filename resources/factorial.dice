@@ -1,5 +1,0 @@
-fun fac(n: int(7)): int(7) {
-    if n == int(7, 0) then int(7, 1) else n * fac(n - int(7, 1))
-}
-
-fac(int(7, 5))
