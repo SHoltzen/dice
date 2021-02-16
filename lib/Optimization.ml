@@ -358,9 +358,10 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
             (match g with 
             | Ident(x) -> 
               if StringMap.mem x var_to_expr' then
-                let ident_lifted, flip_to_var_lifted_ident = lift_ident flip_to_var' x flips in 
+                let Ident(new_x) = StringMap.find x var_to_expr' in
+                let ident_lifted, flip_to_var_lifted_ident = lift_ident flip_to_var' new_x flips in 
                 if ident_lifted then
-                  g, flip_to_var_lifted_ident, var_to_expr'
+                  Ident(new_x), flip_to_var_lifted_ident, var_to_expr'
                 else
                   failwith "can't find lifted flips"
               else
@@ -393,10 +394,11 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
         if (List.length e1_flips) != 0 then
           let e1', flip_to_var', var_to_expr' = down_pass_e e1 flip_to_var var_to_expr e1_tree in
           (* Save x to var_to_expr and recurse*)
-          let var_to_expr'' = StringMap.add x e1' var_to_expr' in
+          let new_x = fresh() in
+          let var_to_expr'' = StringMap.add new_x e1' (StringMap.add x (Ident(new_x)) var_to_expr') in
           let e2', flip_to_var_new, var_to_expr_new = down_pass_e e2 flip_to_var' var_to_expr'' e2_tree in
           let new_expr = 
-            if is_var_lifted flip_to_var_new x then
+            if is_var_lifted flip_to_var_new new_x then
               e2'
             else
               Let(x, e1', e2')
