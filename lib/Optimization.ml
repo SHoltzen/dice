@@ -75,7 +75,7 @@ let rec up_pass (e: CG.expr) : float list * tree  =
   | Let(_, e1, e2) -> 
     let e1_flips, e1_tree = up_pass e1 in
     let e2_flips, e2_tree = up_pass e2 in
-    e2_flips, Branch(e1_flips, e1_tree, e2_tree)
+    e1_flips@e2_flips, Branch(e1_flips, e1_tree, e2_tree)
   | And(e1, e2) | Or(e1, e2) | Xor(e1, e2) | Eq(e1, e2) | Tup(e1, e2) ->
     let e1_flips, _ = up_pass e1 in
     let e2_flips, _ = up_pass e2 in
@@ -391,17 +391,17 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
       (match t with
       | Branch(e1_flips, e1_tree, e2_tree) ->
         if (List.length e1_flips) != 0 then
-          let e1', _, _ = down_pass_e e1 flip_to_var var_to_expr e1_tree in
+          let e1', flip_to_var', var_to_expr' = down_pass_e e1 flip_to_var var_to_expr e1_tree in
           (* Save x to var_to_expr and recurse*)
-          let var_to_expr' = StringMap.add x e1' var_to_expr in
-          let e2', flip_to_var', var_to_expr'' = down_pass_e e2 flip_to_var var_to_expr' e2_tree in
+          let var_to_expr'' = StringMap.add x e1' var_to_expr' in
+          let e2', flip_to_var_new, var_to_expr_new = down_pass_e e2 flip_to_var' var_to_expr'' e2_tree in
           let new_expr = 
-            if is_var_lifted flip_to_var' x then
+            if is_var_lifted flip_to_var_new x then
               e2'
             else
               Let(x, e1', e2')
           in
-          new_expr, flip_to_var', var_to_expr''
+          new_expr, flip_to_var_new, var_to_expr_new
         else
           let e2', flip_to_var', var_to_expr' = down_pass_e e2 flip_to_var var_to_expr e2_tree in
           Let(x, e1, e2'), flip_to_var', var_to_expr'
