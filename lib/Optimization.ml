@@ -9,7 +9,7 @@ let fresh () =
   n := !n + 1;
   (Format.sprintf "$%d" !n)
 
-type tracker_entry = (bool * float * string * string list)
+type tracker_entry = (bool * bool * float * string * string list)
 type tracker = tracker_entry list
 type env = CG.expr StringMap.t
 
@@ -26,15 +26,19 @@ let rec print_s (s: string list) =
 let rec print_tracker (flip_to_var: tracker) = 
   match flip_to_var with
   | [] -> Format.printf "";
-  | (used, f, v, s)::tail ->
+  | (used, new_flip, f, v, s)::tail ->
     let u = if used then "used" else "not used" in
-    Format.printf "(%s, %f, %s, [" u f v ;
+    let n = if new_flip then "new" else "old" in
+    Format.printf "(%s, %s, %f, %s, [" u n f v ;
     print_s s;
     Format.printf "]) ";
     print_tracker tail
 
-let print_newline () = 
-  Format.printf "\n";
+let print_string (s: string) = 
+  (Format.printf "%s" s)
+
+let newline () = 
+  (Format.printf "\n";)
 
 type tree = 
   | Node of (float list * float list * bool) * tree * tree
@@ -71,7 +75,7 @@ let rec up_pass (e: CG.expr) : float list * tree  =
     let thn_flips, thn_tree = up_pass thn in
     let els_flips, els_tree = up_pass els in
     let flips, shared = find_shared thn_flips els_flips [] [] in
-    flips, Node((flips, shared, g_has_flips), thn_tree, els_tree)
+    g_flips@flips, Node((g_flips@flips, shared, g_has_flips), thn_tree, els_tree)
   | Let(_, e1, e2) -> 
     let e1_flips, e1_tree = up_pass e1 in
     let e2_flips, e2_tree = up_pass e2 in
@@ -89,18 +93,18 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
   let rec get_var (flip_to_var_head: tracker) (flip_to_var: tracker) (flip: float) : string option * tracker = 
     match flip_to_var with
     | [] -> None, (List.rev_append flip_to_var [])
-    | (used, f, var, s)::tail -> 
+    | (used, new_flip, f, var, s)::tail -> 
       if not used && f = flip then
-        Some(var), (List.rev_append flip_to_var_head ((true, f, var, s)::tail))
+        Some(var), (List.rev_append flip_to_var_head ((true, new_flip, f, var, s)::tail))
       else
-        get_var ((used, f, var, s)::flip_to_var_head) tail flip
+        get_var ((used, new_flip, f, var, s)::flip_to_var_head) tail flip
   in
 
   let rec need_to_lift (flip_to_var: tracker) (flips: float list) : bool =
     let rec need_to_lift_e (flip_to_var: tracker) (flip: float) : bool = 
       match flip_to_var with
       | [] -> false
-      | (used, f, _, _)::tail ->
+      | (used, _, f, _, _)::tail ->
         if not used && f = flip then
           true
         else
@@ -116,32 +120,32 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
         need_to_lift flip_to_var tail
   in
 
-  let rec lift_new_flip (flip_to_var_temp: tracker) (flip_to_var: tracker) (var_to_expr: env) (flips: float list) (new_flip_vars: string list) 
-    : tracker * env * string list =
+  let rec lift_new_flip (flip_to_var_temp: tracker) (flip_to_var: tracker) (var_to_expr: env) (flips: float list)
+    : tracker * env  =
     let rec check_if_exist (flip_to_var_head: tracker) (flip_to_var: tracker) (flip: float) : bool * tracker = 
       match flip_to_var with
       | [] -> false, []
-      | (used, f, var, s)::tail -> 
+      | (used, new_flip, f, var, s)::tail -> 
         if f = flip then
           true, (List.rev_append flip_to_var_head tail)
         else
-          check_if_exist ((used, f, var, s)::flip_to_var_head) tail flip
+          check_if_exist ((used, new_flip, f, var, s)::flip_to_var_head) tail flip
     in
     match flips with
-    | [] -> flip_to_var, var_to_expr, new_flip_vars
+    | [] -> flip_to_var, var_to_expr
     | flip::tail ->
       let flip_exists, flip_to_var_temp' = check_if_exist [] flip_to_var_temp flip in
       if flip_exists then
-        lift_new_flip flip_to_var_temp' flip_to_var var_to_expr tail new_flip_vars
+        lift_new_flip flip_to_var_temp' flip_to_var var_to_expr tail
       else
         let var = fresh() in
-        lift_new_flip ((false, flip, var, [])::flip_to_var) ((false, flip, var, [])::flip_to_var) (StringMap.add var (Flip(flip)) var_to_expr) tail (var::new_flip_vars)
+        lift_new_flip (flip_to_var) ((false, true, flip, var, [])::flip_to_var) (StringMap.add var (Flip(flip)) var_to_expr) tail
   in
   
   let rec is_var_lifted (flip_to_var: tracker) (var: string) : bool = 
     match flip_to_var with
     | [] -> false
-    | (_, _, v, _)::tail -> 
+    | (_, _, _, v, _)::tail -> 
       if v = var then
         true
       else
@@ -151,7 +155,7 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
   let rec is_var_squeezed (flip_to_var: tracker) (var: string) : bool = 
     match flip_to_var with
     | [] -> false
-    | (_, _, _, s)::tail -> 
+    | (_,_, _, _, s)::tail -> 
       if (List.mem var s) then
         true
       else
@@ -171,17 +175,16 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
       in
       match flip_to_var with
       | [] -> false, flip_to_var
-      | (used, f, var, s)::tail ->
+      | (used, new_flip, f, var, s)::tail ->
         let squeezed_already, tail' = update_if_squeezed tail x squeezed in
         if squeezed_already then
-          let s', _ = remove_one s (fun x' -> x' = x) [] in
-          true, ((used, f, var, s')::tail')
+          true, ((used, new_flip, f, var, s)::tail')
         else
           let inserted, s' = insert_squeezed [] s x squeezed in
           if inserted then
-            true, ((used, f, var, s')::tail)
+            true, ((used, new_flip, f, var, s')::tail)
           else
-            false, ((used, f, var, s)::tail)
+            false, ((used, new_flip, f, var, s)::tail)
     in
     let rec remove_if_already_squeezed (flip_to_var: tracker) (s: string list) (new_s: string list): string list = 
       match s with
@@ -192,33 +195,46 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
         else
           remove_if_already_squeezed flip_to_var tail (head::new_s)
     in
+    let rec remove_if_already_lifted (flip_to_var_head: tracker) (flip_to_var: tracker) (x: string) (did_remove: bool): bool * tracker = 
+      let rec remove_if_already_lifted_e (s_head: string list) (s: string list) (x: string) (did_remove: bool) : bool * string list =
+        match s with
+        | [] -> did_remove, List.rev_append s_head []
+        | head::tail -> 
+          if head = x then
+            remove_if_already_lifted_e s_head tail x true
+          else
+            remove_if_already_lifted_e (head::s_head) tail x did_remove
+      in
+      match flip_to_var with
+      | [] -> did_remove, List.rev_append flip_to_var_head []
+      | (used, new_flip, f, var, s)::tail ->
+        let did_remove', s' = remove_if_already_lifted_e [] s x did_remove in
+        remove_if_already_lifted ((used, new_flip, f, var, s')::flip_to_var_head) tail x did_remove'
+    in
     match flip_to_var with
     | [] -> List.rev_append flip_to_var_head []
-    | (used, f, var, s)::tail ->
+    | (used, new_flip, f, var, s)::tail ->
       let s' = remove_if_already_squeezed tail s [] in
       let is_squeezed_tail, tail' = update_if_squeezed tail var s' in
       if is_squeezed_tail then
         remove_lifted flip_to_var_head tail'
       else 
-        let is_squeezed_head = is_var_squeezed flip_to_var_head var in
-        if is_squeezed_head then
-          remove_lifted flip_to_var_head tail
-        else
-          remove_lifted ((used,f,var,s')::flip_to_var_head) tail
+        let did_remove, flip_to_var_head' = remove_if_already_lifted [] flip_to_var_head var false in
+        remove_lifted (((used||did_remove),new_flip,f,var,s')::flip_to_var_head') tail
   in
 
   let rec lift_ident (flip_to_var: tracker) (x: string) (flips_to_check: float list) (squeezed_s: string list)
     : bool * tracker = 
     match flip_to_var with
     | [] -> false, []
-    | (used, f, var, s)::tail ->
+    | (used, new_flip, f, var, s)::tail ->
       let in_upper_level, tail' = lift_ident tail x flips_to_check squeezed_s in
       if in_upper_level then
-        true, ((used,f,var,s)::tail')
+        true, ((used,new_flip,f,var,s)::tail')
       else if List.mem x s then
         true, flip_to_var
       else if List.mem f flips_to_check then
-        true, ((used, f, var, ((x::squeezed_s)@s))::tail)
+        true, ((used, new_flip, f, var, ((x::squeezed_s)@s))::tail)
       else
         false, flip_to_var
   in
@@ -236,12 +252,12 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
       in
       match flip_to_var_els with
       | [] -> flip_to_var_entry, (List.rev_append flip_to_var_els_head [])
-      | (used, f, var, s)::tail ->
-        let used', f', var', s' = flip_to_var_entry in
+      | (used, new_flip, f, var, s)::tail ->
+        let used', new_flip', f', var', s' = flip_to_var_entry in
         if var = var' && f = f' then
-          ((used || used'), f', var', (merge_s s' s [])), (List.rev_append flip_to_var_els_head tail)
+          ((used || used'), (new_flip || new_flip'), f', var', (merge_s s' s [])), (List.rev_append flip_to_var_els_head tail)
         else
-          concatenate_squeezed_exprs_e flip_to_var_entry ((used, f, var, s)::flip_to_var_els_head) tail 
+          concatenate_squeezed_exprs_e flip_to_var_entry ((used, new_flip, f, var, s)::flip_to_var_els_head) tail 
     in
     match flip_to_var_thn with
     | [] -> (List.rev_append flip_to_var_head flip_to_var_els)
@@ -250,57 +266,63 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
       concatenate_squeezed_exprs (head'::flip_to_var_head) tail flip_to_var_els' 
   in
 
-  let rec make_expression (flip_to_var: tracker) (var_to_expr: env) (lifted_flip_vars: string list) (inner: CG.expr) : CG.expr =
-    let rec make_expression_e (flip_to_var: tracker) (flip_var: string) (inner: CG.expr): CG.expr option = 
-      let rec make_squeezed (s: string list) (inner: CG.expr) : CG.expr = 
-        match s with
-        | [] -> inner
-        | var::tail ->
-          let expr = 
-            match StringMap.find_opt var var_to_expr with
-            | None -> failwith "can't find expression for var"
-            | Some(e) -> e
-          in
-          make_squeezed tail (Let(var, expr, inner))
-      in
-      match flip_to_var with
-      | [] -> None
-      | (_, f, var, s)::tail -> 
-        if var = flip_var then
-          let expr = make_squeezed s (Let(var, Flip(f), inner)) in
-          Some(expr)
-        else
-          make_expression_e tail flip_var inner
-    in        
-    match lifted_flip_vars with
-    | [] -> inner 
-    | flip_var::tail ->
-      (match make_expression_e flip_to_var flip_var inner with
-      | None -> make_expression flip_to_var var_to_expr tail inner
-      | Some(squeezed_expr) -> make_expression flip_to_var var_to_expr tail squeezed_expr)
+  let rec make_expression (flip_to_var: tracker) (var_to_expr: env) (inner: CG.expr) : CG.expr =
+    let rec make_squeezed (s: string list) (inner: CG.expr) : CG.expr = 
+      match s with
+      | [] -> inner
+      | var::tail ->
+        let expr = 
+          match StringMap.find_opt var var_to_expr with
+          | None -> inner
+          | Some(e) -> 
+            (match e with
+            | Flip(_) -> 
+              let var_still_exists = StringMap.exists (fun _ e1 -> 
+                match e1 with
+                | Ident(x1) -> x1 = var
+                | _ -> false) var_to_expr 
+              in
+              if var_still_exists then
+                inner
+              else
+                Let(var, e, inner) 
+            | _ -> Let(var, e, inner))
+        in
+        make_squeezed tail expr
+    in
+    match flip_to_var with
+    | [] -> inner
+    | (used, new_flip, f, var, s)::tail -> 
+      if new_flip && used then
+        let expr = make_squeezed s (Let(var, Flip(f), inner)) in
+        make_expression tail var_to_expr expr 
+      else
+        make_expression tail var_to_expr inner
   in
 
-  let rec clean_bookkeeping (flip_to_var: tracker) (var_to_expr: env) (lifted_flip_vars: string list) : tracker * env = 
-    let rec clean_bookkeeping_e (flip_to_var_head: tracker) (flip_to_var: tracker) (var_to_expr: env) (flip_var: string) : tracker * env = 
-      let rec clean_bookkeeping_s (s: string list) (var_to_expr: env) : env = 
-        match s with
-        | [] -> var_to_expr
-        | head::tail -> clean_bookkeeping_s tail (StringMap.remove head var_to_expr)
-      in
+  let rec clean_bookkeeping (flip_to_var_before: tracker) (flip_to_var_head: tracker) (flip_to_var: tracker) (var_to_expr: env) : tracker * env = 
+    let rec lookup_old_flip (flip_to_var: tracker) (x: string) : bool =
       match flip_to_var with
-      | [] -> (List.rev_append flip_to_var_head []), var_to_expr
-      | (used, f, var, s)::tail -> 
-        if var = flip_var then
-          (List.rev_append flip_to_var_head tail), (clean_bookkeeping_s s var_to_expr)
+      | [] -> false
+      | (used, new_flip, f, var, s)::tail ->
+        if var = x then
+          new_flip
         else
-          clean_bookkeeping_e ((used,f,var,s)::flip_to_var_head) tail var_to_expr flip_var
+          lookup_old_flip tail x 
     in
-    match lifted_flip_vars with
-    | [] -> flip_to_var, var_to_expr
-    | flip_var::tail ->
-      let flip_to_var', var_to_expr' = clean_bookkeeping_e [] flip_to_var var_to_expr flip_var in
-      let var_to_expr'' = var_to_expr' in
-      clean_bookkeeping flip_to_var' var_to_expr'' tail
+    let rec clean_bookkeeping_s (s: string list) (var_to_expr: env) : env = 
+      match s with
+      | [] -> var_to_expr
+      | head::tail -> clean_bookkeeping_s tail (StringMap.remove head var_to_expr)
+    in
+    match flip_to_var with
+    | [] -> (List.rev_append flip_to_var_head []), var_to_expr
+    | (used, new_flip, f, var, s)::tail -> 
+      if new_flip then
+        clean_bookkeeping flip_to_var_before flip_to_var_head tail (clean_bookkeeping_s s (StringMap.remove var var_to_expr))
+      else
+        let new_flip' = lookup_old_flip flip_to_var_before var in
+        clean_bookkeeping flip_to_var_before ((used,new_flip',f,var,s)::flip_to_var_head) tail var_to_expr
   in
 
   let rec replace_expr_flips (flip_to_var: tracker) (e: CG.expr) (replaced_vars: string list) : CG.expr * tracker * string list = 
@@ -349,12 +371,12 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
     let rec update_tracker (flip_to_var_head: tracker) (flip_to_var: tracker) (var_to_expr: env) (squeezed_expr: CG.expr): CG.expr * tracker * env = 
       match flip_to_var with
       | [] -> failwith "can't find lifted flip"
-      | (used, f, v, s)::tail ->
+      | (used, new_flip, f, v, s)::tail ->
         if List.mem v flip_vars then
           let var = fresh() in
-          Ident(var), (List.rev_append flip_to_var_head ((used, f, v, (var::s))::tail)), (StringMap.add var squeezed_expr var_to_expr)
+          Ident(var), (List.rev_append flip_to_var_head ((used, new_flip, f, v, (var::s))::tail)), (StringMap.add var squeezed_expr var_to_expr)
         else
-          update_tracker ((used, f, v, s)::flip_to_var_head) tail var_to_expr squeezed_expr
+          update_tracker ((used, new_flip, f, v, s)::flip_to_var_head) tail var_to_expr squeezed_expr
     in
     match e with 
     | Flip(f) -> 
@@ -397,21 +419,36 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
   let rec lift_guard_idents (flip_to_var: tracker) (var_to_expr: env) (g: CG.expr) (flips: float list): CG.expr * tracker * env = 
     match g with 
     | Ident(x) -> 
-      if StringMap.mem x var_to_expr then
-        let new_x = 
-          match StringMap.find x var_to_expr with
-          | Ident(x') -> x'
-          | _ -> failwith "can't find guard var's new var"
-        in
-        (* remove var as a lifted thing and add s to where it's been squeezed to *)
-        (* let flip_to_var', s = remove_lifted [] flip_to_var new_x in *)
-        let ident_lifted, flip_to_var_lifted_ident = lift_ident flip_to_var new_x flips [] in 
-        if ident_lifted then
-          Ident(x), flip_to_var_lifted_ident, var_to_expr
-        else
-          failwith "can't find lifted flips"
+      (match StringMap.find_opt x var_to_expr with
+      | None -> g, flip_to_var, var_to_expr
+      | Some(expr) -> 
+        (match expr with
+        | Ident(x') -> 
+          let ident_lifted, flip_to_var_lifted_ident = lift_ident flip_to_var x' flips [] in 
+          if ident_lifted then
+            Ident(x), flip_to_var_lifted_ident, var_to_expr
+          else
+            failwith "can't find lifted flips"
+        | _ -> 
+          let no_recurse = is_var_lifted flip_to_var x in
+          if no_recurse then
+            g, flip_to_var, var_to_expr
+          else
+            let new_expr, flip_to_var', var_to_expr' = lift_guard_idents flip_to_var var_to_expr expr flips in
+            let var_to_expr'' = StringMap.remove x var_to_expr' in
+            g, flip_to_var', (StringMap.add x new_expr var_to_expr'')))
+    | Flip(f) -> 
+      let new_v = fresh() in
+      let ident_lifted, flip_to_var_lifted_ident = lift_ident flip_to_var new_v flips [] in 
+      if ident_lifted then
+        Ident(new_v), flip_to_var_lifted_ident, (StringMap.add new_v g var_to_expr) 
       else
-        g, flip_to_var, var_to_expr
+        failwith "can't find lifted flips"
+    | Ite(g1, e1, e2) ->
+      let g1', flip_to_var_new, var_to_expr_new = lift_guard_idents flip_to_var var_to_expr g1 flips in 
+      let e1', flip_to_var', var_to_expr' = lift_guard_idents flip_to_var_new var_to_expr_new e1 flips in
+      let e2', flip_to_var'', var_to_expr'' = lift_guard_idents flip_to_var' var_to_expr' e2 flips in
+      Ite(g1', e1', e2'), flip_to_var'', var_to_expr''
     | And(e1, e2) ->
       let e1', flip_to_var', var_to_expr' = lift_guard_idents flip_to_var var_to_expr e1 flips in
       let e2', flip_to_var'', var_to_expr'' = lift_guard_idents flip_to_var' var_to_expr' e2 flips in
@@ -447,6 +484,13 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
     | _ -> g, flip_to_var, var_to_expr
   in
 
+  let rec mark_flips_as_old (flip_to_var_head: tracker) (flip_to_var: tracker) : tracker =
+    match flip_to_var with
+    | [] -> List.rev_append flip_to_var_head []
+    | (used, new_flip, f, v, s)::tail ->
+      mark_flips_as_old ((used, false, f, v, s)::flip_to_var_head) tail
+  in
+
   let rec down_pass_e (e: CG.expr) (flip_to_var: tracker) (var_to_expr: env) (t:tree) 
     : CG.expr * tracker * env = 
     match e with
@@ -459,7 +503,8 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
       (match t with
       | Node((flips, shared, g_has_flips), thn_tree, els_tree) -> 
         (* Prepare new flip to lift *)
-        let flip_to_var', var_to_expr', new_flip_vars = lift_new_flip flip_to_var flip_to_var var_to_expr shared [] in
+        let flip_to_var_fresh = mark_flips_as_old [] flip_to_var in
+        let flip_to_var', var_to_expr' = lift_new_flip flip_to_var flip_to_var_fresh var_to_expr shared in
 
         (* Lift guard if there's a flip to be lifted within this expression *)
         let has_new_flips = (List.length shared) != 0 in 
@@ -467,14 +512,7 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
 
         (* Lift g to the earliest matching flip that's been listed, which might be one that was just lifted or not, so just check all flips *)
         let g', flip_to_var'', var_to_expr'' =
-          if g_has_flips && (has_new_flips || has_old_flips) then
-            let g_var = fresh() in
-            let ident_lifted, flip_to_var_lifted_ident = lift_ident flip_to_var' g_var flips [] in 
-            if ident_lifted then
-              Ident(g_var), flip_to_var_lifted_ident, (StringMap.add g_var g var_to_expr') 
-            else
-              failwith "can't find lifted flips"
-          else if has_old_flips then
+          if (has_new_flips || has_old_flips) then
             lift_guard_idents flip_to_var' var_to_expr' g flips
           else
             g, flip_to_var', var_to_expr'
@@ -492,10 +530,10 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
         let var_to_expr_merged = StringMap.union (fun _ f1 _ -> Some(f1)) var_to_expr_thn var_to_expr_els in
 
         (* Make vars of the stuff squeezed for the shared flips made here *)
-        let new_expr = make_expression flip_to_var_ready var_to_expr_merged new_flip_vars (Ite(g', thn', els')) in
+        let new_expr = make_expression flip_to_var_ready var_to_expr_merged (Ite(g', thn', els')) in
         
         (* Remove the flips made here since won't need it upstream *)
-        let flip_to_var_cleaned, var_to_flip_cleaned = clean_bookkeeping flip_to_var_ready var_to_expr_merged new_flip_vars in
+        let flip_to_var_cleaned, var_to_flip_cleaned = clean_bookkeeping flip_to_var [] flip_to_var_ready var_to_expr_merged in
 
         new_expr, flip_to_var_cleaned, var_to_flip_cleaned
         
@@ -505,39 +543,26 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
       | Branch(e1_flips, e1_tree, e2_tree) ->
         if (List.length e1_flips) != 0 then
           let e1', flip_to_var', var_to_expr' = down_pass_e e1 flip_to_var var_to_expr e1_tree in
-          let var_is_lifted = 
-            (match e1' with
-            | Ident(lifted_var) -> is_var_lifted flip_to_var' lifted_var
-            | _ -> false)
-          in
-          if var_is_lifted then
-            let old_x_expr = StringMap.find_opt x var_to_expr' in
-            let var_to_expr'' = StringMap.add x e1' var_to_expr' in
-            let e2', flip_to_var_new, var_to_expr_new = down_pass_e e2 flip_to_var' var_to_expr'' e2_tree in
-            let var_to_expr_restored = 
-              (match old_x_expr with
-              | None -> StringMap.remove x var_to_expr_new
-              | Some(expr) -> StringMap.add x expr var_to_expr_new) 
-            in
-            Let(x, e1', e2'), flip_to_var_new, var_to_expr_restored
-          else
-            (* Save x to var_to_expr and recurse*)
-            let new_x = fresh() in
-            let old_x_expr = StringMap.find_opt x var_to_expr' in
-            let var_to_expr'' = StringMap.add new_x e1' (StringMap.add x (Ident(new_x)) var_to_expr) in
-            let e2', flip_to_var_new, var_to_expr_new = down_pass_e e2 flip_to_var' var_to_expr'' e2_tree in
-            let new_expr = 
-              if is_var_squeezed flip_to_var_new new_x then
-                Let(x, (Ident(new_x)), e2')
+          let old_x_expr = StringMap.find_opt x var_to_expr' in
+          let var_to_expr'' = StringMap.add x e1' var_to_expr' in
+          let e2', flip_to_var_new, var_to_expr_new = down_pass_e e2 flip_to_var' var_to_expr'' e2_tree in
+          let e1'' = 
+            let potential_e = StringMap.find x var_to_expr_new in
+            match potential_e with
+            | Ident(x_new) ->
+              if is_var_squeezed flip_to_var_new x_new then
+                potential_e
               else
-                Let(x, e1', e2')
-            in
-            let var_to_expr_restored = 
-              (match old_x_expr with
-              | None -> StringMap.remove x var_to_expr_new
-              | Some(expr) -> StringMap.add x expr var_to_expr_new) 
-            in
-            new_expr, flip_to_var_new, var_to_expr_restored
+                e1'
+            | _ -> potential_e
+          in
+      
+          let var_to_expr_restored = 
+            (match old_x_expr with
+            | None -> StringMap.remove x var_to_expr_new
+            | Some(expr) -> StringMap.add x expr var_to_expr_new) 
+          in
+          Let(x, e1'', e2'), flip_to_var_new, var_to_expr_restored
         else
           let e2', flip_to_var', var_to_expr' = down_pass_e e2 flip_to_var var_to_expr e2_tree in
           Let(x, e1, e2'), flip_to_var', var_to_expr'
