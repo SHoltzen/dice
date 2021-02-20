@@ -255,12 +255,12 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
       | (used, new_flip, f, var, s)::tail ->
         let used', new_flip', f', var', s' = flip_to_var_entry in
         if var = var' && f = f' then
-          ((used || used'), (new_flip || new_flip'), f', var', (merge_s s' s [])), (List.rev_append flip_to_var_els_head tail)
+          ((used || used'), (new_flip && new_flip'), f', var', (merge_s s' s [])), (List.rev_append flip_to_var_els_head tail)
         else
           concatenate_squeezed_exprs_e flip_to_var_entry ((used, new_flip, f, var, s)::flip_to_var_els_head) tail 
     in
     match flip_to_var_thn with
-    | [] -> (List.rev_append flip_to_var_head flip_to_var_els)
+    | [] -> (List.rev_append (List.rev_append flip_to_var_els []) (List.rev_append flip_to_var_head []))
     | head::tail ->
       let head', flip_to_var_els' = concatenate_squeezed_exprs_e head [] flip_to_var_els in
       concatenate_squeezed_exprs (head'::flip_to_var_head) tail flip_to_var_els' 
@@ -297,7 +297,7 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
         let expr = make_squeezed s (Let(var, Flip(f), inner)) in
         make_expression tail var_to_expr expr 
       else
-        make_expression tail var_to_expr inner
+        inner
   in
 
   let rec clean_bookkeeping (flip_to_var_before: tracker) (flip_to_var_head: tracker) (flip_to_var: tracker) (var_to_expr: env) : tracker * env = 
