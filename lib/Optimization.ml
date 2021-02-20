@@ -41,7 +41,7 @@ let newline () =
   (Format.printf "\n";)
 
 type tree = 
-  | Node of (float list * float list * bool) * tree * tree
+  | Node of (float list * float list) * tree * tree
   | Branch of float list * tree * tree
   | Leaf 
 
@@ -70,12 +70,11 @@ let rec up_pass (e: CG.expr) : float list * tree  =
   | Flip(f) -> [f], Leaf
   | Ite(g, thn, els) -> 
     let g_flips, _ = up_pass g in
-    let g_has_flips = (List.length g_flips) != 0 in
 
     let thn_flips, thn_tree = up_pass thn in
     let els_flips, els_tree = up_pass els in
     let flips, shared = find_shared thn_flips els_flips [] [] in
-    g_flips@flips, Node((g_flips@flips, shared, g_has_flips), thn_tree, els_tree)
+    g_flips@flips, Node((g_flips@flips, shared), thn_tree, els_tree)
   | Let(_, e1, e2) -> 
     let e1_flips, e1_tree = up_pass e1 in
     let e2_flips, e2_tree = up_pass e2 in
@@ -304,7 +303,7 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
     let rec lookup_old_flip (flip_to_var: tracker) (x: string) : bool =
       match flip_to_var with
       | [] -> false
-      | (used, new_flip, f, var, s)::tail ->
+      | (_, new_flip, _, var, _)::tail ->
         if var = x then
           new_flip
         else
@@ -437,7 +436,7 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
             let new_expr, flip_to_var', var_to_expr' = lift_guard_idents flip_to_var var_to_expr expr flips in
             let var_to_expr'' = StringMap.remove x var_to_expr' in
             g, flip_to_var', (StringMap.add x new_expr var_to_expr'')))
-    | Flip(f) -> 
+    | Flip(_) -> 
       let new_v = fresh() in
       let ident_lifted, flip_to_var_lifted_ident = lift_ident flip_to_var new_v flips [] in 
       if ident_lifted then
@@ -487,7 +486,7 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
   let rec mark_flips_as_old (flip_to_var_head: tracker) (flip_to_var: tracker) : tracker =
     match flip_to_var with
     | [] -> List.rev_append flip_to_var_head []
-    | (used, new_flip, f, v, s)::tail ->
+    | (used, _, f, v, s)::tail ->
       mark_flips_as_old ((used, false, f, v, s)::flip_to_var_head) tail
   in
 
@@ -501,7 +500,7 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
       | Some(v) -> Ident(v), flip_to_var', var_to_expr)
     | Ite(g, thn, els) -> 
       (match t with
-      | Node((flips, shared, g_has_flips), thn_tree, els_tree) -> 
+      | Node((flips, shared), thn_tree, els_tree) -> 
         (* Prepare new flip to lift *)
         let flip_to_var_fresh = mark_flips_as_old [] flip_to_var in
         let flip_to_var', var_to_expr' = lift_new_flip flip_to_var flip_to_var_fresh var_to_expr shared in
