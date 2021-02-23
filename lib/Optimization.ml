@@ -223,19 +223,19 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
   in
 
   let rec lift_ident (flip_to_var: tracker) (x: string) (flips_to_check: float list) (squeezed_s: string list)
-    : bool * tracker = 
+    : bool * bool * tracker = 
     match flip_to_var with
-    | [] -> false, []
+    | [] -> false, false, []
     | (used, new_flip, f, var, s)::tail ->
-      let in_upper_level, tail' = lift_ident tail x flips_to_check squeezed_s in
+      let in_upper_level, is_lifted, tail' = lift_ident tail x flips_to_check squeezed_s in
       if in_upper_level then
-        true, ((used,new_flip,f,var,s)::tail')
+        true, is_lifted, ((used,new_flip,f,var,s)::tail')
       else if List.mem x s then
-        true, flip_to_var
+        true, false, flip_to_var
       else if List.mem f flips_to_check then
-        true, ((used, new_flip, f, var, ((x::squeezed_s)@s))::tail)
+        true, true, ((used, new_flip, f, var, ((x::squeezed_s)@s))::tail)
       else
-        false, flip_to_var
+        false, false, flip_to_var
   in
 
   let rec concatenate_squeezed_exprs (flip_to_var_head: tracker) (flip_to_var_thn: tracker) (flip_to_var_els: tracker) : tracker = 
@@ -272,7 +272,7 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
       | var::tail ->
         let expr = 
           match StringMap.find_opt var var_to_expr with
-          | None -> inner
+          | None -> failwith "can't find %s" var
           | Some(e) -> 
             (match e with
             | Flip(_) -> 
@@ -423,8 +423,8 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
       | Some(expr) -> 
         (match expr with
         | Ident(x') -> 
-          let ident_lifted, flip_to_var_lifted_ident = lift_ident flip_to_var x' flips [] in 
-          if ident_lifted then
+          let flip_found, _, flip_to_var_lifted_ident = lift_ident flip_to_var x' flips [] in 
+          if flip_found then
             Ident(x), flip_to_var_lifted_ident, var_to_expr
           else
             failwith "can't find lifted flips"
@@ -433,14 +433,23 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
           if no_recurse then
             g, flip_to_var, var_to_expr
           else
-            let new_expr, flip_to_var', var_to_expr' = lift_guard_idents flip_to_var var_to_expr expr flips in
-            let var_to_expr'' = StringMap.remove x var_to_expr' in
-            g, flip_to_var', (StringMap.add x new_expr var_to_expr'')))
+            let is_squeezed = is_var_squeezed flip_to_var x in
+            if is_squeezed then
+              let flip_found, _, flip_to_var_lifted_ident = lift_ident flip_to_var x flips [] in 
+              if flip_found then
+                Ident(x), flip_to_var_lifted_ident, var_to_expr
+              else
+                failwith "can't find lifted flips"
+            else
+              let new_expr, flip_to_var', var_to_expr' = lift_guard_idents flip_to_var var_to_expr expr flips in
+              let var_to_expr'' = StringMap.remove x var_to_expr' in
+              g, flip_to_var', (StringMap.add x new_expr var_to_expr'')))
     | Flip(_) -> 
       let new_v = fresh() in
-      let ident_lifted, flip_to_var_lifted_ident = lift_ident flip_to_var new_v flips [] in 
-      if ident_lifted then
-        Ident(new_v), flip_to_var_lifted_ident, (StringMap.add new_v g var_to_expr) 
+      let flip_found, ident_lifted, flip_to_var_lifted_ident = lift_ident flip_to_var new_v flips [] in 
+      if flip_found then
+        (* let var_to_expr' = if ident_lifted then  else var_to_expr in *)
+        Ident(new_v), flip_to_var_lifted_ident, (StringMap.add new_v g var_to_expr)
       else
         failwith "can't find lifted flips"
     | Ite(g1, e1, e2) ->
@@ -703,6 +712,7 @@ let rec redundant_flip_elimination (e: CG.expr) : CG.expr =
 
 let do_optimize (e: CG.expr) (new_n: int) (flip_lifting: bool) (branch_elimination: bool) (determinism: bool) : CG.expr = 
   let e0 = if determinism then redundant_flip_elimination e else e in
-  let e1 = if flip_lifting then flip_code_motion e0 new_n else e0 in 
+  let e0_1 = if branch_elimination then merge_branch e0 else e0 in
+  let e1 = if flip_lifting then flip_code_motion e0_1 new_n else e0_1 in 
   let e2 = if branch_elimination then merge_branch e1 else e1 in
   e2
