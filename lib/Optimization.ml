@@ -284,7 +284,7 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
       | var::tail ->
         let expr = 
           match StringMap.find_opt var var_to_expr with
-          | None -> failwith "can't find %s" var
+          | None -> failwith "can't find var to make"
           | Some(e) -> 
             let var_still_exists = StringMap.exists (fun _ e1 -> rec_check_var_exists e1 var) var_to_expr in
             if var_still_exists then
@@ -451,7 +451,7 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
               g, flip_to_var', (StringMap.add x new_expr var_to_expr'')))
     | Flip(_) -> 
       let new_v = fresh() in
-      let flip_found, ident_lifted, flip_to_var_lifted_ident = lift_ident flip_to_var new_v flips [] in 
+      let flip_found, _, flip_to_var_lifted_ident = lift_ident flip_to_var new_v flips [] in 
       if flip_found then
         (* let var_to_expr' = if ident_lifted then  else var_to_expr in *)
         Ident(new_v), flip_to_var_lifted_ident, (StringMap.add new_v g var_to_expr)
