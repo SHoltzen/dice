@@ -267,6 +267,18 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
 
   let rec make_expression (flip_to_var: tracker) (var_to_expr: env) (inner: CG.expr) : CG.expr =
     let rec make_squeezed (s: string list) (inner: CG.expr) : CG.expr = 
+      let rec rec_check_var_exists (e: CG.expr) (var: string) : bool =
+        match e with
+        | Ident(x) -> x = var
+        | Flip(_) -> false
+        | Ite(g1, e1, e2) ->
+          (rec_check_var_exists g1 var) || (rec_check_var_exists e1 var) || (rec_check_var_exists e2 var)
+        | And(e1, e2) | Or(e1, e2) | Xor(e1, e2) | Eq(e1, e2) | Tup(e1, e2) ->
+          (rec_check_var_exists e1 var) || (rec_check_var_exists e2 var)
+        | Snd(e1) | Fst(e1) | Not(e1) | Observe(e1) -> 
+          (rec_check_var_exists e1 var)
+        | _ -> false
+      in
       match s with
       | [] -> inner
       | var::tail ->
@@ -274,18 +286,11 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
           match StringMap.find_opt var var_to_expr with
           | None -> failwith "can't find %s" var
           | Some(e) -> 
-            (match e with
-            | Flip(_) -> 
-              let var_still_exists = StringMap.exists (fun _ e1 -> 
-                match e1 with
-                | Ident(x1) -> x1 = var
-                | _ -> false) var_to_expr 
-              in
-              if var_still_exists then
-                inner
-              else
-                Let(var, e, inner) 
-            | _ -> Let(var, e, inner))
+            let var_still_exists = StringMap.exists (fun _ e1 -> rec_check_var_exists e1 var) var_to_expr in
+            if var_still_exists then
+              inner
+            else
+              Let(var, e, inner) 
         in
         make_squeezed tail expr
     in
@@ -562,7 +567,7 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
                 potential_e
               else
                 e1'
-            | _ -> potential_e
+            | _ -> e1'
           in
       
           let var_to_expr_restored = 
