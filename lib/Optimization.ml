@@ -428,11 +428,15 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
       | Some(expr) -> 
         (match expr with
         | Ident(x') -> 
-          let flip_found, _, flip_to_var_lifted_ident = lift_ident flip_to_var x' flips [] in 
-          if flip_found then
-            Ident(x), flip_to_var_lifted_ident, var_to_expr
+          let in_scope = StringMap.mem x' var_to_expr in
+          if in_scope then
+            let flip_found, _, flip_to_var_lifted_ident = lift_ident flip_to_var x' flips [] in 
+            if flip_found then
+              Ident(x), flip_to_var_lifted_ident, var_to_expr
+            else
+              failwith "can't find lifted flips"
           else
-            failwith "can't find lifted flips"
+            Ident(x), flip_to_var, var_to_expr
         | _ -> 
           let no_recurse = is_var_lifted flip_to_var x in
           if no_recurse then
@@ -451,10 +455,10 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
               g, flip_to_var', (StringMap.add x new_expr var_to_expr'')))
     | Flip(_) -> 
       let new_v = fresh() in
-      let flip_found, _, flip_to_var_lifted_ident = lift_ident flip_to_var new_v flips [] in 
+      let flip_found, ident_lifted, flip_to_var_lifted_ident = lift_ident flip_to_var new_v flips [] in 
       if flip_found then
-        (* let var_to_expr' = if ident_lifted then  else var_to_expr in *)
-        Ident(new_v), flip_to_var_lifted_ident, (StringMap.add new_v g var_to_expr)
+        let var_to_expr' = if ident_lifted then (StringMap.add new_v g var_to_expr) else var_to_expr in
+        Ident(new_v), flip_to_var_lifted_ident, var_to_expr'
       else
         failwith "can't find lifted flips"
     | Ite(g1, e1, e2) ->
