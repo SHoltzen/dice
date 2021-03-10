@@ -1,0 +1,9 @@
+fun f() {
+    flip 0.5
+}
+
+fun flip_n(n: int(4)): bool {
+    if n == int(4, 0) then true else f() && flip_n(n - int(4, 1))
+}
+
+flip_n(int(4, 3))

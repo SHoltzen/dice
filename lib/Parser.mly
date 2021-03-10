@@ -75,10 +75,12 @@ typ:
     | INT LPAREN; sz=INT_LIT; RPAREN  { TInt(sz) }
     | LPAREN typ COMMA typ RPAREN { TTuple($2, $4) }
 
-arg: ID COLON typ { ($1, $3) }
+typ_annot: COLON typ { $2 }
 
-func: FUN; name=ID; LPAREN; args=separated_list(COMMA, arg); RPAREN LBRACE; body=expr; RBRACE
-         { { name=name; args=args; body=body } }
+arg: ID typ_annot { ($1, $2) }
+
+func: FUN; name=ID; LPAREN; args=separated_list(COMMA, arg); RPAREN; return_type=option(typ_annot); LBRACE; body=expr; RBRACE
+         { { name=name; args=args; return_type=return_type; body=body } }
 
 program:
   funcs=list(func); body=expr; EOF { { functions=funcs; body=body } }

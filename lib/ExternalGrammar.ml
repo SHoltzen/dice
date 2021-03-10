@@ -66,7 +66,7 @@ type eexpr =
   | False of source
 [@@deriving sexp_of]
 
-type func = { name: String.t; args: arg List.t; body: eexpr}
+type func = { name: String.t; args: arg List.t; return_type: typ option; body: eexpr}
 [@@deriving sexp_of]
 
 type program = { functions: func List.t; body: eexpr }
@@ -112,7 +112,9 @@ let get_src e =
   | LeftShift(s, _, _) -> s
   | RightShift(s, _, _) -> s
 
-
+let gen_src =
+  let gen_pos = { Lexing.dummy_pos with pos_fname = "<generated>" } in
+  { startpos = gen_pos; endpos = gen_pos }
 
 let string_of_eexpr e =
   Sexp.to_string_hum (sexp_of_eexpr e)
