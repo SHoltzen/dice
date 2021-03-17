@@ -1,5 +1,5 @@
 let y = discrete(0.098717, 0.11237, 0.0993, 0.10218, 0.097367, 0.09035, 0.098633, 0.10442, 0.097517, 0.09915) in
-if y == int(10, 0) then
+if y == int(4, 0) then
 let obs1  = flip 0.000169 in
 let tmp = observe !obs1 in
 let obs2  = flip 0.000169 in
@@ -1567,7 +1567,7 @@ let tmp = observe !obs782 in
 let obs783  = flip 0.000169 in
 let tmp = observe !obs783 in
 y
-else if y == int(10, 1) then
+else if y == int(4, 1) then
 let obs784  = flip 0.000148 in
 let tmp = observe !obs784 in
 let obs785  = flip 0.000148 in
@@ -3135,7 +3135,7 @@ let tmp = observe !obs1565 in
 let obs1566  = flip 0.000148 in
 let tmp = observe !obs1566 in
 y
-else if y == int(10, 2) then
+else if y == int(4, 2) then
 let obs1567  = flip 0.000168 in
 let tmp = observe !obs1567 in
 let obs1568  = flip 0.000168 in
@@ -4703,7 +4703,7 @@ let tmp = observe !obs2348 in
 let obs2349  = flip 0.000168 in
 let tmp = observe !obs2349 in
 y
-else if y == int(10, 3) then
+else if y == int(4, 3) then
 let obs2350  = flip 0.000163 in
 let tmp = observe !obs2350 in
 let obs2351  = flip 0.000163 in
@@ -6271,7 +6271,7 @@ let tmp = observe !obs3131 in
 let obs3132  = flip 0.000163 in
 let tmp = observe !obs3132 in
 y
-else if y == int(10, 4) then
+else if y == int(4, 4) then
 let obs3133  = flip 0.000171 in
 let tmp = observe !obs3133 in
 let obs3134  = flip 0.000171 in
@@ -7839,7 +7839,7 @@ let tmp = observe !obs3914 in
 let obs3915  = flip 0.000171 in
 let tmp = observe !obs3915 in
 y
-else if y == int(10, 5) then
+else if y == int(4, 5) then
 let obs3916  = flip 0.000184 in
 let tmp = observe !obs3916 in
 let obs3917  = flip 0.000184 in
@@ -9407,7 +9407,7 @@ let tmp = observe !obs4697 in
 let obs4698  = flip 0.000184 in
 let tmp = observe !obs4698 in
 y
-else if y == int(10, 6) then
+else if y == int(4, 6) then
 let obs4699  = flip 0.000169 in
 let tmp = observe !obs4699 in
 let obs4700  = flip 0.000169 in
@@ -10975,7 +10975,7 @@ let tmp = observe !obs5480 in
 let obs5481  = flip 0.000169 in
 let tmp = observe !obs5481 in
 y
-else if y == int(10, 7) then
+else if y == int(4, 7) then
 let obs5482  = flip 0.000160 in
 let tmp = observe !obs5482 in
 let obs5483  = flip 0.000160 in
@@ -12543,7 +12543,7 @@ let tmp = observe !obs6263 in
 let obs6264  = flip 0.000160 in
 let tmp = observe !obs6264 in
 y
-else if y == int(10, 8) then
+else if y == int(4, 8) then
 let obs6265  = flip 0.000171 in
 let tmp = observe !obs6265 in
 let obs6266  = flip 0.000171 in

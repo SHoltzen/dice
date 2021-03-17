@@ -4,9 +4,11 @@ see the research article [here](https://arxiv.org/abs/2005.09089). To cite
 `dice`, please use:
 ```
 @article{holtzen2020dice,
-  title={Dice: Compiling Discrete Probabilistic Programs for Scalable Inference},
-  author={Holtzen, Steven and Broeck, Guy Van den and Millstein, Todd},
-  journal={arXiv preprint arXiv:2005.09089},
+  title={Scaling Exact Inference for Discrete Probabilistic Programs},
+  author={Holtzen, Steven and {Van den Broeck}, Guy and Millstein, Todd},
+  journal={Proc. ACM Program. Lang. (OOPSLA)},
+  publisher={ACM},
+  doi={https://doi.org/10.1145/342820},
   year={2020}
 }
 ```
@@ -14,21 +16,34 @@ see the research article [here](https://arxiv.org/abs/2005.09089). To cite
 
 # Installation
 
+## Docker
+
+A [docker](https://www.docker.com/) image is available, and can be installed
+with:
+
+```
+docker pull sholtzen/dice
+```
+
+
+## Building From Source
 First install `opam` (version 2.0 or higher) following the instructions
 [here](https://opam.ocaml.org/doc/Install.html). Then, run the following in your
 terminal:
 
 ```
 opam init   # must be performed before installing opam packages
+opam switch 4.09           # switch to use OCaml version 4.09
 eval `opam config env`     # optional: add this line to your .bashrc
-opam install . --yes
+opam depext mlcuddidl      # install external dependencies
+opam pin add dice git+https://github.com/SHoltzen/dice.git#master  # Install dice
 ```
 
 This command will download the necessary dependencies and place the `dice` and
 `dicebench` executables in your path. (If they are not found, try evaluating `opam
 config env` again).
 
-## Building 
+### Building 
 
 First follow the steps for installation. Then, the following build commands are
 available:
@@ -65,7 +80,7 @@ program:
   represents a coin landing heads-side up in this case.
 * The expression `observe a || b` conditions either `a` or `b` to be true. This
   expression returns `true`. `dice` supports logical conjunction (`||`),
-  conjunction (`&&`), and negation (`!`).
+  conjunction (`&&`), equality (`<=>`), negation (`!`), and exclusive-or (`^`).
 * The program returns `a`.
 
 You can find this program in `resources/example.dice`, and then you can run it
@@ -113,7 +128,7 @@ false	0.200000
 
 ```
 let x = discrete(0.4, 0.1, 0.5) in 
-let y = int(3, 1) in 
+let y = int(2, 1) in 
 x + y
 ```
 
@@ -121,9 +136,8 @@ Breaking this program down:
 
 * `discrete(0.4, 0.1, 0.5)` creates a random integer that is 0 with probability 0.4, 
    1 with probability 0.1, and 2 with probability 0.3.
-* `int(3, 1)` creates an integer constant of size 3 and value 1. All integer
-  constants in `dice` must specify their size (i.e., an integer of size 3
-  supports values between 0 and 2 inclusive).
+* `int(2, 1)` creates a 2-bit integer constant with value 1. All integer
+  constants in `dice` must specify their size.
 * `x + y` adds `x` and `y` together. All integer operations in `dice` are
   performed modulo the size (i.e., `x + y` is implicitly modulo 3 in this
   case). `dice` supports the following integer operations: `+`, `*`, `/`, `-`, 
@@ -196,7 +210,7 @@ is the most common letter, the string `CCCC` is most likely the encrypted string
 The following program models this scenario in `dice`:
 
 ```
-fun sendChar(key: int(4), observation: int(4)) {
+fun sendChar(key: int(2), observation: int(2)) {
   let gen = discrete(0.5, 0.25, 0.125, 0.125) in    // sample a FooLang character
   let enc = key + gen in                            // encrypt the character
   observe observation == enc
@@ -204,10 +218,10 @@ fun sendChar(key: int(4), observation: int(4)) {
 // sample a uniform random key: A=0, B=1, C=2, D=3
 let key = discrete(0.25, 0.25, 0.25, 0.25) in
 // observe the ciphertext CCCC
-let tmp = sendChar(key, int(4, 2)) in
-let tmp = sendChar(key, int(4, 2)) in
-let tmp = sendChar(key, int(4, 2)) in
-let tmp = sendChar(key, int(4, 2)) in
+let tmp = sendChar(key, int(2, 2)) in
+let tmp = sendChar(key, int(2, 2)) in
+let tmp = sendChar(key, int(2, 2)) in
+let tmp = sendChar(key, int(2, 2)) in
 key
 ```
 
@@ -251,7 +265,7 @@ complete syntax for `dice` in is:
 
 ```
 ident := ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*
-binop := +, -, *, /, <, <=, >, >=, ==, !=, &&, ||
+binop := +, -, *, /, <, <=, >, >=, ==, !=, &&, ||, <=>, ^
 
 expr := 
    (expr)
@@ -271,7 +285,7 @@ expr :=
 
 type := bool | (type, type) | int(size)
 arg := ident: type
-function := fun name(arg1: type1, ...) { expr }
+function := fun name(arg1, ...) { expr }
 
 program := expr 
         | function program

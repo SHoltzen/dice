@@ -31,6 +31,8 @@ rule token =
     | '-'                       { MINUS }
     | '*'                       { MULTIPLY }
     | '/'                       { DIVIDE }
+    | "<=>"                     { IFF }
+    | "^"                       { XOR }
     | '%'                       { MODULUS }
     | '<'                       { LT }
     | '>'                       { GT }
@@ -40,12 +42,15 @@ rule token =
     | "<="                      { LTE }
     | ">="                      { GTE }
     | "=="                      { EQUAL_TO }
+    | "<<"                      { LEFTSHIFT }
+    | ">>"                      { RIGHTSHIFT }
     | "="                       { EQUAL }
     | "!="                      { NEQ }
     | "&&"                      { AND }
     | "||"                      { OR }
     | "//"                      { comment lexbuf; }
     | "if"                      { IF }
+    | "sample"                  { SAMPLE }
     | "else"                    { ELSE }
     | "discrete"                { DISCRETE }
     | "then"                    { THEN }

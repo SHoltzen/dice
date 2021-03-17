@@ -1,4 +1,4 @@
 let x = discrete(0.4, 0.1, 0.5) in 
-let y = int(3, 1) in 
+let y = int(2, 1) in 
 x + y
 
