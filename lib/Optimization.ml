@@ -69,12 +69,12 @@ let rec up_pass (e: CG.expr) : float list * tree  =
   match e with
   | Flip(f) -> [f], Leaf
   | Ite(g, thn, els) -> 
-    let g_flips, _ = up_pass g in
+    (* let g_flips, _ = up_pass g in *)
 
     let thn_flips, thn_tree = up_pass thn in
     let els_flips, els_tree = up_pass els in
     let flips, shared = find_shared thn_flips els_flips [] [] in
-    g_flips@flips, Node((g_flips@flips, shared), thn_tree, els_tree)
+    flips, Node((flips, shared), thn_tree, els_tree)
   | Let(_, e1, e2) -> 
     let e1_flips, e1_tree = up_pass e1 in
     let e2_flips, e2_tree = up_pass e2 in
