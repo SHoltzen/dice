@@ -50,7 +50,7 @@ let map_eexpr f =
   | True s -> True s
   | False s -> False s
 
-let recursion_limit = 10
+let default_recursion_limit = 10
 
 let unreachable e =
   let open EG in
@@ -64,7 +64,7 @@ let rec gen_default_value =
   | TTuple (t1, t2) -> Tup(gen_src, gen_default_value t1, gen_default_value t2)
   | TFunc _ -> failwith "Internal Error: gen_default_value called with function type"
 
-let expand_recursion (p: EG.program) =
+let expand_recursion ?(recursion_limit = default_recursion_limit) (p: EG.program) =
   let open EG in
   let expand_func func =
     let gen_name i = Format.sprintf "%s$%d" func.name i in
