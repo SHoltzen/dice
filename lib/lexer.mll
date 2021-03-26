@@ -39,6 +39,7 @@ rule token =
     | '!'                       { NOT }
     | "int"                     { INT }
     | "bool"                    { BOOL }
+    | "list"                    { LIST }
     | "<="                      { LTE }
     | ">="                      { GTE }
     | "=="                      { EQUAL_TO }
@@ -66,6 +67,8 @@ rule token =
     | "fun"                     { FUN }
     | '('                       { LPAREN }
     | ')'                       { RPAREN }
+    | '['                       { LBRACKET }
+    | ']'                       { RBRACKET }
     | '{'                       { LBRACE }
     | '}'                       { RBRACE }
     | ';'                       { SEMICOLON }
