@@ -49,6 +49,7 @@ rule token =
     | "!="                      { NEQ }
     | "&&"                      { AND }
     | "||"                      { OR }
+    | "::"                      { CONS }
     | "//"                      { comment lexbuf; }
     | "if"                      { IF }
     | "sample"                  { SAMPLE }
@@ -65,6 +66,9 @@ rule token =
     | "observe"                 { OBSERVE }
     | "flip"                    { FLIP }
     | "fun"                     { FUN }
+    | "head"                    { HEAD }
+    | "tail"                    { TAIL }
+    | "length"                  { LENGTH }
     | '('                       { LPAREN }
     | ')'                       { RPAREN }
     | '['                       { LBRACKET }

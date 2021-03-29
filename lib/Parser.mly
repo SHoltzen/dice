@@ -11,7 +11,7 @@
 %token IF THEN ELSE TRUE FALSE IN INT
 %token SEMICOLON COMMA COLON
 %token LET OBSERVE FLIP LBRACE RBRACE FST SND FUN BOOL ITERATE
-%token LIST LBRACKET RBRACKET
+%token LIST LBRACKET RBRACKET CONS HEAD TAIL LENGTH
 
 %token <int>    INT_LIT
 %token <float>  FLOAT_LIT
@@ -24,6 +24,7 @@
 %left IFF
 %left XOR
 %left LTE GTE LT GT NEQ
+%right CONS
 %left PLUS MINUS EQUAL_TO LEFTSHIFT RIGHTSHIFT
 %left MULTIPLY DIVIDE MODULUS
 /* entry point */
@@ -73,6 +74,10 @@ expr:
     | delimited(LBRACKET, separated_nonempty_list(COMMA, expr), RBRACKET)
         { ListLit({startpos=$startpos; endpos=$endpos}, $1) }
     | LBRACKET RBRACKET typ_annot { ListLitEmpty({startpos=$startpos; endpos=$endpos}, $3) }
+    | expr CONS expr { Cons({startpos=$startpos; endpos=$endpos}, $1, $3) }
+    | HEAD expr { Head({startpos=$startpos; endpos=$endpos}, $2) }
+    | TAIL expr { Tail({startpos=$startpos; endpos=$endpos}, $2) }
+    | LENGTH expr { Length({startpos=$startpos; endpos=$endpos}, $2) }
 
 typ:
     | BOOL { TBool }
