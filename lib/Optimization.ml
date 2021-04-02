@@ -51,6 +51,11 @@ let rec remove_one l f new_l =
   | head::tail -> if f head then (List.rev_append new_l tail), true else 
     remove_one tail f (head::new_l)
 
+let rec replace l x new_x new_l = 
+  match l with
+  | [] -> new_l, false
+  | head::tail -> if head = x then (List.rev_append new_l (new_x::tail)), true else 
+    replace tail x new_x (head::new_l)
 
 (* Collect flips that need to be replaced *)
 let rec up_pass (e: CG.expr) : float list * tree  =
@@ -238,8 +243,9 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
         false, false, flip_to_var
   in
 
-  let rec concatenate_squeezed_exprs (flip_to_var_head: tracker) (flip_to_var_thn: tracker) (flip_to_var_els: tracker) : tracker = 
-    let rec concatenate_squeezed_exprs_e (flip_to_var_entry: tracker_entry) (flip_to_var_els_head: tracker) (flip_to_var_els: tracker) : tracker_entry * tracker = 
+  let rec concatenate_squeezed_exprs (flip_to_var_head: tracker) (flip_to_var_thn: tracker) (flip_to_var_els: tracker) (var_to_expr: env) (els: CG.expr): tracker * env * CG.expr = 
+    let rec concatenate_squeezed_exprs_e (flip_to_var_entry: tracker_entry) (flip_to_var_thn_tail: tracker) (flip_to_var_els_head: tracker) (flip_to_var_els: tracker) (var_to_expr: env) (inner: CG.expr)
+     : tracker_entry * tracker * env * CG.expr = 
       let rec merge_s (s1: string list) (s2: string list) (s_merge: string list): string list = 
         match s1 with
         | [] -> List.rev_append s_merge s2
@@ -249,20 +255,130 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
           else
             merge_s tail s2 (head::s_merge)
       in
+      let rec replace_expr (e: CG.expr) (var: string) (new_var: string) (flip_var: string): bool * CG.expr =
+        let rec replace_expr_search_dependency (e: CG.expr) (flip_var: string): bool * CG.expr = 
+          match e with
+          | Ident(x) -> (x = flip_var), e
+          | Let(x, e1, e2) ->
+            let is_dep_e2, e2' = replace_expr_search_dependency e2 flip_var in
+            let did_replace, e1' = if is_dep_e2 then replace_dependent_var e1 var new_var else false, e1 in
+            let is_dep_e1, e1'' = replace_expr_search_dependency e1' flip_var in
+            (is_dep_e1 || is_dep_e2), Let(x, e1'', e2')
+          | Ite(g, thn, els) ->
+            let is_dep_thn, thn' = replace_expr_search_dependency thn flip_var in
+            let is_dep_els, els' = replace_expr_search_dependency els flip_var in
+            let g' = 
+              if is_dep_thn || is_dep_els then
+                let did_replace, g_replaced = replace_dependent_var g var new_var in
+                g_replaced
+              else
+                g
+            in
+            (is_dep_thn || is_dep_els), Ite(g', thn', els')
+          | And(e1, e2) ->
+            let is_dep_e1, e1' = replace_expr_search_dependency e1 flip_var in
+            let is_dep_e2, e2' = replace_expr_search_dependency e2 flip_var in
+            (is_dep_e1 || is_dep_e2), And(e1', e2')
+          | Or(e1, e2) ->
+            let is_dep_e1, e1' = replace_expr_search_dependency e1 flip_var in
+            let is_dep_e2, e2' = replace_expr_search_dependency e2 flip_var in
+            (is_dep_e1 || is_dep_e2), Or(e1', e2')
+          | Xor(e1, e2) ->
+            let is_dep_e1, e1' = replace_expr_search_dependency e1 flip_var in
+            let is_dep_e2, e2' = replace_expr_search_dependency e2 flip_var in
+            (is_dep_e1 || is_dep_e2), Xor(e1', e2')
+          | Eq(e1, e2) ->
+            let is_dep_e1, e1' = replace_expr_search_dependency e1 flip_var in
+            let is_dep_e2, e2' = replace_expr_search_dependency e2 flip_var in
+            (is_dep_e1 || is_dep_e2), Eq(e1', e2')
+          | Tup(e1, e2) ->
+            let is_dep_e1, e1' = replace_expr_search_dependency e1 flip_var in
+            let is_dep_e2, e2' = replace_expr_search_dependency e2 flip_var in
+            (is_dep_e1 || is_dep_e2), Tup(e1', e2')
+          | Snd(e1) -> 
+            let is_dep_e1, e1' = replace_expr_search_dependency e1 flip_var in
+            is_dep_e1, Snd(e1')
+          | Fst(e1) ->
+            let is_dep_e1, e1' = replace_expr_search_dependency e1 flip_var in
+            is_dep_e1, Fst(e1')
+          | Not(e1) ->
+            let is_dep_e1, e1' = replace_expr_search_dependency e1 flip_var in
+            is_dep_e1, Not(e1')
+          | Observe(e1) ->
+            let is_dep_e1, e1' = replace_expr_search_dependency e1 flip_var in
+            is_dep_e1, Observe(e1')
+          | _ -> false, e
+        and replace_dependent_var (e: CG.expr) (var: string) (new_var: string): bool * CG.expr =
+          match e with
+          | Ident(x) -> if x = var then true, Ident(new_var) else false, e
+          | Let(x, e1, e2) ->
+            let did_replace_e1, e1' = replace_dependent_var e1 var new_var in
+            let did_replace_e2, e2' = replace_dependent_var e2 var new_var in
+            (did_replace_e1 || did_replace_e2), Let(x, e1', e2')
+          | Ite(g, e1, e2) ->
+            let did_replace_g, g' = replace_dependent_var g var new_var in
+            let did_replace_e1, e1' = replace_dependent_var e1 var new_var in
+            let did_replace_e2, e2' = replace_dependent_var e2 var new_var in
+            (did_replace_g || did_replace_e1 || did_replace_e2), Ite(g', e1', e2')
+          | And(e1, e2) ->
+            let did_replace_e1, e1' = replace_dependent_var e1 var new_var in
+            let did_replace_e2, e2' = replace_dependent_var e2 var new_var in
+            (did_replace_e1 || did_replace_e2), And(e1', e2')
+          | Or(e1, e2) ->
+            let did_replace_e1, e1' = replace_dependent_var e1 var new_var in
+            let did_replace_e2, e2' = replace_dependent_var e2 var new_var in
+            (did_replace_e1 || did_replace_e2), Or(e1', e2')
+          | Xor(e1, e2) ->
+            let did_replace_e1, e1' = replace_dependent_var e1 var new_var in
+            let did_replace_e2, e2' = replace_dependent_var e2 var new_var in
+            (did_replace_e1 || did_replace_e2), Xor(e1', e2')
+          | Eq(e1, e2) ->
+            let did_replace_e1, e1' = replace_dependent_var e1 var new_var in
+            let did_replace_e2, e2' = replace_dependent_var e2 var new_var in
+            (did_replace_e1 || did_replace_e2), Eq(e1', e2')
+          | Tup(e1, e2) ->
+            let did_replace_e1, e1' = replace_dependent_var e1 var new_var in
+            let did_replace_e2, e2' = replace_dependent_var e2 var new_var in
+            (did_replace_e1 || did_replace_e2), Tup(e1', e2')
+          | Snd(e1) -> 
+            let did_replace_e1, e1' = replace_dependent_var e1 var new_var in
+            did_replace_e1, Snd(e1')
+          | Fst(e1) ->
+            let did_replace_e1, e1' = replace_dependent_var e1 var new_var in
+            did_replace_e1, Fst(e1')
+          | Not(e1) ->
+            let did_replace_e1, e1' = replace_dependent_var e1 var new_var in
+            did_replace_e1, Not(e1')
+          | Observe(e1) ->
+            let did_replace_e1, e1' = replace_dependent_var e1 var new_var in
+            did_replace_e1, Observe(e1')
+          | _ -> false, e
+        in
+        replace_expr_search_dependency e flip_var 
+      in
       match flip_to_var_els with
-      | [] -> flip_to_var_entry, (List.rev_append flip_to_var_els_head [])
+      | [] -> flip_to_var_entry, (List.rev_append flip_to_var_els_head []), var_to_expr, inner
       | (used, new_flip, f, var, s)::tail ->
         let used', new_flip', f', var', s' = flip_to_var_entry in
-        if var = var' && f = f' then
-          ((used || used'), (new_flip && new_flip'), f', var', (merge_s s' s [])), (List.rev_append flip_to_var_els_head tail)
+        if List.mem var' s && (List.mem var s' || is_var_lifted flip_to_var_thn_tail var) then
+          let new_ident = fresh() in
+          let var_to_expr' = StringMap.add new_ident (StringMap.find var' var_to_expr) var_to_expr in
+
+          let s_replaced, did_replace = replace s var' new_ident [] in
+          let did_replace, inner' = replace_expr inner var' new_ident var in 
+
+          concatenate_squeezed_exprs_e flip_to_var_entry flip_to_var_thn_tail ((used, new_flip, f, var, s_replaced)::flip_to_var_els_head) tail var_to_expr' inner'
         else
-          concatenate_squeezed_exprs_e flip_to_var_entry ((used, new_flip, f, var, s)::flip_to_var_els_head) tail 
+          if var = var' && f = f' then
+            ((used || used'), (new_flip && new_flip'), f', var', (merge_s s' s [])), (List.rev_append flip_to_var_els_head tail), var_to_expr, inner
+          else
+            concatenate_squeezed_exprs_e flip_to_var_entry flip_to_var_thn_tail ((used, new_flip, f, var, s)::flip_to_var_els_head) tail var_to_expr inner
     in
     match flip_to_var_thn with
-    | [] -> (List.rev_append (List.rev_append flip_to_var_els []) (List.rev_append flip_to_var_head []))
+    | [] -> (List.rev_append (List.rev_append flip_to_var_els []) (List.rev_append flip_to_var_head [])), var_to_expr, els
     | head::tail ->
-      let head', flip_to_var_els' = concatenate_squeezed_exprs_e head [] flip_to_var_els in
-      concatenate_squeezed_exprs (head'::flip_to_var_head) tail flip_to_var_els' 
+      let head', flip_to_var_els', var_to_expr', els' = concatenate_squeezed_exprs_e head tail [] flip_to_var_els var_to_expr els in
+      concatenate_squeezed_exprs (head'::flip_to_var_head) tail flip_to_var_els' var_to_expr' els'
   in
 
   let rec make_expression (flip_to_var: tracker) (var_to_expr: env) (inner: CG.expr) : CG.expr =
@@ -297,11 +413,11 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
     match flip_to_var with
     | [] -> inner
     | (used, new_flip, f, var, s)::tail -> 
-      if new_flip && used then
+      if new_flip then
         let expr = make_squeezed s (Let(var, Flip(f), inner)) in
         make_expression tail var_to_expr expr 
       else
-        inner
+        make_expression tail var_to_expr inner 
   in
 
   let rec clean_bookkeeping (flip_to_var_before: tracker) (flip_to_var_head: tracker) (flip_to_var: tracker) (var_to_expr: env) : tracker * env = 
@@ -540,17 +656,17 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
         let els', flip_to_var_els, var_to_expr_els = down_pass_e els flip_to_var'' var_to_expr'' els_tree in
 
         (* Concatenate squeezed stuff *)
-        let flip_to_var_merged = concatenate_squeezed_exprs [] flip_to_var_thn flip_to_var_els in
+        let var_to_expr_merged = StringMap.union (fun _ f1 _ -> Some(f1)) var_to_expr_thn var_to_expr_els in
+
+        let flip_to_var_merged, var_to_expr_merged', els'' = concatenate_squeezed_exprs [] flip_to_var_thn flip_to_var_els var_to_expr_merged els' in
         (* Remove duplicates *)
         let flip_to_var_ready = remove_lifted [] flip_to_var_merged in
 
-        let var_to_expr_merged = StringMap.union (fun _ f1 _ -> Some(f1)) var_to_expr_thn var_to_expr_els in
-
         (* Make vars of the stuff squeezed for the shared flips made here *)
-        let new_expr = make_expression flip_to_var_ready var_to_expr_merged (Ite(g', thn', els')) in
-        
+        let new_expr = make_expression flip_to_var_ready var_to_expr_merged' (Ite(g', thn', els'')) in
+
         (* Remove the flips made here since won't need it upstream *)
-        let flip_to_var_cleaned, var_to_flip_cleaned = clean_bookkeeping flip_to_var [] flip_to_var_ready var_to_expr_merged in
+        let flip_to_var_cleaned, var_to_flip_cleaned = clean_bookkeeping flip_to_var [] flip_to_var_ready var_to_expr_merged' in
 
         new_expr, flip_to_var_cleaned, var_to_flip_cleaned
         
