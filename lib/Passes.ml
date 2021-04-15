@@ -461,10 +461,15 @@ let rec type_of (cfg: config) (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast
     let init' = type_of cfg ctx env init in
     (* TODO check arg validity*)
     (tres, Iter(s, id, init', k))
-  | ListLit(s, e1 :: es) ->
-    let (t, e1') = type_of cfg ctx env e1 in
-    (TList t, ListLit(s, (t, e1') :: List.map es ~f:(expect_t' t)))
-  | ListLit(_, []) -> failwith "empty ListLit"
+  | ListLit(s, es) ->
+    let len = List.length es in
+    if len > cfg.max_list_length then
+      raise (Type_error (Format.sprintf "Type error at line %d column %d: \
+                                         length of list literal (%d) exceeds maximum list length (%d)"
+                          s.startpos.pos_lnum (get_col s.startpos) len cfg.max_list_length))
+    else
+      let (t, e') = type_of cfg ctx env (List.hd_exn es) in
+      (TList t, ListLit(s, (t, e') :: List.map (List.tl_exn es) ~f:(expect_t' t)))
   | ListLitEmpty(s, t) ->
     begin match t with
     | TList _ -> (t, ListLitEmpty s)
