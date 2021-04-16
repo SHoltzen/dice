@@ -647,21 +647,38 @@ let rec gen_default_core =
   | TBool -> False
   | TTuple(t1, t2) -> Tup(gen_default_core t1, gen_default_core t2)
 
+let unreachable_core e = CG.Let("$_", Observe False, e)
+
 type external_ctx = Cudd.Man.dt
 
 let rec from_external_expr_h (ctx: external_ctx) (cfg: config) ((t, e): tast) : CG.expr =
   (* Format.printf "converting %s\n" (string_of_tast (t,e));
    * flush_all (); *)
-  let mk_length_int s x =
-    let n_bits = bit_length cfg.max_list_length in
-    (EG.TInt n_bits, Int(s, n_bits, x)) in
-  let gen_list_core s es =
+  let list_len_bits = bit_length cfg.max_list_length in
+  let list_len_type = EG.TInt list_len_bits in
+  let mk_length_int x = (list_len_type, Int(EG.gen_src, list_len_bits, x)) in
+  let gen_default_elem_core () =
+    gen_default_core @@ from_external_typ cfg @@ extract_elem_type t in
+  let gen_list_lit es =
     let len = List.length es in
-    let length_core = from_external_expr_h ctx cfg @@ mk_length_int s len in
+    let length_core = from_external_expr_h ctx cfg @@ mk_length_int len in
     let elems_core = List.map es ~f:(from_external_expr_h ctx cfg) in
-    let default_core = gen_default_core @@ from_external_typ cfg @@ extract_elem_type t in
-    let defaults_core = List.init (cfg.max_list_length - len) ~f:(Fn.const default_core) in
+    let defaults_core = List.init (cfg.max_list_length - len) ~f:(Fn.const @@ gen_default_elem_core ()) in
     CG.Tup(length_core, mk_dfs_tuple (elems_core @ defaults_core)) in
+  let max_length_int = mk_length_int cfg.max_list_length in
+  let gen_get_length xs =
+    (* NOTE: the TBool here isn't actually the correct type but since we are
+     * just doing Fst on an Ident it doesn't matter. *)
+    (list_len_type, Fst(EG.gen_src, (TTuple(list_len_type, TBool), Ident(EG.gen_src, xs)))) in
+  let gen_check_empty xs res =
+    CG.Ite(
+      from_external_expr_h ctx cfg
+        (TBool, Eq(EG.gen_src, gen_get_length xs, mk_length_int 0)),
+      unreachable_core @@ gen_default_elem_core (),
+      res) in
+  let gen_eval_arg e f =
+    let x = fresh () in
+    CG.Let(x, from_external_expr_h ctx cfg e, f x) in
   match e with
   | And(_, e1, e2) ->
     let s1 = from_external_expr_h ctx cfg e1 in
@@ -781,8 +798,49 @@ let rec from_external_expr_h (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
     from_external_expr_h ctx cfg expanded
   | Sample(_, e) -> Sample(from_external_expr_h ctx cfg e)
   | IntConst(_, _) -> failwith "not implemented"
-  | ListLit(s, es) -> gen_list_core s es
-  | ListLitEmpty s -> gen_list_core s []
+  | ListLit(_, es) -> gen_list_lit es
+  | ListLitEmpty _ -> gen_list_lit []
+  | Cons(s, e1, e2) ->
+    gen_eval_arg e1 @@ fun x ->
+      gen_eval_arg e2 @@ fun xs ->
+        let length_core =
+          (* if fst xs == max_list_length then max_list_length else (fst xs) + 1 *)
+          let length_xs = gen_get_length xs in
+          from_external_expr_h ctx cfg
+            (list_len_type, Ite(s,
+              (TBool, Eq(s, length_xs, max_length_int)),
+              max_length_int,
+              (list_len_type, Plus(s, length_xs, mk_length_int 1)))) in
+        let rec build_res_core i prev_tup =
+          let tup = CG.Snd prev_tup in
+          let elem = CG.Fst tup in
+          if i = cfg.max_list_length - 1 then elem else
+            CG.Tup(elem, build_res_core (succ i) tup) in
+        let res_core =
+          if cfg.max_list_length = 1 then CG.Ident x else
+            CG.Tup(CG.Ident x, build_res_core 1 (CG.Ident xs)) in
+        Tup(length_core, res_core)
+  | Head(_, e) ->
+    gen_eval_arg e @@ fun xs ->
+      let list_part = CG.Snd (Ident xs) in
+      gen_check_empty xs @@
+        if cfg.max_list_length = 1 then list_part else Fst list_part
+  | Tail(s, e) ->
+    gen_eval_arg e @@ fun xs ->
+      let length_core = from_external_expr_h ctx cfg
+        (list_len_type, Minus(s, gen_get_length xs, mk_length_int 1)) in
+      let default_core = gen_default_elem_core () in
+      let rec build_res_core i prev_tup =
+        let tup = CG.Snd prev_tup in
+        if i = cfg.max_list_length - 1 then
+          CG.Tup(tup, default_core)
+        else
+          CG.Tup(CG.Fst tup, build_res_core (succ i) tup) in
+      let res_core =
+        if cfg.max_list_length = 1 then default_core else
+          build_res_core 1 @@ CG.Snd (CG.Ident xs) in
+      gen_check_empty xs @@ Tup(length_core, res_core)
+  | Length(_, e) -> Fst (from_external_expr_h ctx cfg e)
 
 let from_external_expr mgr cfg in_func (env: EG.tenv) (e: EG.eexpr) : (EG.typ * CG.expr) =
   let ctx = if in_func then {in_func=true} else {in_func=false} in
