@@ -6,7 +6,9 @@ module CG = CoreGrammar
 
 type config = { max_list_length: int }
 
-let default_config = { max_list_length = 10 }
+let default_recursion_limit = 10
+
+let default_config = { max_list_length = default_recursion_limit }
 
 let n = ref 0
 
@@ -60,11 +62,9 @@ let map_eexpr f =
   | Tail(s, e) -> Tail(s, f e)
   | Length(s, e) -> Length(s, f e)
 
-let default_recursion_limit = 10
-
 let unreachable e =
   let open EG in
-  Let(gen_src, "_", Observe(gen_src, False gen_src), e)
+  Let(gen_src, "$_", Observe(gen_src, False gen_src), e)
 
 let rec gen_default_value =
   let open EG in
@@ -497,6 +497,25 @@ let rec expand_iter_t s f ((t, curv):tast) k : tast =
 
 
 
+let rec from_external_typ cfg (t:EG.typ) : CG.typ =
+  match t with
+    TBool -> TBool
+  | TInt(sz) ->
+    let l = List.init sz ~f:(fun _ -> CG.TBool) in
+    let rec mk_dfs_typ l =
+      match l with
+      | [x] -> x
+      | x::xs ->
+        CG.TTuple(x, mk_dfs_typ xs)
+      | [] -> failwith "Internal Error: Invalid int type"
+    in
+    mk_dfs_typ l
+  | TTuple(t1, t2) -> TTuple(from_external_typ cfg t1, from_external_typ cfg t2)
+  | TList t -> from_external_typ cfg @@
+    TTuple(TInt(bit_length cfg.max_list_length),
+           Fn.apply_n_times ~n:(cfg.max_list_length - 1) (fun t' -> EG.TTuple(t, t')) t)
+  | _ -> failwith "Internal Error: unreachable"
+
 let rec and_of_l l =
   match l with
   | [] -> CG.True
@@ -618,27 +637,47 @@ let extract_sz t =
    | EG.TInt(sz) -> sz
    | _ -> failwith "Internal Type Error: expected int")
 
+let extract_elem_type = function
+| EG.TList t -> t
+| _ -> failwith "Internal Type Error: expected list type"
+
+let rec gen_default_core =
+  let open CG in
+  function
+  | TBool -> False
+  | TTuple(t1, t2) -> Tup(gen_default_core t1, gen_default_core t2)
+
 type external_ctx = Cudd.Man.dt
 
-let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) : CG.expr =
+let rec from_external_expr_h (ctx: external_ctx) (cfg: config) ((t, e): tast) : CG.expr =
   (* Format.printf "converting %s\n" (string_of_tast (t,e));
    * flush_all (); *)
+  let mk_length_int s x =
+    let n_bits = bit_length cfg.max_list_length in
+    (EG.TInt n_bits, Int(s, n_bits, x)) in
+  let gen_list_core s es =
+    let len = List.length es in
+    let length_core = from_external_expr_h ctx cfg @@ mk_length_int s len in
+    let elems_core = List.map es ~f:(from_external_expr_h ctx cfg) in
+    let default_core = gen_default_core @@ from_external_typ cfg @@ extract_elem_type t in
+    let defaults_core = List.init (cfg.max_list_length - len) ~f:(Fn.const default_core) in
+    CG.Tup(length_core, mk_dfs_tuple (elems_core @ defaults_core)) in
   match e with
   | And(_, e1, e2) ->
-    let s1 = from_external_expr_h ctx tenv e1 in
-    let s2 = from_external_expr_h ctx tenv e2 in And(s1, s2)
+    let s1 = from_external_expr_h ctx cfg e1 in
+    let s2 = from_external_expr_h ctx cfg e2 in And(s1, s2)
   | Or(_, e1, e2) ->
-    let s1 = from_external_expr_h ctx tenv e1 in
-    let s2 = from_external_expr_h ctx tenv e2 in Or(s1, s2)
+    let s1 = from_external_expr_h ctx cfg e1 in
+    let s2 = from_external_expr_h ctx cfg e2 in Or(s1, s2)
   | Iff(_, e1, e2) ->
-    let s1 = from_external_expr_h ctx tenv e1 in
-    let s2 = from_external_expr_h ctx tenv e2 in Eq(s1, s2)
+    let s1 = from_external_expr_h ctx cfg e1 in
+    let s2 = from_external_expr_h ctx cfg e2 in Eq(s1, s2)
   | Xor(_, e1, e2) ->
-    let s1 = from_external_expr_h ctx tenv e1 in
-    let s2 = from_external_expr_h ctx tenv e2 in Xor(s1, s2)
-  | LeftShift(_, e, 0) -> from_external_expr_h ctx tenv e
+    let s1 = from_external_expr_h ctx cfg e1 in
+    let s2 = from_external_expr_h ctx cfg e2 in Xor(s1, s2)
+  | LeftShift(_, e, 0) -> from_external_expr_h ctx cfg e
   | LeftShift(_, e, amt) ->
-    let sube = from_external_expr_h ctx tenv e in
+    let sube = from_external_expr_h ctx cfg e in
     assert (amt > 0);
     let sz = extract_sz t in
     let id = Format.sprintf "leftshift_%s" (fresh ()) in
@@ -647,10 +686,10 @@ let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) 
       else if depth + amt >= sz then Tup(False, h (depth+1))
       else Tup(nth_bit sz (depth+amt) (Ident(id)), h (depth+1)) in
     Let(id, sube, h 0)
-  | RightShift(_, e, 0) -> from_external_expr_h ctx tenv e
+  | RightShift(_, e, 0) -> from_external_expr_h ctx cfg e
   | RightShift(_, e, amt) ->
     assert (amt > 0);
-    let sube = from_external_expr_h ctx tenv e in
+    let sube = from_external_expr_h ctx cfg e in
     let sz = extract_sz t in
     let id = Format.sprintf "rightshift_%s" (fresh ()) in
     let rec h depth : CG.expr =
@@ -661,34 +700,34 @@ let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) 
     Let(id, sube, h 0)
   | Plus(_, e1, e2) ->
     let sz = extract_sz (fst e1) in
-    gen_adder sz (from_external_expr_h ctx tenv e1) (from_external_expr_h ctx tenv e2)
+    gen_adder sz (from_external_expr_h ctx cfg e1) (from_external_expr_h ctx cfg e2)
   | Minus(_, e1, e2) ->
     let sz = extract_sz t in
-    gen_subtractor sz (from_external_expr_h ctx tenv e1) (from_external_expr_h ctx tenv e2)
+    gen_subtractor sz (from_external_expr_h ctx cfg e1) (from_external_expr_h ctx cfg e2)
   | Eq(_, (t1, e1), (t2, e2)) ->
     let sz = extract_sz t1 in
     let n1 = fresh () and n2 = fresh () in
     let inner = List.init sz ~f:(fun idx ->
         CG.Eq(nth_bit sz idx (Ident(n1)), nth_bit sz idx (Ident(n2)))
       ) |> and_of_l in
-    Let(n1, from_external_expr_h ctx tenv (t1, e1),
-        Let(n2, from_external_expr_h ctx tenv (t2, e2), inner))
-  | Neq(s, e1, e2) -> from_external_expr_h ctx tenv (TBool, Not(s, (TBool, Eq(s, e1, e2))))
+    Let(n1, from_external_expr_h ctx cfg (t1, e1),
+        Let(n2, from_external_expr_h ctx cfg (t2, e2), inner))
+  | Neq(s, e1, e2) -> from_external_expr_h ctx cfg (TBool, Not(s, (TBool, Eq(s, e1, e2))))
   | Mult(s, e1, e2) ->
     let sz = extract_sz (fst e1) in
-    let sube1 = from_external_expr_h ctx tenv e1 in
-    let sube2 = from_external_expr_h ctx tenv e2 in
+    let sube1 = from_external_expr_h ctx cfg e1 in
+    let sube2 = from_external_expr_h ctx cfg e2 in
     let fresha = Format.sprintf "multa_%s" (fresh ()) in
     let freshb = Format.sprintf "multb_%s" (fresh ()) in
     let freshout = Format.sprintf "multo_%s" (fresh ()) in
     let lst : CG.expr List.t = List.init sz ~f:(fun i ->
-        let subadd = from_external_expr_h ctx tenv
+        let subadd = from_external_expr_h ctx cfg
             (t, Plus(s, (t, Ident(s, freshout)), (t, LeftShift(s, (t, Ident(s, freshb)), i)))) in
         CG.Ite(nth_bit sz (sz - i - 1) (Ident(fresha)), subadd, Ident(freshout))
       ) in
     let assgn = List.fold (List.rev lst) ~init:(CG.Ident(freshout)) ~f:(fun acc i ->
         Let(freshout, i, acc)) in
-    let zeroconst = from_external_expr_h ctx tenv (TInt(sz), Int(s, sz, 0)) in
+    let zeroconst = from_external_expr_h ctx cfg (TInt(sz), Int(s, sz, 0)) in
     Let(freshout, zeroconst,
         Let(fresha, sube1,
             Let(freshb, sube2, assgn)))
@@ -702,11 +741,11 @@ let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) 
                False,
                Ite(And(Not(nth_bit sz idx (Ident(n1))), nth_bit sz idx (Ident n2)), True,
                h (idx + 1))) in
-    Let(n1, from_external_expr_h ctx tenv (t1, e1), Let(n2, from_external_expr_h ctx tenv (t2, e2), h 0))
-  | Lte(s, e1, e2) -> from_external_expr_h ctx tenv (TBool, Or(s, (TBool, Lt(s, e1, e2)), (TBool, Eq(s, e1, e2))))
-  | Gt(s, e1, e2) -> from_external_expr_h ctx tenv (TBool, Not(s, (TBool, Lte(s, e1, e2))))
-  | Gte(s, e1, e2) -> from_external_expr_h ctx tenv (TBool, Not(s, (TBool, Lt(s, e1, e2))))
-  | Not(_, e) -> Not(from_external_expr_h ctx tenv e)
+    Let(n1, from_external_expr_h ctx cfg (t1, e1), Let(n2, from_external_expr_h ctx cfg (t2, e2), h 0))
+  | Lte(s, e1, e2) -> from_external_expr_h ctx cfg (TBool, Or(s, (TBool, Lt(s, e1, e2)), (TBool, Eq(s, e1, e2))))
+  | Gt(s, e1, e2) -> from_external_expr_h ctx cfg (TBool, Not(s, (TBool, Lte(s, e1, e2))))
+  | Gte(s, e1, e2) -> from_external_expr_h ctx cfg (TBool, Not(s, (TBool, Lt(s, e1, e2))))
+  | Not(_, e) -> Not(from_external_expr_h ctx cfg e)
   | Flip(_, f) -> Flip(f)
   | Ident(_, s) -> Ident(s)
   | Discrete(_, l) -> gen_discrete ctx l
@@ -717,57 +756,39 @@ let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) 
   | True(_) -> True
   | False(_) -> False
   | Observe(_, e) ->
-    Observe(from_external_expr_h ctx tenv e)
+    Observe(from_external_expr_h ctx cfg e)
   | Let(_, x, e1, e2) ->
-    let tenv' = Map.Poly.set tenv ~key:x ~data:t in
-    Let(x, from_external_expr_h ctx tenv e1, from_external_expr_h ctx tenv' e2)
-  | Ite(_, g, thn, els) -> Ite(from_external_expr_h ctx tenv g,
-                               from_external_expr_h ctx tenv thn,
-                               from_external_expr_h ctx tenv els)
-  | Snd(_, e) -> Snd(from_external_expr_h ctx tenv e)
-  | Fst(_, e) -> Fst(from_external_expr_h ctx tenv e)
-  | Tup(_, e1, e2) -> Tup(from_external_expr_h ctx tenv e1, from_external_expr_h ctx tenv e2)
+    Let(x, from_external_expr_h ctx cfg e1, from_external_expr_h ctx cfg e2)
+  | Ite(_, g, thn, els) -> Ite(from_external_expr_h ctx cfg g,
+                               from_external_expr_h ctx cfg thn,
+                               from_external_expr_h ctx cfg els)
+  | Snd(_, e) -> Snd(from_external_expr_h ctx cfg e)
+  | Fst(_, e) -> Fst(from_external_expr_h ctx cfg e)
+  | Tup(_, e1, e2) -> Tup(from_external_expr_h ctx cfg e1, from_external_expr_h ctx cfg e2)
   | FuncCall(src, "nth_bit", [(_, Int(_, sz, v)); e2]) ->
     if v >= sz then
       (raise (EG.Type_error (Format.sprintf "Type error at line %d column %d: nth_bit exceeds maximum bit size"
                                src.startpos.pos_lnum (get_col src.startpos))));
-    let internal = from_external_expr_h ctx tenv e2 in
+    let internal = from_external_expr_h ctx cfg e2 in
     nth_bit sz v internal
-  | FuncCall(_, id, args) -> FuncCall(id, List.map args ~f:(fun i -> from_external_expr_h ctx tenv i))
+  | FuncCall(_, id, args) -> FuncCall(id, List.map args ~f:(fun i -> from_external_expr_h ctx cfg i))
   | Iter(s, f, init, k) ->
-    (* let e = from_external_expr_h ctx tenv init in
+    (* let e = from_external_expr_h ctx cfg init in
      * List.fold (List.init k ~f:(fun _ -> ())) ~init:e
      *   ~f:(fun acc _ -> FuncCall(f, [acc])) *)
 
     let expanded = expand_iter_t s f init k in
-    from_external_expr_h ctx tenv expanded
-  | Sample(_, e) -> Sample(from_external_expr_h ctx tenv e)
+    from_external_expr_h ctx cfg expanded
+  | Sample(_, e) -> Sample(from_external_expr_h ctx cfg e)
   | IntConst(_, _) -> failwith "not implemented"
+  | ListLit(s, es) -> gen_list_core s es
+  | ListLitEmpty s -> gen_list_core s []
 
 let from_external_expr mgr cfg in_func (env: EG.tenv) (e: EG.eexpr) : (EG.typ * CG.expr) =
   let ctx = if in_func then {in_func=true} else {in_func=false} in
   let (typ, e) = type_of cfg ctx env e in
-  let r = (typ, from_external_expr_h mgr Map.Poly.empty (typ, e)) in
+  let r = (typ, from_external_expr_h mgr cfg (typ, e)) in
   r
-
-let rec from_external_typ cfg (t:EG.typ) : CG.typ =
-  match t with
-    TBool -> TBool
-  | TInt(sz) ->
-    let l = List.init sz ~f:(fun _ -> CG.TBool) in
-    let rec mk_dfs_typ l =
-      match l with
-      | [x] -> x
-      | x::xs ->
-        CG.TTuple(x, mk_dfs_typ xs)
-      | [] -> failwith "Internal Error: Invalid int type"
-    in
-    mk_dfs_typ l
-  | TTuple(t1, t2) -> TTuple(from_external_typ cfg t1, from_external_typ cfg t2)
-  | TList t -> from_external_typ cfg @@
-    TTuple(TInt(bit_length cfg.max_list_length),
-           Fn.apply_n_times ~n:(cfg.max_list_length - 1) (fun t' -> EG.TTuple(t, t')) t)
-  | _ -> failwith "Internal Error: unreachable"
 
 let from_external_arg cfg (a:EG.arg) : CG.arg =
   let (name, t) = a in
@@ -821,13 +842,13 @@ let from_external_prog ?(cfg: config = default_config) (p: EG.program) : (EG.typ
   let (t, convbody) = from_external_expr mgr cfg false tenv p.body in
   (t, {functions = functions; body = convbody})
 
-  let from_external_prog_optimize ?(cfg: config = default_config) (p: EG.program) (flip_lifting: bool) (branch_elimination: bool) (determinism: bool) : (EG.typ * CG.program) =
-    let mgr = Cudd.Man.make_d () in
-    let (tenv, functions) = List.fold p.functions ~init:(Map.Poly.empty, []) ~f:(fun (tenv, flst) i ->
-        let (t, conv) = from_external_func_optimize mgr cfg tenv i flip_lifting branch_elimination determinism in
-        let tenv' = Map.Poly.set tenv ~key:i.name ~data:t in
-        (tenv', flst @ [conv])
-      ) in
-    let (t, convbody) = from_external_expr mgr cfg false tenv p.body in
-    let optbody = Optimization.do_optimize convbody !n flip_lifting branch_elimination determinism in
-    (t, {functions = functions; body = optbody})
+let from_external_prog_optimize ?(cfg: config = default_config) (p: EG.program) (flip_lifting: bool) (branch_elimination: bool) (determinism: bool) : (EG.typ * CG.program) =
+  let mgr = Cudd.Man.make_d () in
+  let (tenv, functions) = List.fold p.functions ~init:(Map.Poly.empty, []) ~f:(fun (tenv, flst) i ->
+      let (t, conv) = from_external_func_optimize mgr cfg tenv i flip_lifting branch_elimination determinism in
+      let tenv' = Map.Poly.set tenv ~key:i.name ~data:t in
+      (tenv', flst @ [conv])
+    ) in
+  let (t, convbody) = from_external_expr mgr cfg false tenv p.body in
+  let optbody = Optimization.do_optimize convbody !n flip_lifting branch_elimination determinism in
+  (t, {functions = functions; body = optbody})
