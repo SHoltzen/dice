@@ -89,25 +89,15 @@ let rec clear_wmc (arr: bddentry Array.t) bdd  =
 
 
 let multi_wmc (bdd: Bdd.dt) _ (w: weight List.t) =
-  Format.printf "starting\n";
   let sz = (Bdd.size bdd) in
   let arr : bddentry Array.t = Array.init ( sz)
       ~f:(fun _ -> (0, True, True, ref None)) in
   let tbl = Hashtbl.Poly.create () in
-  Format.printf "converting, size: %d \n" sz;
-  flush_all();
   let internal = import tbl arr (ref 0) bdd in
 
-  Format.printf "converted\n";
-  flush_all();
   List.map w ~f:(fun w ->
-      Format.printf "wmc\n";
-      flush_all();
       let r = wmc_internal arr w internal in
-      Format.printf "clear\n";
-      flush_all();
       clear_wmc arr internal;
-      Format.printf "cleared\n";
       r
     )
   (* let m = Bdd.manager bdd in
