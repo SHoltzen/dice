@@ -89,17 +89,22 @@ let rec clear_wmc (arr: bddentry Array.t) bdd  =
 
 
 let multi_wmc (bdd: Bdd.dt) _ (w: weight List.t) =
-  let sz = (Bdd.size bdd) in
-  let arr : bddentry Array.t = Array.init ( sz)
-      ~f:(fun _ -> (0, True, True, ref None)) in
-  let tbl = Hashtbl.Poly.create () in
-  let internal = import tbl arr (ref 0) bdd in
-
+  (* let sz = (Bdd.size bdd) in
+   * let arr : bddentry Array.t = Array.init ( sz)
+   *     ~f:(fun _ -> (0, True, True, ref None)) in
+   * let tbl = Hashtbl.Poly.create () in
+   * let internal = import tbl arr (ref 0) bdd in
+   * 
+   * List.map w ~f:(fun w ->
+   *     let r = wmc_internal arr w internal in
+   *     clear_wmc arr internal;
+   *     r
+   *   ) *)
   List.map w ~f:(fun w ->
-      let r = wmc_internal arr w internal in
-      clear_wmc arr internal;
-      r
+      wmc bdd w
     )
+
+
   (* let m = Bdd.manager bdd in
    * let numvars = Man.get_bddvar_nb m in
    * let weight_array = Array.of_list (List.map w ~f:(fun curw ->
