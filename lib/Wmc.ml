@@ -68,7 +68,7 @@ let rec wmc_internal (arr: bddentry Array.t) (w: weight) bdd =
        let wmcl = wmc_internal arr w low in
        let wmch = wmc_internal arr w high in
        let (loww, highw) = Hashtbl.Poly.find_exn w lvl in
-       let res = wmcl *. loww +. wmch *. highw in
+       let res = wmcl *. highw +. wmch *. loww in
        v := Some(res);
        res)
 
@@ -89,18 +89,20 @@ let rec clear_wmc (arr: bddentry Array.t) bdd  =
 
 
 let multi_wmc (bdd: Bdd.dt) _ (w: weight List.t) =
-  (* let sz = (Bdd.size bdd) in
-   * let arr : bddentry Array.t = Array.init ( sz)
-   *     ~f:(fun _ -> (0, True, True, ref None)) in
-   * let tbl = Hashtbl.Poly.create () in
-   * let internal = import tbl arr (ref 0) bdd in
-   * 
-   * List.map w ~f:(fun w ->
-   *     let r = wmc_internal arr w internal in
-   *     clear_wmc arr internal;
-   *     r
-   *   ) *)
-  List.map w ~f:(fun w ->
+  if List.length w > 1 then 
+    let sz = (Bdd.size bdd) in
+    let arr : bddentry Array.t = Array.init ( sz)
+        ~f:(fun _ -> (0, True, True, ref None)) in
+    let tbl = Hashtbl.Poly.create () in
+    let internal = import tbl arr (ref 0) bdd in
+
+    List.map w ~f:(fun w ->
+        let r = wmc_internal arr w internal in
+        clear_wmc arr internal;
+        r
+      )
+  else
+    List.map w ~f:(fun w ->
       wmc bdd w
     )
 
