@@ -80,7 +80,8 @@ let rec transpose (ls : 'a list list) : 'a list list =
 
 
 let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
-    ~inline_functions ~sample_amount ~optimize ~params lexbuf : result List.t = try
+    ~inline_functions ~sample_amount ~optimize ~print_time ~params lexbuf : result List.t = try
+    let init_time = Unix.gettimeofday () in
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
   let (t, internal) =
@@ -146,6 +147,8 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
                          (* string_of_float (Bdd.nbpaths (VarState.extract_leaf compiled.body.state)) *)
                         )]
       else res in
+    let final_time = Unix.gettimeofday () in
+    let res = if print_time then res @ [StringRes("Total time", string_of_float (final_time -. init_time))] else res in
     res
   | Some(n) ->
     if List.length params > 0 then failwith "sampling with parameter replace not supported yet";
@@ -203,6 +206,7 @@ let command =
      and params = flag "-param" (listed string) ~doc:"specify parameter file"
      and print_internal = flag "-show-internal" no_arg ~doc:" print desugared dice program"
      and skip_table = flag "-skip-table" no_arg ~doc:" skip printing the joint probability distribution"
+     and print_time = flag "-time" no_arg ~doc:" print total runtime in seconds"
      (* and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order" *)
      and json = flag "-json" no_arg ~doc:" print output as JSON"
      in fun () ->
@@ -210,7 +214,7 @@ let command =
        let lexbuf = Lexing.from_channel inx in
        lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = fname };
        let r = (parse_and_print ~print_parsed ~print_internal ~sample_amount
-                  ~print_size ~inline_functions ~skip_table ~optimize ~params lexbuf) in
+                  ~print_size ~inline_functions ~skip_table ~optimize ~params ~print_time lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res
     )
