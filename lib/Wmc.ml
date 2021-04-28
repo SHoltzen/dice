@@ -20,9 +20,11 @@ let rec import tbl (array: bddentry Array.t) (cnt: int ref) bdd : ptr =
     let cur_cnt = !cnt in
     cnt := !cnt + 1;
     let v = (Bdd.topvar bdd, impthn, impels, ref None) in
-    Array.set array cur_cnt v;
-    Hashtbl.Poly.add_exn tbl ~key:bdd ~data:(Ptr(cur_cnt));
-    Ptr(cur_cnt)
+    try 
+      Array.set array cur_cnt v;
+      Hashtbl.Poly.add_exn tbl ~key:bdd ~data:(Ptr(cur_cnt));
+      Ptr(cur_cnt)
+    with  _ -> failwith (Format.sprintf "index error %d" cur_cnt)
 
 (** map from variable index to (low weight, high weight) *)
 type weight = (int, (float*float)) Hashtbl.Poly.t
@@ -67,7 +69,10 @@ let rec wmc_internal (arr: bddentry Array.t) (w: weight) bdd =
      | None ->
        let wmcl = wmc_internal arr w low in
        let wmch = wmc_internal arr w high in
-       let (loww, highw) = Hashtbl.Poly.find_exn w lvl in
+       let (loww, highw) = match Hashtbl.Poly.find w lvl with
+           Some(v) -> v
+         | None -> failwith (Format.sprintf "Could not find variable %d" lvl)
+       in
        let res = wmcl *. highw +. wmch *. loww in
        v := Some(res);
        res)
@@ -89,19 +94,20 @@ let rec clear_wmc (arr: bddentry Array.t) bdd  =
 
 
 let multi_wmc (bdd: Bdd.dt) _ (w: weight List.t) =
-  if List.length w > 1 then 
-    let sz = (Bdd.size bdd) in
-    let arr : bddentry Array.t = Array.init ( sz)
-        ~f:(fun _ -> (0, True, True, ref None)) in
-    let tbl = Hashtbl.Poly.create () in
-    let internal = import tbl arr (ref 0) bdd in
-
-    List.map w ~f:(fun w ->
-        let r = wmc_internal arr w internal in
-        clear_wmc arr internal;
-        r
-      )
-  else
+  (* if List.length w > 1 then
+   *   let sz = (Bdd.size bdd) + 10 in
+   *   Format.printf "size: %d\n" sz;
+   *   let arr : bddentry Array.t = Array.init ( sz)
+   *       ~f:(fun _ -> (0, True, True, ref None)) in
+   *   let tbl = Hashtbl.Poly.create () in
+   *   let internal = import tbl arr (ref 0) bdd in
+   * 
+   *   List.map w ~f:(fun w ->
+   *       let r = wmc_internal arr w internal in
+   *       clear_wmc arr internal;
+   *       r
+   *     )
+   * else *)
     List.map w ~f:(fun w ->
       wmc bdd w
     )

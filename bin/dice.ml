@@ -109,6 +109,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
                         let vars = try Hashtbl.Poly.find_exn compiled.ctx.subst key
                           with _ -> failwith (Format.sprintf "Could not find key '%s' in parameter file '%s'" key name) in
                         List.iter vars ~f:(fun topvar ->
+                            (* Format.printf "Adding subst %d\n" ; *)
                             Hashtbl.Poly.add_exn curweight ~key:topvar ~data
                           )
                       );
