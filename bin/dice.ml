@@ -67,7 +67,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
   let parsed_norec = Passes.expand_recursion ?recursion_limit parsed in
   let cfg =
-    { max_list_length = Option.value max_list_length
+    { max_list_length = Option.value (Option.first_some max_list_length recursion_limit)
         ~default:Passes.default_config.max_list_length } in
   let optimize = flip_lifting || branch_elimination || determinism in
   let (t, internal) =
