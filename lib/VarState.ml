@@ -32,8 +32,12 @@ let rec zip_tree (s1: 'a btree) (s2: 'b btree) =
     Node(zip_tree a_l b_l, zip_tree a_r b_r)
   | _ -> failwith "could not zip trees, incompatible shape"
 
+let rec not_leaves = function
+| Leaf bdd -> Bdd.dnot bdd
+| Node(l, r) -> Bdd.dand (not_leaves l) (not_leaves r)
+
 (** [get_table] gets a list of all possible instantiations of BDDs in [st]. *)
-let get_table st typ =
+let get_table (cfg : Passes.config) st typ =
   let rec process_state t state =
     let open ExternalGrammar in
     match (t, state) with
@@ -62,6 +66,28 @@ let get_table st typ =
               (`Tup(lt, rt), Bdd.dand lbdd rbdd)
             )
         ) |> List.concat
+    | (TList(elem_t), Node(len_state, elems_state)) ->
+      let len_table = List.take
+        (process_state (TInt (Util.bit_length cfg.max_list_length)) len_state)
+        (succ cfg.max_list_length) in
+      let rec process_list elems_len max_len s =
+        match elems_len, max_len, s with
+        | 0, _, _ -> [[], not_leaves s]
+        | 1, 1, _ -> List.map (process_state elem_t s) ~f:(fun (v, bdd) -> [v], bdd)
+        | _, _, Node(x, xs) ->
+          let x_table = process_state elem_t x in
+          let xs_table = process_list (pred elems_len) (pred max_len) xs in
+          List.concat_map x_table ~f:(fun (x_val, x_bdd) ->
+            List.map xs_table ~f:(fun (xs_vals, xs_bdd) ->
+              x_val :: xs_vals, Bdd.dand x_bdd xs_bdd))
+        | _ -> failwith "Unreachable" in
+      List.concat_map len_table ~f:(fun (len_val, len_bdd) ->
+        match len_val with
+        | `Int(len) ->
+          List.map (process_list len cfg.max_list_length elems_state)
+            ~f:(fun (elems, elems_bdd) ->
+              `List elems, Bdd.dand len_bdd elems_bdd)
+        | _ -> failwith "Unreachable")
     | _ -> failwith "Unreachable"
   in
   process_state typ st

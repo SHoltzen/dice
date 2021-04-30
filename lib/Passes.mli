@@ -3,6 +3,8 @@
 
 type config = { max_list_length: int }
 
+val default_config : config
+
 val expand_recursion : ?recursion_limit:int -> ExternalGrammar.program -> ExternalGrammar.program
 
 (** Inline all function calls *)

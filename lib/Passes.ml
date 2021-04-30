@@ -217,8 +217,6 @@ let rec mk_dfs_tuple l =
   | x::xs ->
     CG.Tup(x, mk_dfs_tuple xs)
 
-let bit_length x = Int.floor_log2 x + 1
-
 let rec type_eq t1 t2 =
   let open EG in
   match (t1, t2) with
