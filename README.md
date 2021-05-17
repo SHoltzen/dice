@@ -168,10 +168,10 @@ Breaking this program down:
 - `head xs` returns the first element of `xs` and `tail xs` returns a list of everything after the first element.
 - `x :: xs` returns a list with `x` added to the front of `xs`.
 
-Running this program, with `-max-list-length 3`:
+Running this program:
 
 ```
-> dice resources/list-ex.dice
+> dice -max-list-length 3 resources/list-ex.dice
 Value   Probability
 []      0.
 [true]  0.2
