@@ -1,3 +1,0 @@
-S src
-B _build/src
-PKG oUnit cudd core menhir core_bench menhirlib

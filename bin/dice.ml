@@ -47,10 +47,11 @@ let get_lexing_position lexbuf =
 let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~inline_functions ~sample_amount ~show_recursive_calls
     ~flip_lifting ~branch_elimination ~determinism ~print_state_bdd
-    ~show_function_size ~print_unparsed ~print_function_bdd lexbuf : result List.t = try
+    ~show_function_size ~print_unparsed ~print_function_bdd ~recursion_limit
+    lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
-  let parsed_norec = Passes.expand_recursion parsed in
+  let parsed_norec = Passes.expand_recursion ?recursion_limit parsed in
   let optimize = flip_lifting || branch_elimination || determinism in
   let (t, internal) =
     if inline_functions && optimize then
@@ -174,6 +175,7 @@ let command =
      and print_unparsed = flag "-show-unparsed" no_arg ~doc:" print unparsed desugared dice program"
      and skip_table = flag "-skip-table" no_arg ~doc:" skip printing the joint probability distribution"
      and show_recursive_calls = flag "-num-recursive-calls" no_arg ~doc:" show the number of recursive calls invoked during compilation"
+     and recursion_limit = flag "-recursion-limit" (optional int) ~doc:" maximum recursion depth"
      (* and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order" *)
      and json = flag "-json" no_arg ~doc:" print output as JSON"
      in fun () ->
@@ -183,7 +185,8 @@ let command =
        let r = (parse_and_print ~print_parsed ~print_internal ~sample_amount
                   ~print_size ~inline_functions ~skip_table ~flip_lifting
                   ~branch_elimination ~determinism ~show_recursive_calls ~print_state_bdd
-                  ~show_function_size ~print_unparsed ~print_function_bdd lexbuf) in
+                  ~show_function_size ~print_unparsed ~print_function_bdd ~recursion_limit
+                  lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res
     )

@@ -50,7 +50,7 @@ let map_eexpr f =
   | True s -> True s
   | False s -> False s
 
-let recursion_limit = 10
+let default_recursion_limit = 10
 
 let unreachable e =
   let open EG in
@@ -64,7 +64,7 @@ let rec gen_default_value =
   | TTuple (t1, t2) -> Tup(gen_src, gen_default_value t1, gen_default_value t2)
   | TFunc _ -> failwith "Internal Error: gen_default_value called with function type"
 
-let expand_recursion (p: EG.program) =
+let expand_recursion ?(recursion_limit = default_recursion_limit) (p: EG.program) =
   let open EG in
   let expand_func func =
     let gen_name i = Format.sprintf "%s$%d" func.name i in
@@ -303,20 +303,23 @@ type program = { functions: func List.t; body: tast }
 
 type typ_ctx = { in_func: bool }
 
+let get_col (pos: EG.lexing_position) =
+  pos.pos_cnum - pos.pos_bol
+
 let rec type_of (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast =
   let open EG in
   let expect_t e (src: EG.lexing_position) typ : tast =
     let (t, e) = type_of ctx env e in
     if (type_eq t typ) then (t, e) else
       raise (EG.Type_error(Format.sprintf "Type error at line %d column %d: expected %s, got %s"
-                                      src.pos_lnum src.pos_cnum (EG.string_of_typ typ) (EG.string_of_typ t))) in
+                                      src.pos_lnum (get_col src) (EG.string_of_typ typ) (EG.string_of_typ t))) in
   let expect_compatible_int (f: tast -> tast -> ast) src e1 e2 lbl =
     let (t1, s1) = type_of ctx env e1 and (t2, s2) = type_of ctx env e2 in
     match (t1, t2) with
     | (TInt(d1), TInt(d2)) when d1 = d2 -> (d1, f (t1, s1) (t1, s2))
     | (_, _) ->
       raise (EG.Type_error(Format.sprintf "Type error at line %d column %d: expected compatible integer types for operation '%s', got %s and %s"
-                             src.pos_lnum src.pos_cnum lbl (EG.string_of_typ t1) (EG.string_of_typ t2)))  in
+                             src.pos_lnum (get_col src) lbl (EG.string_of_typ t1) (EG.string_of_typ t2)))  in
   match e with
   | And(s, e1, e2) ->
     let s1 = expect_t e1 s.startpos TBool in
@@ -334,7 +337,7 @@ let rec type_of (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast =
     if ctx.in_func then
       raise (Type_error (Format.sprintf "Type error at line %d column %d: \
                                          Sampling within functions is not permitted"
-                           s.startpos.pos_lnum s.startpos.pos_cnum));
+                           s.startpos.pos_lnum (get_col s.startpos)));
     let t, e = type_of ctx (Map.Poly.empty) e1 in
     (t, Sample(s, (t, e)))
   | Xor(s, e1, e2) ->
@@ -354,21 +357,21 @@ let rec type_of (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast =
     let t = (try Map.Poly.find_exn env s
      with _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: \
                                          Could not find variable '%s' during typechecking"
-                                    src.startpos.pos_lnum src.startpos.pos_cnum s))) in
+                                    src.startpos.pos_lnum (get_col src.startpos) s))) in
     (t, Ident(src, s))
   | Fst(s, e1) ->
     let (t, s1) = type_of ctx env e1 in
     let t' = (match t with
      | TTuple(l, _) -> l
      | t -> raise (Type_error (Format.sprintf "Type error at line %d column %d: expected tuple, got %s"
-                                 s.startpos.pos_lnum s.startpos.pos_cnum (string_of_typ t)))) in
+                                 s.startpos.pos_lnum (get_col s.startpos) (string_of_typ t)))) in
     (t', Fst(s, (t, s1)))
   | Snd(s, e1) ->
     let s1 = type_of ctx env e1 in
     let t = (match fst s1 with
      | TTuple(_, r) -> r
      | t -> raise (Type_error (Format.sprintf "Type error at line %d column %d: expected tuple, got %s"
-                                 s.startpos.pos_lnum s.startpos.pos_cnum (string_of_typ t)))) in
+                                 s.startpos.pos_lnum (get_col s.startpos) (string_of_typ t)))) in
     (t, Snd(s, s1))
   | Tup(s, e1, e2) ->
     let t1 = type_of ctx env e1 in
@@ -377,13 +380,13 @@ let rec type_of (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast =
   | Int(src, sz, v) ->
     if v >= 1 lsl sz then
       (raise (Type_error (Format.sprintf "Type error at line %d column %d: integer constant out of range"
-                           src.startpos.pos_lnum src.startpos.pos_cnum))) else ();
+                           src.startpos.pos_lnum (get_col src.startpos)))) else ();
     (TInt(sz), Int(src, sz, v))
   | Discrete(src, l) ->
     let sum = List.fold l ~init:0.0 ~f:(fun acc i -> acc +. i) in
     if not (within_epsilon sum 1.0) then
       raise (Type_error (Format.sprintf "Type error at line %d column %d: discrete parameters must sum to 1, got %f"
-                           src.startpos.pos_lnum src.startpos.pos_cnum sum))
+                           src.startpos.pos_lnum (get_col src.startpos) sum))
     else (TInt(num_binary_digits ((List.length l) - 1)), Discrete(src, l))
   | LeftShift(s, e1, i) ->
     let (t, e) = type_of ctx env e1 in
@@ -419,33 +422,33 @@ let rec type_of (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast =
     if not (type_eq t1 t2) then
       raise (Type_error (Format.sprintf "Type error at line %d column %d: expected equal types \
                                          from branches of if-statement, got %s and %s"
-                           s.startpos.pos_lnum s.startpos.pos_cnum (string_of_typ t1) (string_of_typ t2)))
+                           s.startpos.pos_lnum (get_col s.startpos) (string_of_typ t1) (string_of_typ t2)))
     else (t1, Ite(s, sg, (t1, thnbody), (t2, elsbody)))
   | FuncCall(s, "nth_bit", [Int(src, sz, v); e2]) ->
     let conve2 = match type_of ctx env e2 with
       | (TInt(v), r) ->(TInt(v), r)
       | _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: expected int for second argument"
-                                  s.startpos.pos_lnum s.startpos.pos_cnum)) in
+                                  s.startpos.pos_lnum (get_col s.startpos))) in
     (TBool, FuncCall(s, "nth_bit", [(TInt(v), Int(src, sz, v)); conve2]))
   | FuncCall(s, id, args) ->
     let res = try Map.Poly.find_exn env id
       with _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: could not find function \
                                                    '%s' during typechecking"
-                                     s.startpos.pos_lnum s.startpos.pos_cnum id)) in
+                                     s.startpos.pos_lnum (get_col s.startpos) id)) in
     let (targ, tres) = (match res with
         | TFunc(targ, tres) -> targ, tres
         | _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: non-function type found for \
                                                    '%s' during typechecking, found %s "
-                                     s.startpos.pos_lnum s.startpos.pos_cnum id (string_of_typ res)))) in
+                                     s.startpos.pos_lnum (get_col s.startpos) id (string_of_typ res)))) in
     let zipped = try List.zip_exn args targ
       with _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: could incompatible argument length, expected \
                                                    %d arguments and got %d arguments"
-                                     s.startpos.pos_lnum s.startpos.pos_cnum (List.length targ) (List.length args))) in
+                                     s.startpos.pos_lnum (get_col s.startpos) (List.length targ) (List.length args))) in
     let arg' = List.mapi zipped ~f:(fun idx (arg, typ) ->
         let (found_t, body) = type_of ctx env arg in
         if (type_eq found_t typ) then (found_t, body) else
           raise (Type_error (Format.sprintf "Type error in argument %d at line %d column %d: expected type %s, got %s"
-                               s.startpos.pos_lnum s.startpos.pos_cnum (idx + 1) (string_of_typ typ) (string_of_typ found_t)))
+                               s.startpos.pos_lnum (get_col s.startpos) (idx + 1) (string_of_typ typ) (string_of_typ found_t)))
       ) in
     (tres, FuncCall(s, id, arg'))
   | IntConst(_, _) -> failwith "Internal Error: unstripped int const"
@@ -453,12 +456,12 @@ let rec type_of (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast =
     let res = try Map.Poly.find_exn env id
       with _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: could not find function \
                                                    '%s' during typechecking"
-                                     s.startpos.pos_lnum s.startpos.pos_cnum id)) in
+                                     s.startpos.pos_lnum (get_col s.startpos) id)) in
     let (_, tres) = (match res with
         | TFunc(targ, tres) -> targ, tres
         | _ -> raise (Type_error (Format.sprintf "Type error at line %d column %d: non-function type found for \
                                                    '%s' during typechecking, found %s "
-                                     s.startpos.pos_lnum s.startpos.pos_cnum id (string_of_typ res)))) in
+                                     (get_col s.startpos) (get_col s.startpos) id (string_of_typ res)))) in
     let init' = type_of ctx env init in
     (* TODO check arg validity*)
     (tres, Iter(s, id, init', k))
@@ -705,7 +708,7 @@ let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) 
   | FuncCall(src, "nth_bit", [(_, Int(_, sz, v)); e2]) ->
     if v >= sz then
       (raise (EG.Type_error (Format.sprintf "Type error at line %d column %d: nth_bit exceeds maximum bit size"
-                               src.startpos.pos_lnum src.startpos.pos_cnum)));
+                               src.startpos.pos_lnum (get_col src.startpos))));
     let internal = from_external_expr_h ctx tenv e2 in
     nth_bit sz v internal
   | FuncCall(_, id, args) -> FuncCall(id, List.map args ~f:(fun i -> from_external_expr_h ctx tenv i))
@@ -752,7 +755,7 @@ let check_return_type (f: EG.func) (t : EG.typ) : unit =
     let src = get_src f.body in
     raise (Type_error (Format.sprintf "Type error at line %d column %d: declared return type %s \
                                        of function '%s' does not match inferred type %s"
-                       src.startpos.pos_lnum src.startpos.pos_cnum (string_of_typ declared)
+                       src.startpos.pos_lnum (get_col src.startpos) (string_of_typ declared)
                        f.name (string_of_typ t)))
   | _ -> ()
 
