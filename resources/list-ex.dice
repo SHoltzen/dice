@@ -1,0 +1,2 @@
+let xs = [flip 0.2, flip 0.4] in
+if flip 0.5 then (head xs) :: xs else tail xs

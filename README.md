@@ -96,7 +96,7 @@ false	0.651163
 This output shows that `a` has a 34.8837% chance of landing on heads.
 
 ## Datatypes
-In addition to Booleans, `dice` supports integers and tuples.
+In addition to Booleans, `dice` supports integers, tuples, and lists.
 
 ### Tuples
 
@@ -151,6 +151,43 @@ Value	Probability
 0	0.500000
 1	0.400000
 2	0.100000
+```
+
+### Lists
+
+`dice` supports distributions over lists, possibly of different lengths.
+
+```
+let xs = [flip 0.2, flip 0.4] in
+if flip 0.5 then (head xs) :: xs else tail xs
+```
+
+Breaking this program down:
+
+- `[flip 0.2, flip 0.4]` creates a list of Booleans with two elements.
+- `head xs` returns the first element of `xs` and `tail xs` returns a list of everything after the first element.
+- `x :: xs` returns a list with `x` added to the front of `xs`.
+
+Running this program:
+
+```
+> dice -max-list-length 3 resources/list-ex.dice
+Value   Probability
+[]      0.
+[true]  0.2
+[false] 0.3
+[true, true]    0.
+[true, false]   0.
+[false, true]   0.
+[false, false]  0.
+[true, true, true]      0.04
+[true, true, false]     0.06
+[true, false, true]     0.
+[true, false, false]    0.
+[false, true, true]     0.
+[false, true, false]    0.
+[false, false, true]    0.16
+[false, false, false]   0.24
 ```
 
 ## Functions
@@ -265,7 +302,7 @@ complete syntax for `dice` in is:
 
 ```
 ident := ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*
-binop := +, -, *, /, <, <=, >, >=, ==, !=, &&, ||, <=>, ^
+binop := +, -, *, /, <, <=, >, >=, ==, !=, &&, ||, <=>, ^, ::
 
 expr := 
    (expr)
@@ -283,8 +320,13 @@ expr :=
    | observe expr
    | if expr then expr else expr
    | let ident = expr in expr
+   | [ expr (, expr)* ]
+   | [] : type
+   | head expr
+   | tail expr
+   | length expr
 
-type := bool | (type, type) | int(size)
+type := bool | (type, type) | int(size) | list(type)
 arg := ident: type
 function := fun name(arg1, ...) { expr }
 

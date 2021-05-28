@@ -1,0 +1,10 @@
+fun build(n: int(2)): list(bool) {
+    if n == int(2, 0) then
+        ([] : list(bool))
+    else if flip 0.5 then
+        flip 0.2 :: build(n - int(2, 1))
+    else
+        build(n - int(2, 1))
+}
+
+build(int(2, 3))

@@ -44,23 +44,40 @@ let get_lexing_position lexbuf =
   let column = p.Lexing.pos_cnum - p.Lexing.pos_bol + 1 in
   (line_number, column)
 
+let rec print_pretty e =
+  match e with
+  | `Int(v) -> string_of_int v
+  | `True -> "true"
+  | `False -> "false"
+  | `Tup(l, r) -> Format.sprintf "(%s, %s)" (print_pretty l) (print_pretty r)
+  | `List(values) ->
+    let rec format_elems = function
+    | [] -> ""
+    | [v] -> print_pretty v
+    | v::vs -> print_pretty v ^ ", " ^ format_elems vs in
+    "[" ^ format_elems values ^ "]"
+
 let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~inline_functions ~sample_amount ~show_recursive_calls
     ~flip_lifting ~branch_elimination ~determinism ~print_state_bdd
-    ~show_function_size ~print_unparsed ~print_function_bdd ~recursion_limit
+    ~show_function_size ~print_unparsed ~print_function_bdd
+    ~recursion_limit ~max_list_length
     lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
   let parsed_norec = Passes.expand_recursion ?recursion_limit parsed in
+  let cfg =
+    { max_list_length = Option.value (Option.first_some max_list_length recursion_limit)
+        ~default:Passes.default_config.max_list_length } in
   let optimize = flip_lifting || branch_elimination || determinism in
   let (t, internal) =
     if inline_functions && optimize then
-      (from_external_prog_optimize (Passes.inline_functions parsed_norec) flip_lifting branch_elimination determinism)
+      (from_external_prog_optimize ~cfg (Passes.inline_functions parsed_norec) flip_lifting branch_elimination determinism)
     else if inline_functions && not optimize then
-      (from_external_prog (Passes.inline_functions parsed_norec))
+      (from_external_prog ~cfg (Passes.inline_functions parsed_norec))
     else if not inline_functions && optimize then
-      (from_external_prog_optimize parsed_norec flip_lifting branch_elimination determinism)
-    else from_external_prog parsed_norec in
+      (from_external_prog_optimize ~cfg parsed_norec flip_lifting branch_elimination determinism)
+    else from_external_prog ~cfg parsed_norec in
   let res = if print_internal then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog internal)] else res in
   let res = if print_unparsed then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog_unparsed internal)] else res in
   match sample_amount with
@@ -69,21 +86,13 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     let zbdd = compiled.body.z in
     let res = if skip_table then res else res @
        (let z = Wmc.wmc zbdd compiled.ctx.weights in
-       let table = VarState.get_table compiled.body.state t in
+       let table = VarState.get_table cfg compiled.body.state t in
        let probs = List.map table ~f:(fun (label, bdd) ->
            if Util.within_epsilon z 0.0 then (label, 0.0) else
              let prob = (Wmc.wmc (Bdd.dand bdd zbdd) compiled.ctx.weights) /. z in
              (label, prob)) in
-       let l = [["Value"; "Probability"]] @ List.map probs ~f:(fun (typ, prob) ->
-           let rec print_pretty e =
-             match e with
-             | `Int(v) -> string_of_int v
-             | `True -> "true"
-             | `False -> "false"
-             | `Tup(l, r) -> Format.sprintf "(%s, %s)" (print_pretty l) (print_pretty r)
-             | _ -> failwith "ouch" in
-           [print_pretty typ; string_of_float prob]
-         ) in
+       let l = [["Value"; "Probability"]] @
+         List.map probs ~f:(fun (typ, prob) -> [print_pretty typ; string_of_float prob]) in
        [TableRes("Joint Distribution", l)]
       ) in
     let res = if show_recursive_calls then res @ [StringRes("Number of recursive calls",
@@ -121,7 +130,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
       else
         let compiled = Compiler.compile_program internal in
         sz := !sz + VarState.state_size [compiled.body.state; Leaf(compiled.body.z)];
-        let table = VarState.get_table compiled.body.state t in
+        let table = VarState.get_table cfg compiled.body.state t in
         let zbdd = compiled.body.z in
         let z = Wmc.wmc zbdd compiled.ctx.weights in
         let probs = List.map table ~f:(fun (label, bdd) ->
@@ -135,16 +144,9 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
            draw_sample (Some(summed), z +. oldz) (n-1)) in
     let (res_state, z) = draw_sample (None, 0.0) n in
     let res = if skip_table then [] else
-        let l = [["Value"; "Probability"]] @ List.map (Option.value_exn res_state) ~f:(fun (typ, prob) ->
-            let rec print_pretty e =
-              match e with
-              | `Int(v) -> string_of_int v
-              | `True -> "true"
-              | `False -> "false"
-              | `Tup(l, r) -> Format.sprintf "(%s, %s)" (print_pretty l) (print_pretty r)
-              | _ -> failwith "ouch" in
-            [print_pretty typ; string_of_float (prob /. z)]
-          ) in
+        let l = [["Value"; "Probability"]] @
+          List.map (Option.value_exn res_state) ~f:(fun (typ, prob) ->
+            [print_pretty typ; string_of_float (prob /. z)]) in
         [TableRes("Joint Probability", l)] in
     let res = if print_size then
         res @ [StringRes("Compiled BDD size", string_of_float(float_of_int !sz /. float_of_int n))] else res in
@@ -176,6 +178,7 @@ let command =
      and skip_table = flag "-skip-table" no_arg ~doc:" skip printing the joint probability distribution"
      and show_recursive_calls = flag "-num-recursive-calls" no_arg ~doc:" show the number of recursive calls invoked during compilation"
      and recursion_limit = flag "-recursion-limit" (optional int) ~doc:" maximum recursion depth"
+     and max_list_length = flag "-max-list-length" (optional int) ~doc:" maximum list length"
      (* and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order" *)
      and json = flag "-json" no_arg ~doc:" print output as JSON"
      in fun () ->
@@ -185,7 +188,8 @@ let command =
        let r = (parse_and_print ~print_parsed ~print_internal ~sample_amount
                   ~print_size ~inline_functions ~skip_table ~flip_lifting
                   ~branch_elimination ~determinism ~show_recursive_calls ~print_state_bdd
-                  ~show_function_size ~print_unparsed ~print_function_bdd ~recursion_limit
+                  ~show_function_size ~print_unparsed ~print_function_bdd
+                  ~recursion_limit ~max_list_length
                   lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res

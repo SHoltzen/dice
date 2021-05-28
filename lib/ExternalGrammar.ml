@@ -9,6 +9,7 @@ type typ =
     TBool
   | TInt of int (* sz *)
   | TTuple of typ * typ
+  | TList of typ
   | TFunc of typ List.t * typ
 [@@deriving sexp_of]
 
@@ -64,6 +65,12 @@ type eexpr =
   | Iter of source * String.t * eexpr * int
   | True of source
   | False of source
+  | ListLit of source * eexpr List.t
+  | ListLitEmpty of source * typ
+  | Cons of source * eexpr * eexpr
+  | Head of source * eexpr
+  | Tail of source * eexpr
+  | Length of source * eexpr
 [@@deriving sexp_of]
 
 type func = { name: String.t; args: arg List.t; return_type: typ option; body: eexpr}
@@ -111,6 +118,12 @@ let get_src e =
   | FuncCall(s, _, _) -> s
   | LeftShift(s, _, _) -> s
   | RightShift(s, _, _) -> s
+  | ListLit(s, _) -> s
+  | ListLitEmpty(s, _) -> s
+  | Cons(s, _, _) -> s
+  | Head(s, _) -> s
+  | Tail(s, _) -> s
+  | Length(s, _) -> s
 
 let gen_src =
   let gen_pos = { Lexing.dummy_pos with pos_fname = "<generated>" } in
