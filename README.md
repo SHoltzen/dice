@@ -269,6 +269,7 @@ binop := +, -, *, /, <, <=, >, >=, ==, !=, &&, ||, <=>, ^
 
 expr := 
    (expr)
+   | ident
    | true
    | false
    | int (size, value)
