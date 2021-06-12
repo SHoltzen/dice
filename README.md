@@ -33,7 +33,7 @@ terminal:
 
 ```
 opam init   # must be performed before installing opam packages
-opam switch 4.09           # switch to use OCaml version 4.09
+opam switch create 4.09.0  # switch to use OCaml version 4.09
 eval `opam config env`     # optional: add this line to your .bashrc
 opam depext mlcuddidl      # install external dependencies
 opam pin add dice git+https://github.com/SHoltzen/dice.git#master  # Install dice
