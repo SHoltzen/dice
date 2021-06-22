@@ -8,6 +8,6 @@ val inline_functions : ExternalGrammar.program -> ExternalGrammar.program
   * Note: assumes that function calls are inlined, no iteration *)
 val num_paths : ExternalGrammar.program -> LogProbability.t
 
-val from_external_prog: ExternalGrammar.program -> (ExternalGrammar.typ * CoreGrammar.program)
+val from_external_prog: ExternalGrammar.program -> bool -> (ExternalGrammar.typ * CoreGrammar.program)
 
-val from_external_prog_optimize: ExternalGrammar.program -> bool -> bool -> bool -> (ExternalGrammar.typ * CoreGrammar.program)
+val from_external_prog_optimize: ExternalGrammar.program -> bool -> bool -> bool -> bool -> (ExternalGrammar.typ * CoreGrammar.program)

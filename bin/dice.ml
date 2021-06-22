@@ -3,7 +3,6 @@ open Core
 open Cudd
 open Passes
 
-
 (** List of rows in a table *)
 type tableres = String.t List.t List.t
 
@@ -47,18 +46,18 @@ let get_lexing_position lexbuf =
 let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~inline_functions ~sample_amount ~show_recursive_calls
     ~flip_lifting ~branch_elimination ~determinism ~print_state_bdd
-    ~show_function_size ~print_unparsed ~print_function_bdd lexbuf : result List.t = try
+    ~show_function_size ~print_unparsed ~print_function_bdd ~sbk_encoding lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
   let optimize = flip_lifting || branch_elimination || determinism in
   let (t, internal) =
     if inline_functions && optimize then
-      (from_external_prog_optimize (Passes.inline_functions parsed) flip_lifting branch_elimination determinism)
+      (from_external_prog_optimize (Passes.inline_functions parsed) sbk_encoding flip_lifting branch_elimination determinism)
     else if inline_functions && not optimize then
-      (from_external_prog (Passes.inline_functions parsed))
+      (from_external_prog (Passes.inline_functions parsed) sbk_encoding)
     else if not inline_functions && optimize then
-      (from_external_prog_optimize parsed flip_lifting branch_elimination determinism)
-    else from_external_prog parsed in
+      (from_external_prog_optimize parsed sbk_encoding flip_lifting branch_elimination determinism)
+    else from_external_prog parsed sbk_encoding in
   let res = if print_internal then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog internal)] else res in
   let res = if print_unparsed then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog_unparsed internal)] else res in
   match sample_amount with
@@ -165,6 +164,7 @@ let command =
      and flip_lifting = flag "-flip-lifting" no_arg ~doc:" optimize dice program before compilation using flip lifting"
      and branch_elimination = flag "-branch-elimination" no_arg ~doc:" optimize dice program before compilation using branch elimination"
      and determinism = flag "-determinism" no_arg ~doc:" optimize dice program before compilation using determinism"
+     and sbk_encoding = flag "-sbk-encoding" no_arg ~doc:" use Sang-Beame-Kautz encoding for integers and categorical distributions"
      and show_function_size = flag "-show-function-size" no_arg ~doc:" print size of all function BDDs"
      and inline_functions = flag "-inline-functions" no_arg ~doc:" inline all function calls"
      and print_internal = flag "-show-internal" no_arg ~doc:" print desugared dice program"
@@ -182,7 +182,7 @@ let command =
        let r = (parse_and_print ~print_parsed ~print_internal ~sample_amount
                   ~print_size ~inline_functions ~skip_table ~flip_lifting
                   ~branch_elimination ~determinism ~show_recursive_calls ~print_state_bdd
-                  ~show_function_size ~print_unparsed ~print_function_bdd lexbuf) in
+                  ~show_function_size ~print_unparsed ~print_function_bdd ~sbk_encoding lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res
     )
