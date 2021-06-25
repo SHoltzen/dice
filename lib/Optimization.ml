@@ -737,15 +737,23 @@ let rec merge_branch (e: CG.expr) : CG.expr =
   | Ite(g, thn, els) ->
     let n1 = merge_branch thn in
     let n2 = merge_branch els in
-    (* Ite(g, n1, n2) *)
-    (match n1,n2 with
-    | True, False -> g
-    | False, True -> Not(g)
-    | _, _ ->
-      if n1 = n2 then
-        n1
-      else 
-        Ite(g, n1, n2))
+    (match g with
+    | True -> 
+      n1
+    | False ->
+      n2
+    | _ -> 
+      (match n1,n2 with
+      | True, False -> g
+      | False, True -> 
+        (match g with
+        | Flip(f) -> Flip(1.0 -. f)
+        | _ -> Not(g))
+      | _, _ ->
+        if n1 = n2 then
+          n1
+        else 
+          Ite(g, n1, n2)))
   | Let(v, e1, e2) ->
     let n1 = merge_branch e1 in
     let n2 = merge_branch e2 in
@@ -789,14 +797,15 @@ let rec redundant_flip_elimination (e: CG.expr) : CG.expr =
   | Flip(f) ->
     if f = 0.0 then
       False
-    else if f = 1.0 then
+    else if f >= 1.0 then
       True
     else
       Flip(f)
   | Ite(g, thn, els) ->
+    let g' = redundant_flip_elimination g in
     let n1 = redundant_flip_elimination thn in
     let n2 = redundant_flip_elimination els in
-    Ite(g, n1, n2)
+    Ite(g', n1, n2)
   | Let(v, e1, e2) ->
     let n1 = redundant_flip_elimination e1 in
     let n2 = redundant_flip_elimination e2 in
