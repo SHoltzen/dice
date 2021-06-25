@@ -441,7 +441,7 @@ let rec gen_discrete mgr (l: float List.t) =
   let inner_body = mk_dfs_tuple (List.map bits ~f:fst) in
   List.fold assgn ~init:inner_body ~f:(fun acc (Ident(name), body) -> Let(name, body, acc))
 
-let rec gen_discrete_sbk mgr (l: float List.t) =
+let gen_discrete_sbk (l: float List.t) =
   let open Cudd in
   let open CG in
   let max = (List.length l) - 1 in
@@ -451,13 +451,19 @@ let rec gen_discrete_sbk mgr (l: float List.t) =
       |> List.map  ~f:(fun i -> if i = 1 then True else False)
       |> mk_dfs_tuple
   in
-  let inner_body = get_tuples max in
-  let probs, _ = List.fold l ~init: ([], 0.0) ~f:(fun (probs, total) p -> ((p /. (1. -. total))::probs, total +. p)) in
-  (* let _, e = List.fold_right probs ~f:(fun p (idx, acc) -> if p = 1 then (idx - 1, acc) else (idx - 1, Ite(Flip(p), (get_tuples idx), acc))) ~init: (len - 1, inner_body) in
-  e *)
+
+  (* Heuristic: gen flips in order of large to small probabilities *)
+  let idxProb = List.mapi l ~f: (fun idx a -> (idx, a)) in
+  let sorted_probs = List.sort idxProb ~compare: (fun (idx1, p1) (idx2, p2) -> Poly.descending p1 p2) in
+  let (smallest_idx, smallest_prob) = 
+    match List.hd sorted_probs with
+    | None -> failwith "Discrete with no values"
+    | Some(i, p) -> i, p 
+  in
+  let inner_body = get_tuples smallest_idx in   
+  let probs, _ = List.fold sorted_probs ~init: ([], 0.0) ~f:(fun (probs, total) (idx, p) -> if Float.equal total 1.0 then ((idx, 0.0)::probs, total) else ((idx, p /. (1. -. total))::probs, total +. p)) in
   (* probs is already reversed *)
-  let e = List.foldi probs ~init: inner_body ~f:(fun idx acc p -> if idx = 0 then acc else Ite(Flip(p), (get_tuples (max - idx)), acc)) in
-  (* (Format.printf "%s\n" (CG.string_of_expr e)); *)
+  let e = List.foldi probs ~init: inner_body ~f:(fun idx acc (i, p) -> if idx = 0 then acc else Ite(Flip(p), (get_tuples i), acc)) in 
   e
 
 let rec nth_snd i inner =
@@ -623,7 +629,7 @@ let rec from_external_expr_h (ctx: external_ctx) (tenv: EG.tenv) ((t, e): tast) 
   | Not(_, e) -> Not(from_external_expr_h ctx tenv e sbk)
   | Flip(_, f) -> Flip(f)
   | Ident(_, s) -> Ident(s)
-  | Discrete(_, l) -> if sbk then gen_discrete_sbk ctx l else gen_discrete ctx l
+  | Discrete(_, l) -> if sbk then gen_discrete_sbk l else gen_discrete ctx l
   | Int(_, sz, v) ->
     let bits = int_to_bin sz v
                |> List.map ~f:(fun i -> if i = 1 then CG.True else CG.False) in
