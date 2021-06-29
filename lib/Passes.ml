@@ -864,10 +864,241 @@ let rec from_external_expr_h (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
       gen_check_empty t xs @@ Tup(length_core, res_core)
   | Length(_, e) -> Fst (from_external_expr_h ctx cfg e)
 
-let from_external_expr mgr cfg in_func (env: EG.tenv) (e: EG.eexpr) : (EG.typ * CG.expr) =
+type tree = 
+  | Node of float list * tree * tree
+  | Branch tree * tree
+  | Leaf 
+
+let from_external_expr_h_sbk (ctx: external_ctx) (cfg: config) ((t, e): tast) : CG.expr =
+  let rec annotate ((t, e): tast) : float list * tree =
+    match e with
+    | And(_, e1, e2) | Or(_, e1, e2) | Iff(_, e1, e2) | Xor(_, e1, e2) | Plus(_, e1, e2) | Minus(_, e1, e2)
+    | Eq(_, (t1, e1), (t2, e2)) | Neq(s, e1, e2) | Mult(s, e1, e2) | Lt(_, (t1, e1), (t2, e2)) 
+    | Lte(s, e1, e2) | Gt(s, e1, e2) | Gte(s, e1, e2) | Tup(_, e1, e2) ->
+      let f1, t1 = annotate e1 in
+      let f2, t2 = annotate e2 in
+      (f1@f2), Branch(t1, t2)
+    | Not(_, e) ->
+      (match e with 
+      | Flip(f) -> [1.0 -. f], Leaf
+      | _ -> annotate e)
+    | LeftShift(_, e, _) | RightShift(_, e, _) | Observe(_, e) | Snd(_, e) | Fst(_, e) | Sample(_, e) -> 
+      annotate e 
+    | Flip(_, f) -> [f], Leaf
+    | Discrete(_, l) -> l, Leaf
+    | Ident(_, _) | Int(_, _, _) | True(_) | False(_) | FuncCall(_, _, _) | Iter(_, _, _, _) -> [], Leaf
+    | Let(_, x, e1, e2) -> 
+      let f1, t1 = annotate e1 in
+      let f2, t2 = annotate e2 in
+      (f1@f2), Node(f1, t1, t2)
+    | Ite(_, g, thn, els) -> 
+      let f1, t1 = annotate g in
+      let f2, t2 = annotate thn in
+      let f3, t3 = annotate els in
+      (f1@f2@f3), Branch(t2, t3)
+    | IntConst(_, _) -> failwith "not implemented"
+    | Div(_, _, _) -> failwith "not implemented"
+  in
+  let rec from_external_expr_h_sbk_e (ctx: external_ctx) (cfg: config) ((t, e): tast) (ann: tree) : CG.expr =
+    let list_len_bits = bit_length cfg.max_list_length in
+    let list_len_type = EG.TInt list_len_bits in
+    let mk_length_int x = (list_len_type, Int(EG.gen_src, list_len_bits, x)) in
+    let gen_list_lit es =
+      let len = List.length es in
+      let length_core = from_external_expr_h ctx cfg @@ mk_length_int len in
+      let elems_core = List.map es ~f:(from_external_expr_h ctx cfg) in
+      let defaults_core = List.init (cfg.max_list_length - len)
+        ~f:(Fn.const @@ gen_default_core @@ from_external_typ cfg @@ extract_elem_type t) in
+      CG.Tup(length_core, mk_dfs_tuple (elems_core @ defaults_core)) in
+    let max_length_int = mk_length_int cfg.max_list_length in
+    let gen_get_length xs =
+      (* NOTE: the TBool here isn't actually the correct type but since we are
+      * just doing Fst on an Ident it doesn't matter. *)
+      (list_len_type, Fst(EG.gen_src, (TTuple(list_len_type, TBool), Ident(EG.gen_src, xs)))) in
+    let gen_check_empty elem_t xs res =
+      CG.Ite(
+        from_external_expr_h ctx cfg
+          (TBool, Eq(EG.gen_src, gen_get_length xs, mk_length_int 0)),
+        unreachable_core @@ gen_default_core @@ from_external_typ cfg elem_t,
+        res) in
+    let gen_eval_arg e f =
+      let x = fresh () in
+      CG.Let(x, from_external_expr_h ctx cfg e, f x) in
+    match e with
+    | And(_, e1, e2) ->
+      let s1 = from_external_expr_h ctx cfg e1 in
+      let s2 = from_external_expr_h ctx cfg e2 in And(s1, s2)
+    | Or(_, e1, e2) ->
+      let s1 = from_external_expr_h ctx cfg e1 in
+      let s2 = from_external_expr_h ctx cfg e2 in Or(s1, s2)
+    | Iff(_, e1, e2) ->
+      let s1 = from_external_expr_h ctx cfg e1 in
+      let s2 = from_external_expr_h ctx cfg e2 in Eq(s1, s2)
+    | Xor(_, e1, e2) ->
+      let s1 = from_external_expr_h ctx cfg e1 in
+      let s2 = from_external_expr_h ctx cfg e2 in Xor(s1, s2)
+    | LeftShift(_, e, 0) -> from_external_expr_h ctx cfg e
+    | LeftShift(_, e, amt) ->
+      let sube = from_external_expr_h ctx cfg e in
+      assert (amt > 0);
+      let sz = extract_sz t in
+      let id = Format.sprintf "leftshift_%s" (fresh ()) in
+      let rec h depth : CG.expr =
+        if depth = sz - 1 then False
+        else if depth + amt >= sz then Tup(False, h (depth+1))
+        else Tup(nth_bit sz (depth+amt) (Ident(id)), h (depth+1)) in
+      Let(id, sube, h 0)
+    | RightShift(_, e, 0) -> from_external_expr_h ctx cfg e
+    | RightShift(_, e, amt) ->
+      assert (amt > 0);
+      let sube = from_external_expr_h ctx cfg e in
+      let sz = extract_sz t in
+      let id = Format.sprintf "rightshift_%s" (fresh ()) in
+      let rec h depth : CG.expr =
+        if depth = sz - 1 then
+          if (depth - amt < 0) then False else nth_bit sz (depth - amt) (Ident(id))
+        else if depth < amt || amt >= sz then Tup(False, h (depth+1))
+        else Tup(nth_bit sz (depth - amt) (Ident(id)), h (depth+1)) in
+      Let(id, sube, h 0)
+    | Plus(_, e1, e2) ->
+      let sz = extract_sz (fst e1) in
+      gen_adder sz (from_external_expr_h ctx cfg e1) (from_external_expr_h ctx cfg e2)
+    | Minus(_, e1, e2) ->
+      let sz = extract_sz t in
+      gen_subtractor sz (from_external_expr_h ctx cfg e1) (from_external_expr_h ctx cfg e2)
+    | Eq(_, (t1, e1), (t2, e2)) ->
+      let sz = extract_sz t1 in
+      let n1 = fresh () and n2 = fresh () in
+      let inner = List.init sz ~f:(fun idx ->
+          CG.Eq(nth_bit sz idx (Ident(n1)), nth_bit sz idx (Ident(n2)))
+        ) |> and_of_l in
+      Let(n1, from_external_expr_h ctx cfg (t1, e1),
+          Let(n2, from_external_expr_h ctx cfg (t2, e2), inner))
+    | Neq(s, e1, e2) -> from_external_expr_h ctx cfg (TBool, Not(s, (TBool, Eq(s, e1, e2))))
+    | Mult(s, e1, e2) ->
+      let sz = extract_sz (fst e1) in
+      let sube1 = from_external_expr_h ctx cfg e1 in
+      let sube2 = from_external_expr_h ctx cfg e2 in
+      let fresha = Format.sprintf "multa_%s" (fresh ()) in
+      let freshb = Format.sprintf "multb_%s" (fresh ()) in
+      let freshout = Format.sprintf "multo_%s" (fresh ()) in
+      let lst : CG.expr List.t = List.init sz ~f:(fun i ->
+          let subadd = from_external_expr_h ctx cfg
+              (t, Plus(s, (t, Ident(s, freshout)), (t, LeftShift(s, (t, Ident(s, freshb)), i)))) in
+          CG.Ite(nth_bit sz (sz - i - 1) (Ident(fresha)), subadd, Ident(freshout))
+        ) in
+      let assgn = List.fold (List.rev lst) ~init:(CG.Ident(freshout)) ~f:(fun acc i ->
+          Let(freshout, i, acc)) in
+      let zeroconst = from_external_expr_h ctx cfg (TInt(sz), Int(s, sz, 0)) in
+      Let(freshout, zeroconst,
+          Let(fresha, sube1,
+              Let(freshb, sube2, assgn)))
+    | Div(_, _, _) -> failwith "not implemented /"
+    | Lt(_, (t1, e1), (t2, e2)) ->
+      let sz = extract_sz t1 in
+      let n1 = fresh () and n2 = fresh () in
+      let rec h idx : CG.expr =
+        if idx >= sz then False
+        else Ite(And(nth_bit sz idx (Ident(n1)), Not(nth_bit sz idx (Ident n2))),
+                False,
+                Ite(And(Not(nth_bit sz idx (Ident(n1))), nth_bit sz idx (Ident n2)), True,
+                h (idx + 1))) in
+      Let(n1, from_external_expr_h ctx cfg (t1, e1), Let(n2, from_external_expr_h ctx cfg (t2, e2), h 0))
+    | Lte(s, e1, e2) -> from_external_expr_h ctx cfg (TBool, Or(s, (TBool, Lt(s, e1, e2)), (TBool, Eq(s, e1, e2))))
+    | Gt(s, e1, e2) -> from_external_expr_h ctx cfg (TBool, Not(s, (TBool, Lte(s, e1, e2))))
+    | Gte(s, e1, e2) -> from_external_expr_h ctx cfg (TBool, Not(s, (TBool, Lt(s, e1, e2))))
+    | Not(_, e) -> Not(from_external_expr_h ctx cfg e)
+    | Flip(_, f) -> Flip(f)
+    | Ident(_, s) -> Ident(s)
+    | Discrete(_, l) -> gen_discrete ctx l
+    | Int(_, sz, v) ->
+      let bits = int_to_bin sz v
+                |> List.map ~f:(fun i -> if i = 1 then CG.True else CG.False) in
+      mk_dfs_tuple bits
+    | True(_) -> True
+    | False(_) -> False
+    | Observe(_, e) ->
+      Observe(from_external_expr_h ctx cfg e)
+    | Let(_, x, e1, e2) ->
+      Let(x, from_external_expr_h ctx cfg e1, from_external_expr_h ctx cfg e2)
+    | Ite(_, g, thn, els) -> Ite(from_external_expr_h ctx cfg g,
+                                from_external_expr_h ctx cfg thn,
+                                from_external_expr_h ctx cfg els)
+    | Snd(_, e) -> Snd(from_external_expr_h ctx cfg e)
+    | Fst(_, e) -> Fst(from_external_expr_h ctx cfg e)
+    | Tup(_, e1, e2) -> Tup(from_external_expr_h ctx cfg e1, from_external_expr_h ctx cfg e2)
+    | FuncCall(src, "nth_bit", [(_, Int(_, sz, v)); e2]) ->
+      if v >= sz then
+        (raise (EG.Type_error (Format.sprintf "Type error at line %d column %d: nth_bit exceeds maximum bit size"
+                                src.startpos.pos_lnum (get_col src.startpos))));
+      let internal = from_external_expr_h ctx cfg e2 in
+      nth_bit sz v internal
+    | FuncCall(_, id, args) -> FuncCall(id, List.map args ~f:(fun i -> from_external_expr_h ctx cfg i))
+    | Iter(s, f, init, k) ->
+      (* let e = from_external_expr_h ctx cfg init in
+      * List.fold (List.init k ~f:(fun _ -> ())) ~init:e
+      *   ~f:(fun acc _ -> FuncCall(f, [acc])) *)
+
+      let expanded = expand_iter_t s f init k in
+      from_external_expr_h ctx cfg expanded
+    | Sample(_, e) -> Sample(from_external_expr_h ctx cfg e)
+    | IntConst(_, _) -> failwith "not implemented"
+    | ListLit(_, es) -> gen_list_lit es
+    | ListLitEmpty _ -> gen_list_lit []
+    | Cons(s, e1, e2) ->
+      gen_eval_arg e1 @@ fun x ->
+        gen_eval_arg e2 @@ fun xs ->
+          let length_core =
+            (* if fst xs == max_list_length then max_list_length else (fst xs) + 1 *)
+            let length_xs = gen_get_length xs in
+            from_external_expr_h ctx cfg
+              (list_len_type, Ite(s,
+                (TBool, Eq(s, length_xs, max_length_int)),
+                max_length_int,
+                (list_len_type, Plus(s, length_xs, mk_length_int 1)))) in
+          let rec build_res_core i prev_tup =
+            let tup = CG.Snd prev_tup in
+            let elem = CG.Fst tup in
+            if i = cfg.max_list_length - 1 then elem else
+              CG.Tup(elem, build_res_core (succ i) tup) in
+          let res_core =
+            if cfg.max_list_length = 1 then CG.Ident x else
+              CG.Tup(CG.Ident x, build_res_core 1 (CG.Ident xs)) in
+          Tup(length_core, res_core)
+    | Head(_, e) ->
+      gen_eval_arg e @@ fun xs ->
+        let list_part = CG.Snd (Ident xs) in
+        gen_check_empty (extract_elem_type (fst e)) xs @@
+          if cfg.max_list_length = 1 then list_part else Fst list_part
+    | Tail(s, e) ->
+      gen_eval_arg e @@ fun xs ->
+        let length_core = from_external_expr_h ctx cfg
+          (list_len_type, Minus(s, gen_get_length xs, mk_length_int 1)) in
+        let default_core = gen_default_core @@
+          from_external_typ cfg @@ extract_elem_type t in
+        let rec build_res_core i prev_tup =
+          let tup = CG.Snd prev_tup in
+          if i = cfg.max_list_length - 1 then
+            CG.Tup(tup, default_core)
+          else
+            CG.Tup(CG.Fst tup, build_res_core (succ i) tup) in
+        let res_core =
+          if cfg.max_list_length = 1 then default_core else
+            build_res_core 1 @@ CG.Snd (CG.Ident xs) in
+        gen_check_empty t xs @@ Tup(length_core, res_core)
+    | Length(_, e) -> Fst (from_external_expr_h ctx cfg e)
+  in
+
+let from_external_expr mgr cfg in_func (env: EG.tenv) (e: EG.eexpr) (sbk: bool) : (EG.typ * CG.expr) =
   let ctx = if in_func then {in_func=true} else {in_func=false} in
   let (typ, e) = type_of cfg ctx env e in
-  let r = (typ, from_external_expr_h mgr cfg (typ, e)) in
+  let expr = 
+    if sbk then
+      from_external_expr_h_sbk mgr cfg (typ, e)
+    else
+      from_external_expr_h mgr cfg (typ, e)
+  in
+  let r = (typ, expr) in
   r
 
 let from_external_arg cfg (a:EG.arg) : CG.arg =
