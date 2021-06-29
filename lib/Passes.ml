@@ -786,7 +786,7 @@ let rec from_external_expr_h (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
   | Not(_, e) -> Not(from_external_expr_h ctx cfg e)
   | Flip(_, f) -> Flip(f)
   | Ident(_, s) -> Ident(s)
-  | Discrete(_, l) -> if sbk then gen_discrete_sbk l else gen_discrete ctx l
+  | Discrete(_, l) -> gen_discrete ctx l
   | Int(_, sz, v) ->
     let bits = int_to_bin sz v
                |> List.map ~f:(fun i -> if i = 1 then CG.True else CG.False) in
