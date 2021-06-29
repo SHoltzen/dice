@@ -21,8 +21,7 @@ type compile_context = {
   man: Man.dt;
   name_map: (int, String.t) Hashtbl.Poly.t; (* map from variable identifiers to names, for debugging *)
   weights: weight; (* map from variables to weights *)
-  lazy_eval: bool; (* true if lazy let evaluation *)
-  free_stack: Bdd.dt Stack.t;
+  eager_eval: bool; (* true if eager let evaluation *)
   funcs: (String.t, compiled_func) Hashtbl.Poly.t;
 }
 
@@ -35,7 +34,7 @@ type env = (String.t, Bdd.dt btree) Map.Poly.t (* map from variable identifiers 
 
 let ctx_man = Man.make_d ()
 
-let new_context ~lazy_eval () =
+let new_context ~eager_eval () =
   let man = ctx_man in
   (* Man.enable_autodyn man Man.REORDER_LINEAR; *)
   Man.disable_autodyn man;
@@ -43,10 +42,9 @@ let new_context ~lazy_eval () =
   let names = Hashtbl.Poly.create () in
   {man = man;
    name_map = names;
-   free_stack = Stack.create ();
    weights = weights;
    funcs = Hashtbl.Poly.create ();
-   lazy_eval = lazy_eval}
+   eager_eval = eager_eval}
 
 (** generates a symbolic representation for a variable of the given type *)
 let rec gen_sym_type ctx (t:typ) : Bdd.dt btree =
@@ -142,19 +140,25 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     let c1 = compile_expr ctx tenv env e1 in
     let t = (type_of tenv e1) in
     let tenv' = Map.Poly.set tenv ~key:x ~data:t in
-    (* if true then (\* this value is a heuristic *\) *)
-    let tmp = gen_sym_type ctx.man t in
     if is_const c1.state then (* this value is a heuristic *)
       let env' = Map.Poly.set env ~key:x ~data:c1.state in
       let c2 = compile_expr ctx tenv' env' e2 in
       {state=c2.state; z=Bdd.dand c1.z c2.z; flips=List.append c1.flips c2.flips}
     else
-      (* create a temp variable *)
-      let env' = Map.Poly.set env ~key:x ~data:tmp in
-      let c2 = compile_expr ctx tenv' env' e2 in
-      let final_state = subst_state tmp c1.state c2.state in
-      let final_z = extract_leaf (subst_state tmp c1.state (Leaf(c2.z))) in
-      {state=final_state; z=Bdd.dand c1.z final_z; flips=c1.flips @ c2.flips}
+      if not ctx.eager_eval then
+        (* create a temp variable *)
+        let tmp = gen_sym_type ctx.man t in
+        let env' = Map.Poly.set env ~key:x ~data:tmp in
+        let c2 = compile_expr ctx tenv' env' e2 in
+        let final_state = subst_state tmp c1.state c2.state in
+        let final_z = extract_leaf (subst_state tmp c1.state (Leaf(c2.z))) in
+        {state=final_state; z=Bdd.dand c1.z final_z; flips=c1.flips @ c2.flips}
+      else
+        (* create a temp variable *)
+        let env' = Map.Poly.set env ~key:x ~data:c1.state in
+        let c2 = compile_expr ctx tenv' env' e2 in
+        {state=c2.state; z=Bdd.dand c1.z c2.z; flips=c1.flips @ c2.flips}
+
 
   | Sample(e) ->
     let sube = compile_expr ctx tenv env e in
@@ -228,9 +232,9 @@ let compile_func (ctx: compile_context) tenv (f: func) : compiled_func =
   let body = compile_expr ctx new_tenv env f.body in
   {args = args; body = body}
 
-let compile_program (p:program) : compiled_program =
+let compile_program (p:program) ~eager_eval : compiled_program =
   (* first compile the functions in topological order *)
-  let ctx = new_context ~lazy_eval:true () in
+  let ctx = new_context ~eager_eval () in
   let tenv = ref Map.Poly.empty in
   List.iter p.functions ~f:(fun func ->
       let c = compile_func ctx !tenv func in
@@ -244,7 +248,7 @@ let compile_program (p:program) : compiled_program =
 
 
 let get_prob p =
-  let c = compile_program p in
+  let c = compile_program ~eager_eval:false p in
   let z = Wmc.wmc c.body.z c.ctx.weights in
   let prob = Wmc.wmc (Bdd.dand (extract_leaf c.body.state) c.body.z) c.ctx.weights in
   prob /. z

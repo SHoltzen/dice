@@ -6,7 +6,7 @@ maintainer: "Steven Holtzen <sholtzen@cs.ucla.edu>"
 authors: "Steven Holtzen <sholtzen@cs.ucla.edu>"
 license: "APACHE2.0"
 depends: [
-  "menhir" {= "20200211"}
+  "menhir" {>= "20200211"}
   "core" {>= "v0.13.0"}
   "mlcuddidl" {pinned}
   "ounit2"

@@ -19,8 +19,7 @@ type compile_context = {
   man: Man.dt;
   name_map: (int, String.t) Hashtbl.Poly.t; (* map from variable identifiers to names, for debugging *)
   weights: weight; (* map from variables to weights *)
-  lazy_eval: bool; (* true if lazy let evaluation *)
-  free_stack: Bdd.dt Stack.t; (* a stack of unallocated BDD variables, for reuse *)
+  eager_eval: bool; (* true if lazy let evaluation *)
   funcs: (String.t, compiled_func) Hashtbl.Poly.t;
 }
 
@@ -30,7 +29,7 @@ type compiled_program = {
 }
 
 (** Compile the input program to a [compiled_program] *)
-val compile_program: CoreGrammar.program -> compiled_program
+val compile_program: CoreGrammar.program -> eager_eval:bool -> compiled_program
 
 val get_prob: CoreGrammar.program -> float
 

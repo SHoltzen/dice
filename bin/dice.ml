@@ -61,7 +61,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~inline_functions ~sample_amount ~show_recursive_calls
     ~flip_lifting ~branch_elimination ~determinism ~print_state_bdd
     ~show_function_size ~print_unparsed ~print_function_bdd
-    ~recursion_limit ~max_list_length
+    ~recursion_limit ~max_list_length ~eager_eval
     lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
@@ -82,7 +82,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
   let res = if print_unparsed then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog_unparsed internal)] else res in
   match sample_amount with
   | None ->
-    let compiled = Compiler.compile_program internal in
+    let compiled = Compiler.compile_program internal ~eager_eval in
     let zbdd = compiled.body.z in
     let res = if skip_table then res else res @
        (let z = Wmc.wmc zbdd compiled.ctx.weights in
@@ -128,7 +128,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     let rec draw_sample (prob, oldz) n =
       if n = 0 then (prob, oldz)
       else
-        let compiled = Compiler.compile_program internal in
+        let compiled = Compiler.compile_program ~eager_eval:true internal in
         sz := !sz + VarState.state_size [compiled.body.state; Leaf(compiled.body.z)];
         let table = VarState.get_table cfg compiled.body.state t in
         let zbdd = compiled.body.z in
@@ -177,6 +177,7 @@ let command =
      and print_unparsed = flag "-show-unparsed" no_arg ~doc:" print unparsed desugared dice program"
      and skip_table = flag "-skip-table" no_arg ~doc:" skip printing the joint probability distribution"
      and show_recursive_calls = flag "-num-recursive-calls" no_arg ~doc:" show the number of recursive calls invoked during compilation"
+     and eager_eval = flag "-eager-eval" no_arg ~doc:" eager let compilation"
      and recursion_limit = flag "-recursion-limit" (optional int) ~doc:" maximum recursion depth"
      and max_list_length = flag "-max-list-length" (optional int) ~doc:" maximum list length"
      (* and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order" *)
@@ -189,7 +190,7 @@ let command =
                   ~print_size ~inline_functions ~skip_table ~flip_lifting
                   ~branch_elimination ~determinism ~show_recursive_calls ~print_state_bdd
                   ~show_function_size ~print_unparsed ~print_function_bdd
-                  ~recursion_limit ~max_list_length
+                  ~recursion_limit ~max_list_length ~eager_eval
                   lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res
