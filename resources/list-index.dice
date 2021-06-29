@@ -1,0 +1,9 @@
+fun index(n: int(2), xs: list(bool)): bool {
+    if n == int(2, 0) then
+        head xs
+    else
+        index(n - int(2, 1), tail xs)
+}
+
+let xs = [true, false, false] in
+[index(int(2, 2), xs), index(int(2, 1), xs), index(int(2, 0), xs)]

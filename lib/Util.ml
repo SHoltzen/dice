@@ -13,6 +13,8 @@ let within_epsilon x y =
 
 let log2 a = log a /. (log 2.0)
 
+let bit_length x = Int.floor_log2 x + 1
+
 (** [dir_contents] returns the paths of all regular files that are
  * contained in [dir]. Each file is a path starting with [dir].
   *)

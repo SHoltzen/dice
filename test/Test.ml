@@ -528,6 +528,129 @@ let test_swap _ =
   let swapped = Bdd.labeled_vector_compose andbdd swapbdd swapidx in
   OUnit2.assert_bool "Expected equal bdds" (Bdd.is_equal (Bdd.dand bdd3 bdd4) swapped)
 
+let test_recursion _ =
+  let prog = In_channel.read_all "../resources/recursion.dice" in
+  assert_feq (0.5 ** 3.) (parse_and_prob prog);
+  assert_feq (0.5 ** 3.) (parse_optimize_and_prob prog)
+
+let test_caesar_recursive _ =
+  let prog = "
+    fun sendchar(key: int(2), observation: int(2)) {
+      let gen = discrete(0.5, 0.25, 0.125, 0.125) in
+      let enc = key + gen in
+      observe observation == enc
+    }
+    fun loop(key: int(2), observation: int(2)): bool {
+      let tmp = sendchar(key, observation) in
+      if observation == int(2, 3)
+        then true
+        else loop(key, observation + int(2, 1))
+    }
+    let key = discrete(0.25, 0.25, 0.25, 0.25) in
+    let tmp = loop(key, int(2, 0)) in
+    key == int(2, 0)
+  " in
+  assert_feq 0.25 (parse_and_prob prog);
+  assert_feq 0.25 (parse_optimize_and_prob prog)
+
+let test_factorial _ =
+  let prog = "
+    fun fac(n: int(7)): int(7) {
+      if n == int(7, 0) then int(7, 1) else n * fac(n - int(7, 1))
+    }
+    fac(int(7, 5)) == int(7, 120)
+  " in
+  assert_feq 1.0 (parse_and_prob prog);
+  assert_feq 1.0 (parse_optimize_and_prob prog)
+
+let test_fibonacci _ =
+  let prog = "
+    fun fib(n: int(7)): int(7) {
+      if n < int(7, 2) then n else fib(n - int(7, 1)) + fib(n - int(7, 2))
+    }
+    fib(int(7, 11)) == int(7, 89)
+  " in
+  assert_feq 1.0 (parse_and_prob prog);
+  assert_feq 1.0 (parse_optimize_and_prob prog)
+
+let test_list _ =
+  let prog = "
+    let xs = [true, false, false] in
+    (head xs) && !(head (tail xs)) && !(head (tail (tail xs)))
+  " in
+  assert_feq 1.0 (parse_and_prob prog);
+  assert_feq 1.0 (parse_optimize_and_prob prog)
+
+let test_length _ =
+  let prog = "
+    let xs = [true, false, false] in
+    (length xs) == int(4, 3)
+  " in
+  assert_feq 1.0 (parse_and_prob prog);
+  assert_feq 1.0 (parse_optimize_and_prob prog)
+
+let test_empty _ =
+  let prog = "
+    let xs = [] : list(bool) in
+    (length xs) == int(4, 0)
+  " in
+  assert_feq 1.0 (parse_and_prob prog);
+  assert_feq 1.0 (parse_optimize_and_prob prog)
+
+let test_list_recursion _ =
+  let prog = "
+    fun index(n: int(2), xs: list(bool)): bool {
+      if n == int(2, 0) then
+        head xs
+      else
+        index(n - int(2, 1), tail xs)
+    }
+    let xs = [true, false, false] in
+    !index(int(2, 2), xs) && !index(int(2, 1), xs) && index(int(2, 0), xs)
+  " in
+  assert_feq 1.0 (parse_and_prob prog);
+  assert_feq 1.0 (parse_optimize_and_prob prog)
+
+let test_list_distribution _ =
+  let prog = "
+    fun build(n: int(2)): list(bool) {
+      if n == int(2, 0) then
+        ([] : list(bool))
+      else if flip 0.5 then
+        flip 0.2 :: build(n - int(2, 1))
+      else
+        build(n - int(2, 1))
+    }
+    let xs = build(int(2, 3)) in
+    " in
+  let test prob expr =
+    assert_feq prob (parse_and_prob (prog ^ expr));
+    assert_feq prob (parse_optimize_and_prob (prog ^ expr)) in
+  test (0.5 *. 0.5 *. 0.5) "(length xs) == int(4, 0)";
+  test (0.5 *. 0.2 *. 0.5 *. 0.5 *. 3.) "if (length xs) == int(4, 1) then (head xs) else false";
+  test (0.5 *. 0.8 *. 0.5 *. 0.5 *. 3.) "if (length xs) == int(4, 1) then !(head xs) else false";
+  test (0.5 *. 0.2 *. 0.5 *. 0.2 *. 0.5 *. 3.) "if (length xs) == int(4, 2) then (head xs) && (head (tail xs)) else false";
+  test (0.5 *. 0.2 *. 0.5 *. 0.8 *. 0.5 *. 3.) "if (length xs) == int(4, 2) then (head xs) && !(head (tail xs)) else false";
+  test (0.5 *. 0.8 *. 0.5 *. 0.2 *. 0.5 *. 3.) "if (length xs) == int(4, 2) then !(head xs) && (head (tail xs)) else false";
+  test (0.5 *. 0.8 *. 0.5 *. 0.8 *. 0.5 *. 3.) "if (length xs) == int(4, 2) then !(head xs) && !(head (tail xs)) else false";
+  test (0.5 *. 0.2 *. 0.5 *. 0.2 *. 0.5 *. 0.2) "if (length xs) == int(4, 3) then (head xs) && (head (tail xs)) && (head (tail (tail xs))) else false";
+  test (0.5 *. 0.2 *. 0.5 *. 0.2 *. 0.5 *. 0.8) "if (length xs) == int(4, 3) then (head xs) && (head (tail xs)) && !(head (tail (tail xs))) else false";
+  test (0.5 *. 0.2 *. 0.5 *. 0.8 *. 0.5 *. 0.2) "if (length xs) == int(4, 3) then (head xs) && !(head (tail xs)) && (head (tail (tail xs))) else false";
+  test (0.5 *. 0.2 *. 0.5 *. 0.8 *. 0.5 *. 0.8) "if (length xs) == int(4, 3) then (head xs) && !(head (tail xs)) && !(head (tail (tail xs))) else false";
+  test (0.5 *. 0.8 *. 0.5 *. 0.2 *. 0.5 *. 0.2) "if (length xs) == int(4, 3) then !(head xs) && (head (tail xs)) && (head (tail (tail xs))) else false";
+  test (0.5 *. 0.8 *. 0.5 *. 0.2 *. 0.5 *. 0.8) "if (length xs) == int(4, 3) then !(head xs) && (head (tail xs)) && !(head (tail (tail xs))) else false";
+  test (0.5 *. 0.8 *. 0.5 *. 0.8 *. 0.5 *. 0.2) "if (length xs) == int(4, 3) then !(head xs) && !(head (tail xs)) && (head (tail (tail xs))) else false";
+  test (0.5 *. 0.8 *. 0.5 *. 0.8 *. 0.5 *. 0.8) "if (length xs) == int(4, 3) then !(head xs) && !(head (tail xs)) && !(head (tail (tail xs))) else false"
+
+let test_list_ex _ =
+  let prog = "
+    let xs = [flip 0.2, flip 0.4] in
+    let ys = if flip 0.5 then (head xs) :: xs else tail xs in
+    head ys
+  " in
+  assert_feq (0.2 *. 0.5 +. 0.4 *. 0.5) (parse_and_prob prog);
+  assert_feq (0.2 *. 0.5 +. 0.4 *. 0.5) (parse_optimize_and_prob prog)
+
 let expression_tests =
 "suite">:::
 [
@@ -622,6 +745,18 @@ let expression_tests =
    * "test_pmc2">::test_pmc2; *)
 
   "test_swap">::test_swap;
+
+  "test_recursion">::test_recursion;
+  "test_caesar_recursive">::test_caesar_recursive;
+  "test_factorial">::test_factorial;
+  "test_fibonacci">::test_fibonacci;
+
+  "test_list">::test_list;
+  "test_length">::test_length;
+  "test_empty">::test_empty;
+  "test_list_recursion">::test_list_recursion;
+  "test_list_distribution">::test_list_distribution;
+  "test_list_ex">::test_list_ex;
 ]
 
 let () =
