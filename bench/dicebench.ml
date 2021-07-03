@@ -19,7 +19,7 @@ let run_benches () =
                       | Parser.Error ->
                         fprintf stderr "%a: syntax error\n" print_position buf;
                         failwith (Format.sprintf "Error parsing %s" contents) in
-                    (parsed, Compiler.compile_program ~eager_eval:true (snd (Passes.from_external_prog parsed)))
+                    (parsed, Compiler.compile_program ~eager_eval:true (snd (Passes.from_external_prog false parsed)))
                   ))) in
   print_endline (Format.sprintf "Benchmark\tTime (s)\t#Paths (log10)\tBDD Size");
   List.iter benches ~f:(fun (name, bench) ->
@@ -61,7 +61,7 @@ let bench_caesar inline_functions =
       let t0 = Unix.gettimeofday () in
       let caesar = gen_caesar (List.init len ~f:(fun _ -> Random.int_incl 0 25)) in
       let prog = (if inline_functions then Passes.inline_functions caesar else caesar) in
-      let res = Passes.from_external_prog prog false
+      let res = Passes.from_external_prog false prog
                 |> snd
                 |> Compiler.compile_program ~eager_eval:true in
       let sz = Cudd.Bdd.size res.body.z in
@@ -100,7 +100,7 @@ let bench_caesar_error inline_functions =
       let t0 = Unix.gettimeofday () in
       let caesar = gen_caesar_error (List.init len ~f:(fun _ -> Random.int_incl 0 25)) in
       let prog = (if inline_functions then Passes.inline_functions caesar else caesar) in 
-      let res = Passes.from_external_prog prog false
+      let res = Passes.from_external_prog false prog 
                 |> snd
                 |> Compiler.compile_program ~eager_eval:true in
       let sz = Cudd.Bdd.size res.body.z in
@@ -134,7 +134,7 @@ let bench_diamond inline_functions =
       let caesar = gen_diamond (len + 1) in
       let inlined = if inline_functions then Passes.inline_functions caesar else caesar in
       let t0 = Unix.gettimeofday () in
-      let res = Passes.from_external_prog inlined false
+      let res = Passes.from_external_prog false inlined
                 |> snd
                 |> Compiler.compile_program ~eager_eval:true in
       let sz = VarState.state_size [res.body.state] in
@@ -173,7 +173,7 @@ let bench_ladder inline_functions =
       let caesar = gen_ladder (len + 1) in
       let inlined = if inline_functions then Passes.inline_functions caesar else caesar in
       let t0 = Unix.gettimeofday () in
-      let res = Passes.from_external_prog inlined false
+      let res = Passes.from_external_prog false inlined
                 |> snd
                 |> Compiler.compile_program ~eager_eval:true in
       let sz = VarState.state_size [res.body.state] in

@@ -58,7 +58,7 @@ let rec print_pretty e =
 
 let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~inline_functions ~sample_amount ~show_recursive_calls
-    ~flip_lifting ~branch_elimination ~determinism ~print_state_bdd
+    ~flip_lifting ~branch_elimination ~determinism ~sbk_encoding ~print_state_bdd
     ~show_function_size ~print_unparsed ~print_function_bdd
     ~recursion_limit ~max_list_length ~eager_eval
     lexbuf : result List.t = try
@@ -71,12 +71,12 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
   let optimize = flip_lifting || branch_elimination || determinism in
   let (t, internal) =
     if inline_functions && optimize then
-      (from_external_prog_optimize ~cfg (Passes.inline_functions parsed_norec) flip_lifting branch_elimination determinism)
+      (from_external_prog_optimize ~cfg sbk_encoding (Passes.inline_functions parsed_norec) flip_lifting branch_elimination determinism)
     else if inline_functions && not optimize then
-      (from_external_prog ~cfg (Passes.inline_functions parsed_norec))
+      (from_external_prog ~cfg sbk_encoding (Passes.inline_functions parsed_norec))
     else if not inline_functions && optimize then
-      (from_external_prog_optimize ~cfg parsed_norec flip_lifting branch_elimination determinism)
-    else from_external_prog ~cfg parsed_norec in
+      (from_external_prog_optimize ~cfg sbk_encoding parsed_norec flip_lifting branch_elimination determinism)
+    else from_external_prog ~cfg sbk_encoding parsed_norec in
   let res = if print_internal then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog internal)] else res in
   let res = if print_unparsed then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog_unparsed internal)] else res in
   match sample_amount with
@@ -188,7 +188,7 @@ let command =
        lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = fname };
        let r = (parse_and_print ~print_parsed ~print_internal ~sample_amount
                   ~print_size ~inline_functions ~skip_table ~flip_lifting
-                  ~branch_elimination ~determinism ~show_recursive_calls ~print_state_bdd
+                  ~branch_elimination ~determinism ~sbk_encoding ~show_recursive_calls ~print_state_bdd
                   ~show_function_size ~print_unparsed ~print_function_bdd
                   ~recursion_limit ~max_list_length ~eager_eval
                   lexbuf) in

@@ -562,7 +562,7 @@ let rec gen_discrete mgr (l: float List.t) =
   let inner_body = mk_dfs_tuple (List.map bits ~f:fst) in
   List.fold assgn ~init:inner_body ~f:(fun acc (Ident(name), body) -> Let(name, body, acc))
 
-let gen_discrete_sbk (l: float List.t) =
+let gen_discrete_sbk (l: float List.t) (priority: (float * int) List.t option) =
   let open Cudd in
   let open CG in
   let max = (List.length l) - 1 in
@@ -572,19 +572,65 @@ let gen_discrete_sbk (l: float List.t) =
       |> List.map  ~f:(fun i -> if i = 1 then True else False)
       |> mk_dfs_tuple
   in
-
-  (* Heuristic: gen flips in order of large to small probabilities *)
-  let idxProb = List.mapi l ~f: (fun idx a -> (idx, a)) in
-  let sorted_probs = List.sort idxProb ~compare: (fun (idx1, p1) (idx2, p2) -> Poly.descending p1 p2) in
-  let (smallest_idx, smallest_prob) = 
-    match List.hd sorted_probs with
-    | None -> failwith "Discrete with no values"
-    | Some(i, p) -> i, p 
+  let sift_priority (l: (int * float) List.t) (priority: (float * int) List.t) (rest: (int * float) List.t) : (int * float) List.t = 
+    List.sort l ~compare: (fun (_, p1) (_, p2) -> 
+      let c1 = List.Assoc.find priority ~equal: (fun f1 f2 -> Float.equal f1 f2) p1 in
+      let c2 = List.Assoc.find priority ~equal: (fun f1 f2 -> Float.equal f1 f2) p2 in
+      let order = match c1, c2 with
+        | None, None -> 0
+        | None, _ -> -1
+        | _, None -> 1
+        | Some(c_1), Some(c_2) -> Poly.descending c_1 c_2
+      in
+      order)
   in
-  let inner_body = get_tuples smallest_idx in   
-  let probs, _ = List.fold sorted_probs ~init: ([], 0.0) ~f:(fun (probs, total) (idx, p) -> if Float.equal total 1.0 then ((idx, 0.0)::probs, total) else ((idx, p /. (1. -. total))::probs, total +. p)) in
-  (* probs is already reversed *)
-  let e = List.foldi probs ~init: inner_body ~f:(fun idx acc (i, p) -> if idx = 0 then acc else Ite(Flip(p), (get_tuples i), acc)) in 
+
+  let rec get_idx_prob (l: float List.t) (idx: int) (rest: (int * float) List.t): (int * float) List.t =
+    match l with
+    | [] -> List.rev_append rest []
+    | head::tail -> 
+      if Float.equal head 0.0 then
+        get_idx_prob tail (idx + 1) rest 
+      else
+        get_idx_prob tail (idx + 1) ((idx, head)::rest)
+  in
+
+  let idxProb = get_idx_prob l 0 [] in
+  let sorted_probs = 
+    match priority with
+    (* Heuristic: gen flips in order of large to small probabilities *)
+    | None -> List.sort idxProb ~compare: (fun (idx1, p1) (idx2, p2) -> Poly.descending p1 p2) 
+    (* Heuristic: choose priority flips to do first *)
+    | Some(p) -> 
+      sift_priority idxProb p [] 
+  in
+  let probs_length = List.length sorted_probs in
+  let probs, _ = List.foldi sorted_probs ~init: ([], 0.0) ~f:(fun idx (probs, total) (idx, p) -> 
+    if idx = probs_length then
+      ((idx, fresh(), 1.0)::probs, total +. p)
+    else
+      ((idx, fresh(), p /. (1. -. total))::probs, total +. p))
+  in
+  let (inner_idx, inner_ident, inner_prob) = 
+    match List.hd probs with
+    | None -> failwith "Discrete with no values"
+    | Some(i, x, p) -> i, x, p 
+  in
+  let inner_body = get_tuples inner_idx in 
+  let final_ident = fresh() in
+  let final_body = List.foldi probs ~init: inner_body ~f: (fun idx acc (i, x, p) -> 
+    if idx = 0 then
+      (get_tuples i)
+    else
+      Ite(Ident(x), (get_tuples i), acc))
+  in
+  let final_expr = Let(final_ident, final_body, Ident(final_ident)) in
+  let e = List.foldi probs ~init: final_expr ~f: (fun idx acc (i, x, p) ->
+    if idx = 0 then
+      acc
+    else
+      Let(x, Flip(p), acc))
+  in
   e
 
 let rec nth_snd i inner =
@@ -865,48 +911,64 @@ let rec from_external_expr_h (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
   | Length(_, e) -> Fst (from_external_expr_h ctx cfg e)
 
 type tree = 
-  | Node of float list * tree * tree
-  | Branch tree * tree
+  | Node of (float * int) List.t option * tree * tree * tree
+  | Branch of tree * tree
   | Leaf 
 
 let from_external_expr_h_sbk (ctx: external_ctx) (cfg: config) ((t, e): tast) : CG.expr =
-  let rec annotate ((t, e): tast) : float list * tree =
+  let rec merge_uniq l1 l2 l3 = 
+    match l1 with
+    | [] -> List.rev_append l3 l2
+    | head::tail -> 
+      let uniq = if List.mem l2 head ~equal: Poly.equal then l3 else head::l3 in
+      merge_uniq tail l2 uniq
+  in
+  let largest_count (tbl: (float * int) List.t) : (float * int) List.t =
+    List.sort tbl ~compare:(fun (_, v1) (_, v2) -> Poly.descending v1 v2) 
+  in
+  let rec annotate ((t, e): tast) : float List.t * tree =
     match e with
     | And(_, e1, e2) | Or(_, e1, e2) | Iff(_, e1, e2) | Xor(_, e1, e2) | Plus(_, e1, e2) | Minus(_, e1, e2)
-    | Eq(_, (t1, e1), (t2, e2)) | Neq(s, e1, e2) | Mult(s, e1, e2) | Lt(_, (t1, e1), (t2, e2)) 
-    | Lte(s, e1, e2) | Gt(s, e1, e2) | Gte(s, e1, e2) | Tup(_, e1, e2) ->
+    | Eq(_, e1, e2) | Neq(_, e1, e2) | Mult(_, e1, e2) | Lt(_, e1, e2) | Lte(_, e1, e2) | Gt(_, e1, e2)
+    | Gte(_, e1, e2) | Tup(_, e1, e2) | Let(_, _, e1, e2) ->
       let f1, t1 = annotate e1 in
       let f2, t2 = annotate e2 in
-      (f1@f2), Branch(t1, t2)
-    | Not(_, e) ->
-      (match e with 
+      (merge_uniq f1 f2 []), Branch(t1, t2)
+    | Not(_, e) -> annotate e
+      (* (match e with 
       | Flip(f) -> [1.0 -. f], Leaf
-      | _ -> annotate e)
-    | LeftShift(_, e, _) | RightShift(_, e, _) | Observe(_, e) | Snd(_, e) | Fst(_, e) | Sample(_, e) -> 
+      | _ -> annotate e) *)
+    | LeftShift(_, e, _) | RightShift(_, e, _) | Observe(_, e) | Snd(_, e) | Fst(_, e) | Sample(_, e) | Length(_, e) -> 
       annotate e 
+    | FuncCall(src, "nth_bit", [(_, Int(_, sz, v)); e2]) -> annotate e2
     | Flip(_, f) -> [f], Leaf
-    | Discrete(_, l) -> l, Leaf
-    | Ident(_, _) | Int(_, _, _) | True(_) | False(_) | FuncCall(_, _, _) | Iter(_, _, _, _) -> [], Leaf
-    | Let(_, x, e1, e2) -> 
-      let f1, t1 = annotate e1 in
-      let f2, t2 = annotate e2 in
-      (f1@f2), Node(f1, t1, t2)
+    | Discrete(_, l) -> 
+      (List.dedup_and_sort ~compare: Poly.compare l), Leaf
+    | Ident(_, _) | Int(_, _, _) | True(_) | False(_) | Iter(_, _, _, _)
+    | ListLit(_, _) | ListLitEmpty _ | Cons(_, _, _) | Head(_, _) | Tail(_, _) | FuncCall(_, _, _) -> [], Leaf
     | Ite(_, g, thn, els) -> 
       let f1, t1 = annotate g in
       let f2, t2 = annotate thn in
       let f3, t3 = annotate els in
-      (f1@f2@f3), Branch(t2, t3)
+      let counts = Hashtbl.create (module Float) in
+      let update_tbl f = Hashtbl.update counts f ~f:(fun co -> match co with None -> 1 | Some(c) -> c + 1) in
+      List.iter f2 ~f: update_tbl;
+      List.iter f3 ~f: update_tbl;
+      let lst = Hashtbl.to_alist counts in
+      let largest_prob = match lst with head::tail -> Some(largest_count lst) | [] -> None in     
+      (merge_uniq f1 (f2@f3) []), Node(largest_prob, t1, t2, t3)
     | IntConst(_, _) -> failwith "not implemented"
     | Div(_, _, _) -> failwith "not implemented"
   in
-  let rec from_external_expr_h_sbk_e (ctx: external_ctx) (cfg: config) ((t, e): tast) (ann: tree) : CG.expr =
+
+  let rec from_external_expr_h_sbk_e (ctx: external_ctx) (cfg: config) (ann: tree) (prob: (float * int) List.t option) ((t, e): tast) : CG.expr =
     let list_len_bits = bit_length cfg.max_list_length in
     let list_len_type = EG.TInt list_len_bits in
     let mk_length_int x = (list_len_type, Int(EG.gen_src, list_len_bits, x)) in
     let gen_list_lit es =
       let len = List.length es in
-      let length_core = from_external_expr_h ctx cfg @@ mk_length_int len in
-      let elems_core = List.map es ~f:(from_external_expr_h ctx cfg) in
+      let length_core = from_external_expr_h_sbk_e ctx cfg ann prob @@ mk_length_int len in
+      let elems_core = List.map es ~f:(from_external_expr_h_sbk_e ctx cfg ann prob) in
       let defaults_core = List.init (cfg.max_list_length - len)
         ~f:(Fn.const @@ gen_default_core @@ from_external_typ cfg @@ extract_elem_type t) in
       CG.Tup(length_core, mk_dfs_tuple (elems_core @ defaults_core)) in
@@ -917,29 +979,53 @@ let from_external_expr_h_sbk (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
       (list_len_type, Fst(EG.gen_src, (TTuple(list_len_type, TBool), Ident(EG.gen_src, xs)))) in
     let gen_check_empty elem_t xs res =
       CG.Ite(
-        from_external_expr_h ctx cfg
+        from_external_expr_h_sbk_e ctx cfg ann prob
           (TBool, Eq(EG.gen_src, gen_get_length xs, mk_length_int 0)),
         unreachable_core @@ gen_default_core @@ from_external_typ cfg elem_t,
         res) in
     let gen_eval_arg e f =
       let x = fresh () in
-      CG.Let(x, from_external_expr_h ctx cfg e, f x) in
+      CG.Let(x, from_external_expr_h_sbk_e ctx cfg ann prob e, f x) in
     match e with
     | And(_, e1, e2) ->
-      let s1 = from_external_expr_h ctx cfg e1 in
-      let s2 = from_external_expr_h ctx cfg e2 in And(s1, s2)
+      let ann1, ann2 = 
+        match ann with 
+        | Branch(ann1, ann2) -> ann1, ann2
+        | Leaf -> ann, ann
+        | _ -> failwith "unexpected tree element in external pass"
+      in
+      let s1 = from_external_expr_h_sbk_e ctx cfg ann1 prob e1 in
+      let s2 = from_external_expr_h_sbk_e ctx cfg ann2 prob e2 in And(s1, s2)
     | Or(_, e1, e2) ->
-      let s1 = from_external_expr_h ctx cfg e1 in
-      let s2 = from_external_expr_h ctx cfg e2 in Or(s1, s2)
+      let ann1, ann2 = 
+        match ann with 
+        | Branch(ann1, ann2) -> ann1, ann2
+        | Leaf -> ann, ann
+        | _ -> failwith "unexpected tree element in external pass"
+      in
+      let s1 = from_external_expr_h_sbk_e ctx cfg ann1 prob e1 in
+      let s2 = from_external_expr_h_sbk_e ctx cfg ann2 prob e2 in Or(s1, s2)
     | Iff(_, e1, e2) ->
-      let s1 = from_external_expr_h ctx cfg e1 in
-      let s2 = from_external_expr_h ctx cfg e2 in Eq(s1, s2)
+      let ann1, ann2 = 
+        match ann with 
+        | Branch(ann1, ann2) -> ann1, ann2
+        | Leaf -> ann, ann
+        | _ -> failwith "unexpected tree element in external pass"
+      in
+      let s1 = from_external_expr_h_sbk_e ctx cfg ann1 prob e1 in
+      let s2 = from_external_expr_h_sbk_e ctx cfg ann2 prob e2 in Eq(s1, s2)
     | Xor(_, e1, e2) ->
-      let s1 = from_external_expr_h ctx cfg e1 in
-      let s2 = from_external_expr_h ctx cfg e2 in Xor(s1, s2)
-    | LeftShift(_, e, 0) -> from_external_expr_h ctx cfg e
+      let ann1, ann2 = 
+        match ann with 
+        | Branch(ann1, ann2) -> ann1, ann2
+        | Leaf -> ann, ann
+        | _ -> failwith "unexpected tree element in external pass"
+      in
+      let s1 = from_external_expr_h_sbk_e ctx cfg ann1 prob e1 in
+      let s2 = from_external_expr_h_sbk_e ctx cfg ann2 prob e2 in Xor(s1, s2)
+    | LeftShift(_, e, 0) -> from_external_expr_h_sbk_e ctx cfg ann prob e
     | LeftShift(_, e, amt) ->
-      let sube = from_external_expr_h ctx cfg e in
+      let sube = from_external_expr_h_sbk_e ctx cfg ann prob e in
       assert (amt > 0);
       let sz = extract_sz t in
       let id = Format.sprintf "leftshift_%s" (fresh ()) in
@@ -948,10 +1034,10 @@ let from_external_expr_h_sbk (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
         else if depth + amt >= sz then Tup(False, h (depth+1))
         else Tup(nth_bit sz (depth+amt) (Ident(id)), h (depth+1)) in
       Let(id, sube, h 0)
-    | RightShift(_, e, 0) -> from_external_expr_h ctx cfg e
+    | RightShift(_, e, 0) -> from_external_expr_h_sbk_e ctx cfg ann prob e
     | RightShift(_, e, amt) ->
       assert (amt > 0);
-      let sube = from_external_expr_h ctx cfg e in
+      let sube = from_external_expr_h_sbk_e ctx cfg ann prob e in
       let sz = extract_sz t in
       let id = Format.sprintf "rightshift_%s" (fresh ()) in
       let rec h depth : CG.expr =
@@ -961,40 +1047,76 @@ let from_external_expr_h_sbk (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
         else Tup(nth_bit sz (depth - amt) (Ident(id)), h (depth+1)) in
       Let(id, sube, h 0)
     | Plus(_, e1, e2) ->
+      let ann1, ann2 = 
+        match ann with 
+        | Branch(ann1, ann2) -> ann1, ann2
+        | Leaf -> ann, ann
+        | _ -> failwith "unexpected tree element in external pass"
+      in
       let sz = extract_sz (fst e1) in
-      gen_adder sz (from_external_expr_h ctx cfg e1) (from_external_expr_h ctx cfg e2)
+      let s1 = from_external_expr_h_sbk_e ctx cfg ann1 prob e1 in
+      let s2 = from_external_expr_h_sbk_e ctx cfg ann2 prob e2 in
+      gen_adder sz s1 s2
     | Minus(_, e1, e2) ->
-      let sz = extract_sz t in
-      gen_subtractor sz (from_external_expr_h ctx cfg e1) (from_external_expr_h ctx cfg e2)
+      let ann1, ann2 = 
+        match ann with 
+        | Branch(ann1, ann2) -> ann1, ann2
+        | Leaf -> ann, ann
+        | _ -> failwith "unexpected tree element in external pass"
+      in
+      let sz = extract_sz (fst e1) in
+      let s1 = from_external_expr_h_sbk_e ctx cfg ann1 prob e1 in
+      let s2 = from_external_expr_h_sbk_e ctx cfg ann2 prob e2 in
+      gen_subtractor sz s1 s2
     | Eq(_, (t1, e1), (t2, e2)) ->
+      let ann1, ann2 = 
+        match ann with 
+        | Branch(ann1, ann2) -> ann1, ann2
+        | Leaf -> ann, ann
+        | _ -> failwith "unexpected tree element in external pass"
+      in
       let sz = extract_sz t1 in
       let n1 = fresh () and n2 = fresh () in
       let inner = List.init sz ~f:(fun idx ->
           CG.Eq(nth_bit sz idx (Ident(n1)), nth_bit sz idx (Ident(n2)))
         ) |> and_of_l in
-      Let(n1, from_external_expr_h ctx cfg (t1, e1),
-          Let(n2, from_external_expr_h ctx cfg (t2, e2), inner))
-    | Neq(s, e1, e2) -> from_external_expr_h ctx cfg (TBool, Not(s, (TBool, Eq(s, e1, e2))))
+      let s1 = from_external_expr_h_sbk_e ctx cfg ann1 prob (t1, e1) in
+      let s2 = from_external_expr_h_sbk_e ctx cfg ann2 prob (t2, e2) in
+      Let(n1, s1,
+          Let(n2, s2, inner))
+    | Neq(s, e1, e2) -> from_external_expr_h_sbk_e ctx cfg ann prob (TBool, Not(s, (TBool, Eq(s, e1, e2))))
     | Mult(s, e1, e2) ->
+      let ann1, ann2 = 
+        match ann with 
+        | Branch(ann1, ann2) -> ann1, ann2
+        | Leaf -> ann, ann
+        | _ -> failwith "unexpected tree element in external pass"
+      in
       let sz = extract_sz (fst e1) in
-      let sube1 = from_external_expr_h ctx cfg e1 in
-      let sube2 = from_external_expr_h ctx cfg e2 in
+      let sube1 = from_external_expr_h_sbk_e ctx cfg ann1 prob e1 in
+      let sube2 = from_external_expr_h_sbk_e ctx cfg ann2 prob e2 in
       let fresha = Format.sprintf "multa_%s" (fresh ()) in
       let freshb = Format.sprintf "multb_%s" (fresh ()) in
       let freshout = Format.sprintf "multo_%s" (fresh ()) in
       let lst : CG.expr List.t = List.init sz ~f:(fun i ->
-          let subadd = from_external_expr_h ctx cfg
+          let subadd = from_external_expr_h_sbk_e ctx cfg (Branch(Leaf, Leaf)) prob
               (t, Plus(s, (t, Ident(s, freshout)), (t, LeftShift(s, (t, Ident(s, freshb)), i)))) in
           CG.Ite(nth_bit sz (sz - i - 1) (Ident(fresha)), subadd, Ident(freshout))
         ) in
       let assgn = List.fold (List.rev lst) ~init:(CG.Ident(freshout)) ~f:(fun acc i ->
           Let(freshout, i, acc)) in
-      let zeroconst = from_external_expr_h ctx cfg (TInt(sz), Int(s, sz, 0)) in
+      let zeroconst = from_external_expr_h_sbk_e ctx cfg Leaf prob (TInt(sz), Int(s, sz, 0)) in
       Let(freshout, zeroconst,
           Let(fresha, sube1,
               Let(freshb, sube2, assgn)))
     | Div(_, _, _) -> failwith "not implemented /"
     | Lt(_, (t1, e1), (t2, e2)) ->
+      let ann1, ann2 = 
+        match ann with 
+        | Branch(ann1, ann2) -> ann1, ann2
+        | Leaf -> ann, ann
+        | _ -> failwith "unexpected tree element in external pass"
+      in
       let sz = extract_sz t1 in
       let n1 = fresh () and n2 = fresh () in
       let rec h idx : CG.expr =
@@ -1003,14 +1125,17 @@ let from_external_expr_h_sbk (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
                 False,
                 Ite(And(Not(nth_bit sz idx (Ident(n1))), nth_bit sz idx (Ident n2)), True,
                 h (idx + 1))) in
-      Let(n1, from_external_expr_h ctx cfg (t1, e1), Let(n2, from_external_expr_h ctx cfg (t2, e2), h 0))
-    | Lte(s, e1, e2) -> from_external_expr_h ctx cfg (TBool, Or(s, (TBool, Lt(s, e1, e2)), (TBool, Eq(s, e1, e2))))
-    | Gt(s, e1, e2) -> from_external_expr_h ctx cfg (TBool, Not(s, (TBool, Lte(s, e1, e2))))
-    | Gte(s, e1, e2) -> from_external_expr_h ctx cfg (TBool, Not(s, (TBool, Lt(s, e1, e2))))
-    | Not(_, e) -> Not(from_external_expr_h ctx cfg e)
+      let s1 = from_external_expr_h_sbk_e ctx cfg ann1 prob (t1, e1) in
+      let s2 = from_external_expr_h_sbk_e ctx cfg ann2 prob (t2, e2) in
+      Let(n1, s1, Let(n2, s2, h 0))
+    | Lte(s, e1, e2) -> 
+      from_external_expr_h_sbk_e ctx cfg (Branch(ann, ann)) prob (TBool, Or(s, (TBool, Lt(s, e1, e2)), (TBool, Eq(s, e1, e2))))
+    | Gt(s, e1, e2) -> from_external_expr_h_sbk_e ctx cfg ann prob (TBool, Not(s, (TBool, Lte(s, e1, e2))))
+    | Gte(s, e1, e2) -> from_external_expr_h_sbk_e ctx cfg ann prob (TBool, Not(s, (TBool, Lt(s, e1, e2))))
+    | Not(_, e) -> Not(from_external_expr_h_sbk_e ctx cfg ann prob e)
     | Flip(_, f) -> Flip(f)
     | Ident(_, s) -> Ident(s)
-    | Discrete(_, l) -> gen_discrete ctx l
+    | Discrete(_, l) -> gen_discrete_sbk l prob
     | Int(_, sz, v) ->
       let bits = int_to_bin sz v
                 |> List.map ~f:(fun i -> if i = 1 then CG.True else CG.False) in
@@ -1018,30 +1143,61 @@ let from_external_expr_h_sbk (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
     | True(_) -> True
     | False(_) -> False
     | Observe(_, e) ->
-      Observe(from_external_expr_h ctx cfg e)
+      Observe(from_external_expr_h_sbk_e ctx cfg ann prob e)
     | Let(_, x, e1, e2) ->
-      Let(x, from_external_expr_h ctx cfg e1, from_external_expr_h ctx cfg e2)
-    | Ite(_, g, thn, els) -> Ite(from_external_expr_h ctx cfg g,
-                                from_external_expr_h ctx cfg thn,
-                                from_external_expr_h ctx cfg els)
-    | Snd(_, e) -> Snd(from_external_expr_h ctx cfg e)
-    | Fst(_, e) -> Fst(from_external_expr_h ctx cfg e)
-    | Tup(_, e1, e2) -> Tup(from_external_expr_h ctx cfg e1, from_external_expr_h ctx cfg e2)
+      let ann1, ann2 = 
+        match ann with 
+        | Branch(ann1, ann2) -> ann1, ann2
+        | Leaf -> ann, ann
+        | _ -> failwith "unexpected tree element in external pass"
+      in
+      let s1 = from_external_expr_h_sbk_e ctx cfg ann1 prob e1 in
+      let s2 = from_external_expr_h_sbk_e ctx cfg ann2 prob e2 in Let(x, s1, s2)
+    | Ite(_, g, thn, els) -> 
+      let p, ann1, ann2, ann3 = 
+        match ann with 
+        | Node(ite_prob, ann1, ann2, ann3) -> 
+          let p = 
+            match prob with
+            | None -> ite_prob
+            | Some(p) -> Some(p)
+          in
+          p, ann1, ann2, ann3
+        | Leaf -> prob, ann, ann, ann
+        | _ -> failwith "unexpected tree element in external pass"
+      in
+      let s1 = from_external_expr_h_sbk_e ctx cfg ann1 p g in
+      let s2 = from_external_expr_h_sbk_e ctx cfg ann2 p thn in
+      let s3 = from_external_expr_h_sbk_e ctx cfg ann3 p els in
+      Ite(s1, s2, s3)
+    | Snd(_, e) -> Snd(from_external_expr_h_sbk_e ctx cfg ann prob e)
+    | Fst(_, e) -> Fst(from_external_expr_h_sbk_e ctx cfg ann prob e)
+    | Tup(_, e1, e2) -> 
+      let ann1, ann2 = 
+        match ann with 
+        | Branch(ann1, ann2) -> ann1, ann2
+        | Leaf -> ann, ann
+        | _ -> failwith "unexpected tree element in external pass"
+      in
+      let s1 = from_external_expr_h_sbk_e ctx cfg ann1 prob e1 in
+      let s2 = from_external_expr_h_sbk_e ctx cfg ann2 prob e2 in
+      Tup(s1, s2)
     | FuncCall(src, "nth_bit", [(_, Int(_, sz, v)); e2]) ->
       if v >= sz then
         (raise (EG.Type_error (Format.sprintf "Type error at line %d column %d: nth_bit exceeds maximum bit size"
                                 src.startpos.pos_lnum (get_col src.startpos))));
-      let internal = from_external_expr_h ctx cfg e2 in
+      let internal = from_external_expr_h_sbk_e ctx cfg ann prob e2 in
       nth_bit sz v internal
-    | FuncCall(_, id, args) -> FuncCall(id, List.map args ~f:(fun i -> from_external_expr_h ctx cfg i))
+    | FuncCall(_, id, args) ->
+      FuncCall(id, List.map args ~f:(fun i -> from_external_expr_h_sbk_e ctx cfg ann prob i))
     | Iter(s, f, init, k) ->
       (* let e = from_external_expr_h ctx cfg init in
       * List.fold (List.init k ~f:(fun _ -> ())) ~init:e
       *   ~f:(fun acc _ -> FuncCall(f, [acc])) *)
 
       let expanded = expand_iter_t s f init k in
-      from_external_expr_h ctx cfg expanded
-    | Sample(_, e) -> Sample(from_external_expr_h ctx cfg e)
+      from_external_expr_h_sbk_e ctx cfg ann prob expanded
+    | Sample(_, e) -> Sample(from_external_expr_h_sbk_e ctx cfg ann prob e)
     | IntConst(_, _) -> failwith "not implemented"
     | ListLit(_, es) -> gen_list_lit es
     | ListLitEmpty _ -> gen_list_lit []
@@ -1051,7 +1207,7 @@ let from_external_expr_h_sbk (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
           let length_core =
             (* if fst xs == max_list_length then max_list_length else (fst xs) + 1 *)
             let length_xs = gen_get_length xs in
-            from_external_expr_h ctx cfg
+            from_external_expr_h_sbk_e ctx cfg ann prob
               (list_len_type, Ite(s,
                 (TBool, Eq(s, length_xs, max_length_int)),
                 max_length_int,
@@ -1072,7 +1228,7 @@ let from_external_expr_h_sbk (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
           if cfg.max_list_length = 1 then list_part else Fst list_part
     | Tail(s, e) ->
       gen_eval_arg e @@ fun xs ->
-        let length_core = from_external_expr_h ctx cfg
+        let length_core = from_external_expr_h_sbk_e ctx cfg ann prob
           (list_len_type, Minus(s, gen_get_length xs, mk_length_int 1)) in
         let default_core = gen_default_core @@
           from_external_typ cfg @@ extract_elem_type t in
@@ -1086,10 +1242,13 @@ let from_external_expr_h_sbk (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
           if cfg.max_list_length = 1 then default_core else
             build_res_core 1 @@ CG.Snd (CG.Ident xs) in
         gen_check_empty t xs @@ Tup(length_core, res_core)
-    | Length(_, e) -> Fst (from_external_expr_h ctx cfg e)
+    | Length(_, e) -> Fst (from_external_expr_h_sbk_e ctx cfg ann prob e)
   in
+  let _, ann = annotate (t, e) in
+  let e1 = from_external_expr_h_sbk_e ctx cfg ann None (t, e) in
+  e1
 
-let from_external_expr mgr cfg in_func (env: EG.tenv) (e: EG.eexpr) (sbk: bool) : (EG.typ * CG.expr) =
+let from_external_expr mgr cfg in_func sbk (env: EG.tenv) (e: EG.eexpr) : (EG.typ * CG.expr) =
   let ctx = if in_func then {in_func=true} else {in_func=false} in
   let (typ, e) = type_of cfg ctx env e in
   let expr = 
@@ -1116,12 +1275,12 @@ let check_return_type (f: EG.func) (t : EG.typ) : unit =
                        f.name (string_of_typ t)))
   | _ -> ()
 
-let from_external_func mgr cfg (tenv: EG.tenv) (f: EG.func) : (EG.typ * CG.func) =
+let from_external_func mgr cfg sbk (tenv: EG.tenv) (f: EG.func) : (EG.typ * CG.func) =
   (* add the arguments to the type environment *)
   let tenvwithargs = List.fold f.args ~init:tenv ~f:(fun acc (name, typ) ->
       Map.Poly.set acc ~key:name ~data:typ
     ) in
-  let (t, conv) = from_external_expr mgr cfg true tenvwithargs f.body in
+  let (t, conv) = from_external_expr mgr cfg true sbk tenvwithargs f.body in
   check_return_type f t;
   (* convert arguments *)
   let args = List.map f.args ~f:(from_external_arg cfg) in
@@ -1129,12 +1288,12 @@ let from_external_func mgr cfg (tenv: EG.tenv) (f: EG.func) : (EG.typ * CG.func)
        args = args;
        body = conv})
 
-let from_external_func_optimize mgr cfg (tenv: EG.tenv) (f: EG.func) (flip_lifting: bool) (branch_elimination: bool) (determinism: bool) : (EG.typ * CG.func) =
+let from_external_func_optimize mgr cfg sbk (tenv: EG.tenv) (f: EG.func) (flip_lifting: bool) (branch_elimination: bool) (determinism: bool) : (EG.typ * CG.func) =
   (* add the arguments to the type environment *)
   let tenvwithargs = List.fold f.args ~init:tenv ~f:(fun acc (name, typ) ->
       Map.Poly.set acc ~key:name ~data:typ
     ) in
-  let (t, conv) = from_external_expr mgr cfg true tenvwithargs f.body in
+  let (t, conv) = from_external_expr mgr cfg true sbk tenvwithargs f.body in
   check_return_type f t;
   let optbody = Optimization.do_optimize conv !n flip_lifting branch_elimination determinism in
   (* convert arguments *)
@@ -1143,23 +1302,23 @@ let from_external_func_optimize mgr cfg (tenv: EG.tenv) (f: EG.func) (flip_lifti
         args = args;
         body = optbody})
 
-let from_external_prog ?(cfg: config = default_config) (p: EG.program) : (EG.typ * CG.program) =
+let from_external_prog ?(cfg: config = default_config) sbk (p: EG.program) : (EG.typ * CG.program) =
   let mgr = Cudd.Man.make_d () in
   let (tenv, functions) = List.fold p.functions ~init:(Map.Poly.empty, []) ~f:(fun (tenv, flst) i ->
-      let (t, conv) = from_external_func mgr cfg tenv i in
+      let (t, conv) = from_external_func mgr cfg sbk tenv i in
       let tenv' = Map.Poly.set tenv ~key:i.name ~data:t in
       (tenv', flst @ [conv])
     ) in
-  let (t, convbody) = from_external_expr mgr cfg false tenv p.body in
+  let (t, convbody) = from_external_expr mgr cfg false sbk tenv p.body in
   (t, {functions = functions; body = convbody})
 
-let from_external_prog_optimize ?(cfg: config = default_config) (p: EG.program) (flip_lifting: bool) (branch_elimination: bool) (determinism: bool) : (EG.typ * CG.program) =
+let from_external_prog_optimize ?(cfg: config = default_config) sbk (p: EG.program) (flip_lifting: bool) (branch_elimination: bool) (determinism: bool) : (EG.typ * CG.program) =
   let mgr = Cudd.Man.make_d () in
   let (tenv, functions) = List.fold p.functions ~init:(Map.Poly.empty, []) ~f:(fun (tenv, flst) i ->
-      let (t, conv) = from_external_func_optimize mgr cfg tenv i flip_lifting branch_elimination determinism in
+      let (t, conv) = from_external_func_optimize mgr cfg sbk tenv i flip_lifting branch_elimination determinism in
       let tenv' = Map.Poly.set tenv ~key:i.name ~data:t in
       (tenv', flst @ [conv])
     ) in
-  let (t, convbody) = from_external_expr mgr cfg false tenv p.body in
+  let (t, convbody) = from_external_expr mgr cfg false sbk tenv p.body in
   let optbody = Optimization.do_optimize convbody !n flip_lifting branch_elimination determinism in
   (t, {functions = functions; body = optbody})
