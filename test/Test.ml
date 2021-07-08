@@ -258,6 +258,34 @@ let _y0 = if ( nth_bit(int(2,1), b >> 1)) then _y1 else true in
 _x0 <=> _y0" in
   assert_feq 1.0 (parse_and_prob prog)
 
+
+let test_unif_1 _ = 
+  let prog1 = "let u = uniform(4, 0, 10) in u < int(4, 4)" in
+  let prog2 = "let d = discrete(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1) in d < int(4, 4)" in
+  assert_feq (parse_and_prob prog1) (parse_and_prob prog2);
+  assert_feq 0.4 (parse_and_prob prog1) 
+
+let test_unif_2 _ =
+  let prog1 = "let u = uniform(3, 2, 6) in u == int(3, 0)" in
+  let prog2 = "let d = discrete(0., 0., 0.25, 0.25, 0.25, 0.25) in d == int(3, 0)" in
+  assert_feq (parse_and_prob prog1) (parse_and_prob prog2);
+  assert_feq 0. (parse_and_prob prog1) 
+
+let test_unif_3 _ = 
+  let prog1 = "let u = uniform(3, 3, 4) in u == int(3, 3)" in
+  let prog2 = "let d = discrete(0., 0., 0., 1., 0.) in d == int(3, 3)" in
+  assert_feq (parse_and_prob prog1) (parse_and_prob prog2);
+  assert_feq 1. (parse_and_prob prog1)
+
+let test_unif_4 _ = 
+  let prog = "
+    let u = uniform(2, 1, 4) in
+    let d = discrete(0., 0.5, 0.25, 0.25) in
+    u == d && u < int(2, 3)" in
+  assert_feq 0.25 (parse_and_prob prog)
+  
+
+
 let test_fcall1 _ =
   let prog = "
     fun foo(test: bool) {
@@ -708,6 +736,11 @@ let expression_tests =
   "test_rightshift_3">::test_rightshift_3;
   "test_rightshift_4">::test_rightshift_4;
   "test_rightshift_5">::test_rightshift_5;
+
+  "test_unif_1">::test_unif_1;
+  "test_unif_2">::test_unif_2;
+  "test_unif_3">::test_unif_3;
+  "test_unif_4">::test_unif_4;
 
   "test_fcall1">::test_fcall1;
   "test_fcall2">::test_fcall2;

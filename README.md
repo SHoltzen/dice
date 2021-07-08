@@ -139,7 +139,7 @@ Breaking this program down:
 * `int(2, 1)` creates a 2-bit integer constant with value 1. All integer
   constants in `dice` must specify their size.
 * `x + y` adds `x` and `y` together. All integer operations in `dice` are
-  performed modulo the size (i.e., `x + y` is implicitly modulo 3 in this
+  performed modulo the size (i.e., `x + y` is implicitly modulo 4 in this
   case). `dice` supports the following integer operations: `+`, `*`, `/`, `-`, 
   `==`, `!=`, `<`, `<=`, `>`, `>=`.
 
@@ -148,10 +148,15 @@ Running this program:
 ```
 > dice resources/int-ex.dice
 Value	Probability
-0	0.500000
-1	0.400000
-2	0.100000
+0 0.
+1	0.4
+2	0.1
+3	0.5
 ```
+
+The uniform distribution over integers has its own syntax. For instance,
+* `uniform(3, 2, 6)` creates a random integer of size 3 that is 2, 3, 4, 5 each with
+  probability 0.25. 
 
 ### Lists
 
@@ -311,6 +316,7 @@ expr :=
    | false
    | int (size, value)
    | discrete(list_of_probabilities) 
+   | uniform(size, start, stop)
    | expr <binop> expr
    | (expr, expr)
    | fst expr

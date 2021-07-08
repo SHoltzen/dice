@@ -1,0 +1,2 @@
+let u = uniform(5, 10, 20) in
+u < int(5, 15)
