@@ -148,14 +148,14 @@ Running this program:
 ```
 > dice resources/int-ex.dice
 Value	Probability
-0 0.
+0	0.
 1	0.4
 2	0.1
 3	0.5
 ```
 
 The uniform distribution over integers has its own syntax. For instance,
-* `uniform(3, 2, 6)` creates a random integer of size 3 that is 2, 3, 4, 5 each with
+* `uniform(3, 2, 6)` creates a random integer of size 3 that is 2, 3, 4, 5, each with
   probability 0.25. 
 
 ### Lists

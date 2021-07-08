@@ -63,7 +63,7 @@ rule token =
     | "snd"                     { SND }
     | "in"                      { IN }
     | "iterate"                 { ITERATE }
-	| "uniform" 				{ UNIFORM }
+    | "uniform"                 { UNIFORM }
     | "observe"                 { OBSERVE }
     | "flip"                    { FLIP }
     | "fun"                     { FUN }
