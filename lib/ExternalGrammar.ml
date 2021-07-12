@@ -63,6 +63,7 @@ type eexpr =
   | Tup of source * eexpr * eexpr
   | FuncCall of source * String.t * eexpr List.t
   | Iter of source * String.t * eexpr * int
+  | Unif of source * int * int * int 
   | True of source
   | False of source
   | ListLit of source * eexpr List.t
@@ -115,6 +116,7 @@ let get_src e =
   | Fst(s, _) -> s
   | Tup(s, _, _) -> s
   | Iter(s, _, _, _) -> s
+  | Unif(s, _, _, _) -> s
   | FuncCall(s, _, _) -> s
   | LeftShift(s, _, _) -> s
   | RightShift(s, _, _) -> s

@@ -1,0 +1,13 @@
+fun sendChar(key: int(2), observation: int(2)) {
+  let gen = discrete(0.5, 0.25, 0.125, 0.125) in    // sample a FooLang character
+  let enc = key + gen in                            // encrypt the character
+  observe observation == enc
+}
+// sample a uniform random key: A=0, B=1, C=2, D=3
+let key = uniform(2, 0, 4) in
+// observe the ciphertext CCCC
+let tmp = sendChar(key, int(2, 2)) in
+let tmp = sendChar(key, int(2, 2)) in
+let tmp = sendChar(key, int(2, 2)) in
+let tmp = sendChar(key, int(2, 2)) in
+key
