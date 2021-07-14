@@ -5,6 +5,6 @@
 (ocamllex lexer)
 
 (library
- (libraries core cudd sexplib menhirLib ounit2)
+ (libraries core cudd sexplib menhirLib ounit2 ctypes ctypes.foreign)
  (name diceLib)
  (preprocess (pps ppx_jane)))

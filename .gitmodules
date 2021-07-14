@@ -1,0 +1,3 @@
+[submodule "rsdd"]
+	path = rsdd
+	url = https://github.com/SHoltzen/rsdd
