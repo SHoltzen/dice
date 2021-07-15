@@ -1,4 +1,3 @@
-open Cudd
 open Core
 
 (** A simple generic btree datastructure. *)
@@ -15,13 +14,13 @@ val zip_tree : 'a btree -> 'b btree -> ('a * 'b) btree
 val extract_leaf : 'a btree -> 'a
 
 (** [get_table] gets a list of all possible instantiations of BDDs in [st]. *)
-val get_table: Passes.config -> Bdd.dt btree ->
+val get_table: Passes.config -> Bdd.manager -> Bdd.bddptr btree ->
   ExternalGrammar.typ ->
-  (([> `False | `Int of int | `True | `Tup of 'a * 'a | `List of 'a list ] as 'a) *  Cudd.Man.d Cudd.Bdd.t) list
+  (([> `False | `Int of int | `True | `Tup of 'a * 'a | `List of 'a list ] as 'a) *  Bdd.bddptr) list
 
 (** [state_size] computes the total number of unique nodes in the list of
     varstates [states] *)
-val state_size: Bdd.dt btree Core.List.t -> int
+val state_size: Bdd.bddptr btree Core.List.t -> int
 
 (** [subst_state] : x -> state -> f -> bdd, substitutes the variable x for the state `state` in f *)
-val subst_state : Bdd.dt btree -> Bdd.dt btree -> Bdd.dt btree -> Bdd.dt btree
+val subst_state : Bdd.manager -> Bdd.bddptr btree -> Bdd.bddptr btree -> Bdd.bddptr btree -> Bdd.bddptr btree

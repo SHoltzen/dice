@@ -64,7 +64,7 @@ let bench_caesar inline_functions =
                 |> Passes.from_external_prog
                 |> snd
                 |> Compiler.compile_program ~eager_eval:true in
-      let sz = Cudd.Bdd.size res.body.z in
+      let sz = 0 in
       let t1 = Unix.gettimeofday () in
       let numpaths = Passes.num_paths caesar in
       print_endline (Format.sprintf "%d\t%f\t%s\t%d" len ((t1 -. t0) *. 1000.0)
@@ -103,7 +103,8 @@ let bench_caesar_error inline_functions =
                 |> Passes.from_external_prog
                 |> snd
                 |> Compiler.compile_program ~eager_eval:true in
-      let sz = Cudd.Bdd.size res.body.z in
+      (* let sz = Cudd.Bdd.size res.body.z in *)
+      let sz = 0 in
       let t1 = Unix.gettimeofday () in
       let numpaths = Passes.num_paths caesar in
       print_endline (Format.sprintf "%d\t%f\t%s\t%d" len ((t1 -. t0) *. 1000.0)
