@@ -84,11 +84,11 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     let compiled = Compiler.compile_program internal ~eager_eval in
     let zbdd = compiled.body.z in
     let res = if skip_table then res else res @
-       (let z = Wmc.wmc zbdd compiled.ctx.weights in
+       (let z = Wmc.wmc compiled.ctx.man zbdd compiled.ctx.weights in
        let table = VarState.get_table cfg compiled.ctx.man compiled.body.state t in
        let probs = List.map table ~f:(fun (label, bdd) ->
            if Util.within_epsilon z 0.0 then (label, 0.0) else
-             let prob = (Wmc.wmc (Bdd.bdd_and compiled.ctx.man bdd zbdd) compiled.ctx.weights) /. z in
+             let prob = (Wmc.wmc compiled.ctx.man (Bdd.bdd_and compiled.ctx.man bdd zbdd) compiled.ctx.weights) /. z in
              (label, prob)) in
        let l = [["Value"; "Probability"]] @
          List.map probs ~f:(fun (typ, prob) -> [print_pretty typ; string_of_float prob]) in
@@ -112,15 +112,15 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
      *     res @ all_bdds else res in *)
     let res = if print_size then
         res @ [StringRes("Final compiled BDD size",
-                         string_of_int (VarState.state_size [compiled.body.state; VarState.Leaf(compiled.body.z)]))]
+                         string_of_int (VarState.state_size compiled.ctx.man [compiled.body.state; VarState.Leaf(compiled.body.z)]))] 
       else res in
-    (* let res = if print_state_bdd then
-     *     res @ [StringRes("State BDD (graphviz format)",
-     *                      BddUtil.dump_dot_multiroot compiled.ctx.name_map compiled.body.state);
-     *            StringRes("State accepting BDD (graphviz format)",
-     *                     BddUtil.dump_dot_multiroot compiled.ctx.name_map (VarState.Leaf(compiled.body.z)))
-     *           ]
-     *   else res in *)
+    let res = if print_state_bdd then
+        res @ [StringRes("State BDD (graphviz format)",
+                         BddUtil.dump_dot_multiroot compiled.ctx.man compiled.ctx.name_map compiled.body.state);
+               StringRes("State accepting BDD (graphviz format)",
+                        BddUtil.dump_dot_multiroot compiled.ctx.man compiled.ctx.name_map (VarState.Leaf(compiled.body.z)))
+              ]
+      else res in
     res
   (* | Some(n) ->
    *   let sz = ref 0 in

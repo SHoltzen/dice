@@ -99,27 +99,25 @@ let rec collect_leaves t =
 
 (** [state_size] computes the total number of unique nodes in the list of
     varstates [states] *)
-let state_size (states : bddptr btree List.t) =
-  failwith ""
-  (* let seen = Hash_set.Poly.create () in
-   * let rec helper (bdd : bddptr) =
-   *   match Hash_set.Poly.mem seen bdd with
-   *   | true -> 0
-   *   | false ->
-   *     Hash_set.Poly.add seen bdd;
-   *     (match Bdd.inspect bdd with
-   *      | Bool(_) -> 1
-   *      | Ite(_, l, r) -> 1 + (helper l) + (helper r)) in
-   * List.fold states ~init:0 ~f:(fun acc i ->
-   *     let leaves = collect_leaves i in
-   *     List.fold leaves ~init:acc ~f:(fun acc bdd -> acc + (helper bdd)) ) *)
+let state_size mgr (states : bddptr btree List.t) =
+  let seen = Hash_set.Poly.create () in
+  let rec helper (bdd : bddptr) =
+    match Hash_set.Poly.mem seen bdd with
+    | true -> 0
+    | false ->
+      Hash_set.Poly.add seen bdd;
+      if Bdd.bdd_is_const mgr bdd then 1 else
+        1 + (helper (Bdd.bdd_low mgr bdd)) + (helper (Bdd.bdd_high mgr bdd)) in
+  List.fold states ~init:0 ~f:(fun acc i ->
+      let leaves = collect_leaves i in
+      List.fold leaves ~init:acc ~f:(fun acc bdd -> acc + (helper bdd)) )
 
 (** substitute the variable x for the state `state` in f *)
 let subst_state mgr (x: bddptr btree) (state: bddptr btree) (f: bddptr btree) =
   let newsubst = List.zip_exn (collect_leaves x) (collect_leaves state) in
   List.fold ~init:f newsubst ~f:(fun acc (tmp, e1c) ->
       map_tree acc (fun bdd ->
-          Bdd.bdd_compose mgr e1c (Bdd.bdd_topvar mgr tmp) bdd
+          Bdd.bdd_compose mgr  bdd (Bdd.bdd_topvar mgr tmp) e1c
         )
     )
 

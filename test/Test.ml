@@ -9,7 +9,7 @@ let test_1 _ =
   let prog = "let x = flip 0.4 in x" in
   assert_feq 0.4 (parse_and_prob prog);
   assert_feq 0.4 (parse_optimize_and_prob prog)
-  
+
 let test_not test_ctx =
   let prog = "let x = flip 0.4 in !x" in
   assert_feq 0.6 (parse_and_prob prog);
@@ -653,9 +653,9 @@ let test_list_ex _ =
 
 let test_bdd _ =
   let mgr = Bdd.mk_bdd_manager_default_order 100 in
-  let v1 = Bdd.bdd_newvar mgr in
-  let v2 = Bdd.bdd_newvar mgr in
-  let v3 = Bdd.bdd_newvar mgr in
+  let v1 = Bdd.bdd_newvar mgr true in
+  let v2 = Bdd.bdd_newvar mgr true in
+  let v3 = Bdd.bdd_newvar mgr true in
   let and2 = Bdd.bdd_and mgr v1 v2 in
   let and3 = Bdd.bdd_and mgr (Bdd.bdd_and mgr v1 v2) v3 in
   let and3q = Bdd.bdd_exists mgr and3 (Bdd.bdd_topvar mgr v3) in

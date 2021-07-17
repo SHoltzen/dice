@@ -48,14 +48,14 @@ let new_context ~eager_eval () =
 let rec gen_sym_type ctx (t:typ) : bddptr btree =
   match t with
   | TBool ->
-    let bdd = bdd_newvar ctx in Leaf(bdd)
+    let bdd = bdd_newvar ctx true in Leaf(bdd)
   | TTuple(t1, t2) ->
     let s1 = gen_sym_type ctx t1 and s2 = gen_sym_type ctx t2 in
     Node(s1, s2)
 
 let rec is_const mgr (st: bddptr btree) =
   match st with
-  | Leaf(v) -> not (bdd_is_var mgr v)
+  | Leaf(v) -> Bdd.bdd_is_const mgr v
   | Node(l, r) -> (is_const mgr l) && (is_const mgr r)
 
 let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled_expr =
@@ -122,12 +122,12 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     {state=v'; z=c.z; flips=c.flips}
 
   | Flip(f) ->
-    let new_f = Bdd.bdd_newvar ctx.man in
+    let new_f = Bdd.bdd_newvar ctx.man true in
     let var_lbl = Bdd.bdd_topvar ctx.man new_f in
     let var_name = (Format.sprintf "f%d_%f" !flip_id f) in
     Hashtbl.add_exn ctx.name_map ~key:var_lbl ~data:var_name;
     flip_id := !flip_id + 1;
-    (* Hashtbl.Poly.add_exn ctx.weights ~key:var_lbl ~data:(1.0-.f, f); *)
+    Hashtbl.Poly.add_exn ctx.weights ~key:var_lbl ~data:(1.0-.f, f);
     {state=Leaf(new_f); z=Bdd.bdd_true ctx.man; flips=[new_f]}
 
   | Observe(g) ->
@@ -188,10 +188,10 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
    *       let var_name = (Format.sprintf "%s_%d" cur_name !flip_id) in
    *       flip_id := !flip_id + 1;
    * 
-   *       let newv = Bdd.bdd_newvar ctx.man in
+   *       let newv = Bdd.bdd_newvar ctx.man true in
    *       let lvl = Bdd.bdd_topvar ctx.man newv in
    *       Hashtbl.add_exn ctx.name_map ~key:lvl ~data:var_name;
-   *       (match Hashtbl.Poly.find ctx.weights (Bdd.bddd_topvar ctx.man f) with
+   *       (match Hashtbl.Poly.find ctx.weights (Bdd.bdd_topvar ctx.man f) with
    *        | Some(v) -> Hashtbl.Poly.add_exn ctx.weights ~key:lvl ~data:v
    *        | None -> ());
    *       newv) in
@@ -248,11 +248,11 @@ let compile_program (p:program) ~eager_eval : compiled_program =
 
 
 let get_prob p =
-  failwith "not implemented"
-  (* let c = compile_program ~eager_eval:false p in
-   * let z = Wmc.wmc c.body.z c.ctx.weights in
-   * let prob = Wmc.wmc (Bdd.dand (extract_leaf c.body.state) c.body.z) c.ctx.weights in
-   * prob /. z *)
+  let c = compile_program ~eager_eval:false p in
+  let z = Wmc.wmc c.ctx.man c.body.z c.ctx.weights in
+  let prob = Wmc.wmc c.ctx.man (Bdd.bdd_and c.ctx.man (extract_leaf c.body.state) c.body.z) c.ctx.weights in
+  (* Format.printf "prob: %f, z: %f" prob z; *)
+  prob /. z
 
 
 module I = Parser.MenhirInterpreter

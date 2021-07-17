@@ -20,7 +20,7 @@ val get_table: Passes.config -> Bdd.manager -> Bdd.bddptr btree ->
 
 (** [state_size] computes the total number of unique nodes in the list of
     varstates [states] *)
-val state_size: Bdd.bddptr btree Core.List.t -> int
+val state_size: Bdd.manager -> Bdd.bddptr btree Core.List.t -> int
 
 (** [subst_state] : x -> state -> f -> bdd, substitutes the variable x for the state `state` in f *)
 val subst_state : Bdd.manager -> Bdd.bddptr btree -> Bdd.bddptr btree -> Bdd.bddptr btree -> Bdd.bddptr btree

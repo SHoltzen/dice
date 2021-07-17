@@ -3,7 +3,7 @@ type bddptr
 type label
 
 val mk_bdd_manager_default_order : int -> manager
-val bdd_newvar : manager -> bddptr
+val bdd_newvar : manager -> bool -> bddptr
 val bdd_and : manager -> bddptr -> bddptr -> bddptr
 val bdd_ite : manager -> bddptr -> bddptr -> bddptr -> bddptr
 val bdd_or : manager -> bddptr -> bddptr -> bddptr
@@ -22,3 +22,6 @@ val bdd_topvar : manager -> bddptr -> label
 val bdd_is_var : manager -> bddptr -> bool
 val bdd_is_const : manager -> bddptr -> bool
 val bdd_eq : manager -> bddptr -> bddptr -> bool
+val bdd_low : manager -> bddptr -> bddptr
+val bdd_high : manager -> bddptr -> bddptr
+val int_of_label : label -> int
