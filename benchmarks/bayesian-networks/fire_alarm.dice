@@ -1,0 +1,7 @@
+let var_0 = flip 0.010000 in
+let var_3 = if (var_0) then (flip 0.900000) else (flip 0.010000) in
+let var_1 = flip 0.020000 in
+let var_2 = if (var_0) then (if (var_1) then (flip 0.500000) else (flip 0.990000)) else (if (var_1) then (flip 0.850000) else (flip 0.000100)) in
+let var_4 = if (var_2) then (flip 0.880000) else (flip 0.001000) in
+let var_5 = if (var_4) then (flip 0.750000) else (flip 0.010000) in
+(var_5,(var_4,(var_2,(var_1,(var_3,var_0)))))
