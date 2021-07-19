@@ -605,11 +605,11 @@ let gen_discrete_sbk (l: float List.t) (priority: (float * int) List.t option) =
       sift_priority idxProb p [] 
   in
   let probs_length = List.length sorted_probs in
-  let probs, _ = List.foldi sorted_probs ~init: ([], 0.0) ~f:(fun idx (probs, total) (idx, p) -> 
+  let probs, _ = List.foldi sorted_probs ~init: ([], 0.0) ~f:(fun idx (probs, total) (i, p) -> 
     if idx = probs_length then
-      ((idx, fresh(), 1.0)::probs, total +. p)
+      ((i, fresh(), 1.0)::probs, total +. p)
     else
-      ((idx, fresh(), p /. (1. -. total))::probs, total +. p))
+      ((i, fresh(), p /. (1. -. total))::probs, total +. p))
   in
   let (inner_idx, inner_ident, inner_prob) = 
     match List.hd probs with
@@ -1135,7 +1135,10 @@ let from_external_expr_h_sbk (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
     | Not(_, e) -> Not(from_external_expr_h_sbk_e ctx cfg ann prob e)
     | Flip(_, f) -> Flip(f)
     | Ident(_, s) -> Ident(s)
-    | Discrete(_, l) -> gen_discrete_sbk l prob
+    | Discrete(_, l) -> 
+      (match prob with
+      | None -> gen_discrete ctx l
+      | Some(_) -> gen_discrete_sbk l prob)
     | Int(_, sz, v) ->
       let bits = int_to_bin sz v
                 |> List.map ~f:(fun i -> if i = 1 then CG.True else CG.False) in
