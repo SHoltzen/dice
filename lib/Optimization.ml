@@ -57,6 +57,14 @@ let rec replace l x new_x new_l =
   | head::tail -> if head = x then (List.rev_append new_l (new_x::tail)), true else 
     replace tail x new_x (head::new_l)
 
+let round_float x =
+  let d = 6 in
+  let m = 10. ** (float d) in                       (* m moves 10^-d to 1. *)
+  (Float.floor ((x *. m) +. 0.5)) /. m
+
+let equal f1 f2 = 
+  Float.equal (round_float f1) (round_float f2)
+
 (* Collect flips that need to be replaced *)
 let rec up_pass (e: CG.expr) : float list * tree  =
   let rec find_shared (l1: float list) (l2: float list) (flips: float list) (shared: float list)
@@ -64,7 +72,7 @@ let rec up_pass (e: CG.expr) : float list * tree  =
     match l1 with
     | [] -> (List.rev_append flips l2), (List.rev_append shared [])
     | head::tail ->
-      let new_l2, did_remove = remove_one l2 (fun x -> x = head) [] in
+      let new_l2, did_remove = remove_one l2 (equal head) [] in
       if did_remove then
         find_shared tail new_l2 (head::flips) (head::shared)
       else
@@ -89,7 +97,11 @@ let rec up_pass (e: CG.expr) : float list * tree  =
     let e2_flips, _ = up_pass e2 in
     let flips = e1_flips@e2_flips in
     flips, Leaf
-  | Snd(e1) | Fst(e1) | Not(e1) | Observe(e1) -> up_pass e1
+  | Not(e1) -> 
+    (match e1 with
+    | Flip(f) -> [1.0 -. f], Leaf
+    | _ -> up_pass e1)
+  | Snd(e1) | Fst(e1) | Observe(e1) -> up_pass e1
   | Ident(_) | _ -> [], Leaf
 
   (* Replace the flips with corresponding variables *)
@@ -98,7 +110,7 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
     match flip_to_var with
     | [] -> None, (List.rev_append flip_to_var [])
     | (used, new_flip, f, var, s)::tail -> 
-      if not used && f = flip then
+      if not used && (equal f flip) then
         Some(var), (List.rev_append flip_to_var_head ((true, new_flip, f, var, s)::tail))
       else
         get_var ((used, new_flip, f, var, s)::flip_to_var_head) tail flip
@@ -109,7 +121,7 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
       match flip_to_var with
       | [] -> false
       | (used, _, f, _, _)::tail ->
-        if not used && f = flip then
+        if not used && (equal f flip) then
           true
         else
           need_to_lift_e tail flip
@@ -130,7 +142,7 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
       match flip_to_var with
       | [] -> false, []
       | (used, new_flip, f, var, s)::tail -> 
-        if f = flip then
+        if (equal f flip) then
           true, (List.rev_append flip_to_var_head tail)
         else
           check_if_exist ((used, new_flip, f, var, s)::flip_to_var_head) tail flip
@@ -479,8 +491,15 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
       let e1', flip_to_var', replaced_vars' = replace_expr_flips flip_to_var e1 replaced_vars in
       Fst(e1'), flip_to_var', replaced_vars'
     | Not(e1) -> 
-      let e1', flip_to_var', replaced_vars' = replace_expr_flips flip_to_var e1 replaced_vars in
-      Not(e1'), flip_to_var', replaced_vars'
+      (match e1 with
+      | Flip(f) -> 
+        let var, flip_to_var' = get_var [] flip_to_var (1.0 -. f) in 
+        (match var with
+        | None -> e, flip_to_var, replaced_vars
+        | Some(v) -> Ident(v), flip_to_var', (v::replaced_vars))
+      | _ -> 
+        let e1', flip_to_var', replaced_vars' = replace_expr_flips flip_to_var e1 replaced_vars in
+        Not(e1'), flip_to_var', replaced_vars')
     | Observe(e1) -> 
       let e1', flip_to_var', replaced_vars' = replace_expr_flips flip_to_var e1 replaced_vars in
       Observe(e1'), flip_to_var', replaced_vars'
@@ -714,8 +733,15 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
       let e1', flip_to_var', var_to_expr' = down_pass_e e1 flip_to_var var_to_expr t in
       Fst(e1'), flip_to_var', var_to_expr'
     | Not(e1) ->
-      let e1', flip_to_var', var_to_expr' = down_pass_e e1 flip_to_var var_to_expr t in
-      Not(e1'), flip_to_var', var_to_expr'
+      (match e1 with
+      | Flip(f) -> 
+        let var, flip_to_var' = get_var [] flip_to_var (1.0 -. f) in 
+        (match var with
+        | None -> e, flip_to_var, var_to_expr
+        | Some(v) -> Ident(v), flip_to_var', var_to_expr)
+      | _ -> 
+        let e1', flip_to_var', var_to_expr' = down_pass_e e1 flip_to_var var_to_expr t in
+        Not(e1'), flip_to_var', var_to_expr')
     | Observe(e1) ->
       let e1', flip_to_var', var_to_expr' = down_pass_e e1 flip_to_var var_to_expr t in
       Observe(e1'), flip_to_var', var_to_expr'
