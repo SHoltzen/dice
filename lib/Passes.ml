@@ -53,6 +53,7 @@ let map_eexpr f =
   | Tup(s, e1, e2) -> Tup(s, f e1, f e2)
   | FuncCall(s, fn, es) -> FuncCall(s, fn, List.map es ~f)
   | Iter(s, fn, e, n) -> Iter(s, fn, f e, n)
+  | Unif(s, sz, b, e) -> Unif(s, sz, b, e) 
   | True s -> True s
   | False s -> False s
   | ListLit(s, es) -> ListLit(s, List.map es ~f)
@@ -157,6 +158,7 @@ let num_paths (p: EG.program) : LogProbability.t =
     | Ident(_,_) | Int(_,_, _) | True(_) | False(_) | ListLitEmpty(_, _) ->
       LogProbability.make 1.0
     | Discrete(_,l) -> LogProbability.make (float_of_int (List.length l))
+    | Unif(_, _, b, e) -> LogProbability.make (float_of_int (e-b))
     | Observe(_,e) -> helper e
     | Ite(_,g, thn, els) ->
       let gc = helper g in
@@ -262,6 +264,7 @@ type ast =
   | Tup of source * tast * tast
   | FuncCall of source * String.t * tast List.t
   | Iter of source * String.t * tast * int
+  | Unif of source * int * int * int
   | True of source
   | False of source
   | ListLit of source * tast List.t
@@ -459,6 +462,11 @@ let rec type_of (cfg: config) (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast
     let init' = type_of cfg ctx env init in
     (* TODO check arg validity*)
     (tres, Iter(s, id, init', k))
+  | Unif (s, sz, b, e) -> 
+    if e > 1 lsl sz then
+      (raise (Type_error (Format.sprintf "Type error at line %d column %d: integer constant out of range"
+                           s.startpos.pos_lnum (get_col s.startpos)))) 
+    else (TInt(sz), Unif(s, sz, b, e))
   | ListLit(s, es) ->
     let len = List.length es in
     if len > cfg.max_list_length then
@@ -833,6 +841,28 @@ let rec from_external_expr_h (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
   | Flip(_, f) -> Flip(f)
   | Ident(_, s) -> Ident(s)
   | Discrete(_, l) -> gen_discrete ctx l
+  | Unif(s, sz, b, e) -> 
+	  assert(b >= 0);
+	  assert(e > b);
+	  if b > 0 then from_external_expr_h ctx cfg (TInt(sz), Plus(s, (TInt(sz), Int(s, sz, b)), (TInt(sz), Unif(s, sz, 0, e-b)))) else
+	  let rec make_flip_list bit_count length = 
+		  if length = 0 then []
+		  else if length > bit_count then CG.False :: (make_flip_list bit_count (length-1))
+		  else CG.Flip(0.5) :: (make_flip_list bit_count (length-1)) in
+	  let make_simple_unif bit_count length = 
+		  mk_dfs_tuple (make_flip_list bit_count length) in 
+	  let is_power_of_two num = 
+	  	(num land (num-1) = 0) in (* no zero check *) 
+	  if is_power_of_two e then
+		  let num_size = num_binary_digits e-1 in
+		  make_simple_unif num_size sz
+	  else
+		  let power_lt_float = 2.0 ** (float_of_int((num_binary_digits e) - 1)) in
+		  let power_lt_int = int_of_float power_lt_float in 
+		  from_external_expr_h ctx cfg 
+			  (TInt(sz), Ite(s, 	(TBool, Flip(s, power_lt_float /. (float_of_int e))), 
+								  (TInt(sz), Unif(s, sz, 0, power_lt_int)), 
+								  (TInt(sz), Unif(s, sz, power_lt_int, e))))
   | Int(_, sz, v) ->
     let bits = int_to_bin sz v
                |> List.map ~f:(fun i -> if i = 1 then CG.True else CG.False) in

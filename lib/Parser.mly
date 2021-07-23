@@ -10,7 +10,7 @@
 %token LPAREN RPAREN
 %token IF THEN ELSE TRUE FALSE IN INT
 %token SEMICOLON COMMA COLON
-%token LET OBSERVE FLIP LBRACE RBRACE FST SND FUN BOOL ITERATE
+%token LET OBSERVE FLIP LBRACE RBRACE FST SND FUN BOOL ITERATE UNIFORM
 %token LIST LBRACKET RBRACKET CONS HEAD TAIL LENGTH
 
 %token <int>    INT_LIT
@@ -78,6 +78,7 @@ expr:
     | HEAD expr { Head({startpos=$startpos; endpos=$endpos}, $2) }
     | TAIL expr { Tail({startpos=$startpos; endpos=$endpos}, $2) }
     | LENGTH expr { Length({startpos=$startpos; endpos=$endpos}, $2) }
+    | UNIFORM LPAREN sz=INT_LIT COMMA b=INT_LIT COMMA e=INT_LIT RPAREN { Unif ({startpos=$startpos; endpos=$endpos}, sz, b, e)}
 
 typ:
     | BOOL { TBool }
