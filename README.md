@@ -155,7 +155,7 @@ Value	Probability
 ```
 
 The uniform distribution over integers has its own syntax. For instance,
-* `uniform(3, 2, 6)` creates a random integer of size 3 that is 2, 3, 4, 5, each with
+* `uniform(3, 2, 6)` creates a random 3-bit integer that is 2, 3, 4, 5, each with
   probability 0.25. 
 
 ### Lists

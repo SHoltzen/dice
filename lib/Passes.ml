@@ -54,6 +54,7 @@ let map_eexpr f =
   | FuncCall(s, fn, es) -> FuncCall(s, fn, List.map es ~f)
   | Iter(s, fn, e, n) -> Iter(s, fn, f e, n)
   | Unif(s, sz, b, e) -> Unif(s, sz, b, e) 
+  | Binom(s, sz, n, p) -> Binom(s, sz, n, p)
   | True s -> True s
   | False s -> False s
   | ListLit(s, es) -> ListLit(s, List.map es ~f)
@@ -159,6 +160,7 @@ let num_paths (p: EG.program) : LogProbability.t =
       LogProbability.make 1.0
     | Discrete(_,l) -> LogProbability.make (float_of_int (List.length l))
     | Unif(_, _, b, e) -> LogProbability.make (float_of_int (e-b))
+    | Binom(_, _, n, p) -> LogProbability.make (float_of_int (n+1))
     | Observe(_,e) -> helper e
     | Ite(_,g, thn, els) ->
       let gc = helper g in
@@ -265,6 +267,7 @@ type ast =
   | FuncCall of source * String.t * tast List.t
   | Iter of source * String.t * tast * int
   | Unif of source * int * int * int
+  | Binom of source * int * int * float
   | True of source
   | False of source
   | ListLit of source * tast List.t
@@ -467,6 +470,8 @@ let rec type_of (cfg: config) (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast
       (raise (Type_error (Format.sprintf "Type error at line %d column %d: integer constant out of range"
                            s.startpos.pos_lnum (get_col s.startpos)))) 
     else (TInt(sz), Unif(s, sz, b, e))
+  | Binom (s, sz, n, p) -> 
+    (TInt(sz), Binom(s, sz, n, p))
   | ListLit(s, es) ->
     let len = List.length es in
     if len > cfg.max_list_length then
@@ -793,6 +798,21 @@ let rec from_external_expr_h (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
 			  (TInt(sz), Ite(s, 	(TBool, Flip(s, power_lt_float /. (float_of_int e))), 
 								  (TInt(sz), Unif(s, sz, 0, power_lt_int)), 
 								  (TInt(sz), Unif(s, sz, power_lt_int, e))))
+  | Binom(s, sz, n, p) -> 
+    let t = EG.TInt(sz) in
+    let intone = (t, Int(s, sz, 1)) in
+    let intzero = (t, Int(s, sz, 0)) in
+    let ident = (t, Ident(s, "$binomexp")) in
+    let flip = (EG.TBool, Flip(s, p)) in
+    let rec make_binom_let k = 
+      if k = 0 then ident
+      else 
+        (t, Let(s, "$binomexp", (t, Ite(s, flip,   
+          (t, Plus(s, intone, ident)), 
+          ident)), make_binom_let(k-1))) in
+    from_external_expr_h ctx cfg 
+      (t, Let(s, "$binomexp", (t, Ite(s, flip, intone, intzero)), make_binom_let(n-1)))
+    
   | Int(_, sz, v) ->
     let bits = int_to_bin sz v
                |> List.map ~f:(fun i -> if i = 1 then CG.True else CG.False) in
