@@ -249,7 +249,7 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
         true, is_lifted, ((used,new_flip,f,var,s)::tail')
       else if List.mem x s then
         true, false, flip_to_var
-      else if List.mem f flips_to_check then
+      else if List.exists (fun flip -> equal f flip) flips_to_check then
         true, true, ((used, new_flip, f, var, ((x::squeezed_s)@s))::tail)
       else
         false, false, flip_to_var
@@ -381,7 +381,7 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
 
           concatenate_squeezed_exprs_e flip_to_var_entry flip_to_var_thn_tail ((used, new_flip, f, var, s_replaced)::flip_to_var_els_head) tail var_to_expr' inner'
         else
-          if var = var' && f = f' then
+          if var = var' && (equal f f') then
             ((used || used'), (new_flip && new_flip'), f', var', (merge_s s' s [])), (List.rev_append flip_to_var_els_head tail), var_to_expr, inner
           else
             concatenate_squeezed_exprs_e flip_to_var_entry flip_to_var_thn_tail ((used, new_flip, f, var, s)::flip_to_var_els_head) tail var_to_expr inner

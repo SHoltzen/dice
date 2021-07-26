@@ -588,7 +588,12 @@ let gen_discrete_sbk (l: float List.t) (priority: (float * int) List.t option) =
         | None, None -> 0
         | None, _ -> -1
         | _, None -> 1
-        | Some(c_1), Some(c_2) -> Poly.descending c_1 c_2
+        | Some(c_1), Some(c_2) -> 
+          let diff = Poly.descending c_1 c_2 in
+          if diff = 0 then
+            Poly.descending p1 p2
+          else
+            diff
       in
       order)
   in
@@ -633,8 +638,8 @@ let gen_discrete_sbk (l: float List.t) (priority: (float * int) List.t option) =
       Ite(Ident(x), (get_tuples i), acc))
   in
   let final_expr = Let(final_ident, final_body, Ident(final_ident)) in
-  let e = List.foldi probs ~init: final_expr ~f: (fun idx acc (i, x, p) ->
-    if idx = 0 then
+  let e = List.foldi (List.rev_append probs []) ~init: final_expr ~f: (fun idx acc (i, x, p) ->
+    if idx = max then
       acc
     else
       Let(x, Flip(p), acc))
