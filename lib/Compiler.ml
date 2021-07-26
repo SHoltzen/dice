@@ -177,41 +177,40 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
    *   let _, r = sequential_sample (Bdd.dtrue ctx.man) sube.state in
    *   {state=r; z=Bdd.dtrue ctx.man; flips=[]} *)
 
-  (* | FuncCall(name, args) ->
-   *   let func = try Hashtbl.Poly.find_exn ctx.funcs name
-   *     with _ -> failwith (Format.sprintf "Could not find function '%s'." name) in
-   * 
-   *   let cargs = List.map args ~f:(compile_expr ctx tenv env) in
-   *   (\* first refresh all the flips... *\)
-   *   let new_flips = List.map func.body.flips ~f:(fun f ->
-   *       let cur_name = Hashtbl.find_exn ctx.name_map (Bdd.bdd_topvar ctx.man f) in
-   *       let var_name = (Format.sprintf "%s_%d" cur_name !flip_id) in
-   *       flip_id := !flip_id + 1;
-   * 
-   *       let newv = Bdd.bdd_newvar ctx.man true in
-   *       let lvl = Bdd.bdd_topvar ctx.man newv in
-   *       Hashtbl.add_exn ctx.name_map ~key:lvl ~data:var_name;
-   *       (match Hashtbl.Poly.find ctx.weights (Bdd.bdd_topvar ctx.man f) with
-   *        | Some(v) -> Hashtbl.Poly.add_exn ctx.weights ~key:lvl ~data:v
-   *        | None -> ());
-   *       newv) in
-   *   let swapA = List.to_array (List.map new_flips ~f:(fun cur -> Bdd.topvar cur)) in
-   *   let swapB = List.to_array (List.map func.body.flips ~f:(fun cur -> Bdd.topvar cur)) in
-   *   let refreshed_state = map_tree func.body.state (fun bdd -> Bdd.swapvariables bdd swapA swapB) in
-   *   let refreshed_z = Bdd.swapvariables func.body.z swapA swapB in
-   * 
-   *   let argz = List.fold cargs ~init:(Bdd.dtrue ctx.man) ~f:(fun acc i -> Bdd.dand i.z acc) in
-   * 
-   *   (\* now substitute all the arguments in *\)
-   *   let argflips = List.fold cargs ~init:[] ~f:(fun acc i -> acc @ i.flips) in
-   *   let zippedargs = (List.zip_exn func.args cargs) in
-   *   let final_state = List.fold ~init:refreshed_state zippedargs ~f:(fun acc (x, c) ->
-   *       subst_state x c.state acc
-   *     ) in
-   *   let final_z = List.fold ~init:refreshed_z zippedargs ~f:(fun acc (x, c) ->
-   *       extract_leaf (subst_state x c.state (Leaf(acc)))
-   *     ) in
-   *   {state=final_state; z=Bdd.dand argz final_z; flips=new_flips @ argflips} *)
+  | FuncCall(name, args) ->
+    let func = try Hashtbl.Poly.find_exn ctx.funcs name
+      with _ -> failwith (Format.sprintf "Could not find function '%s'." name) in
+
+    let cargs = List.map args ~f:(compile_expr ctx tenv env) in
+    (* first refresh all the flips... *)
+    let new_flips = List.map func.body.flips ~f:(fun f ->
+        let cur_name = Hashtbl.find_exn ctx.name_map (Bdd.bdd_topvar ctx.man f) in
+        let var_name = (Format.sprintf "%s_%d" cur_name !flip_id) in
+        flip_id := !flip_id + 1;
+
+        let newv = Bdd.bdd_newvar ctx.man true in
+        let lvl = Bdd.bdd_topvar ctx.man newv in
+        Hashtbl.add_exn ctx.name_map ~key:lvl ~data:var_name;
+        (match Hashtbl.Poly.find ctx.weights (Bdd.bdd_topvar ctx.man f) with
+         | Some(v) -> Hashtbl.Poly.add_exn ctx.weights ~key:lvl ~data:v
+         | None -> ());
+        newv) in
+    let flip_labels = List.map func.body.flips ~f:(fun cur -> Bdd.bdd_topvar ctx.man cur) in
+    let refreshed_state = map_tree func.body.state (fun bdd -> Bdd.bdd_vector_compose ctx.man bdd flip_labels new_flips) in
+    let refreshed_z = Bdd.bdd_vector_compose ctx.man func.body.z flip_labels new_flips in
+
+    let argz = List.fold cargs ~init:(Bdd.bdd_true ctx.man) ~f:(fun acc i -> Bdd.bdd_and ctx.man i.z acc) in
+
+    (* now substitute all the arguments in *)
+    let argflips = List.fold cargs ~init:[] ~f:(fun acc i -> acc @ i.flips) in
+    let zippedargs = (List.zip_exn func.args cargs) in
+    let final_state = List.fold ~init:refreshed_state zippedargs ~f:(fun acc (x, c) ->
+        subst_state ctx.man x c.state acc
+      ) in
+    let final_z = List.fold ~init:refreshed_z zippedargs ~f:(fun acc (x, c) ->
+        extract_leaf (subst_state ctx.man x c.state (Leaf(acc)))
+      ) in
+    {state=final_state; z=Bdd.bdd_and ctx.man argz final_z; flips=new_flips @ argflips}
   in
  r
 

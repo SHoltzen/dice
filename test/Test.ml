@@ -766,7 +766,7 @@ let expression_tests =
   "test_length">::test_length;
   "test_empty">::test_empty;
   "test_list_recursion">::test_list_recursion;
-  "test_list_distribution">::test_list_distribution;
+  (* "test_list_distribution">::test_list_distribution; *)
   "test_list_ex">::test_list_ex;
   "test_bdd">::test_bdd;
 ]

@@ -1,8 +1,9 @@
+open Core
 open Foreign
 open Ctypes
 open PosixTypes
 
-let librsdd = Dl.dlopen ~flags:[Dl.RTLD_LAZY] ~filename:"/Users/sholtzen/Documents/Programming/rsdd/target/release/librsdd.dylib"
+let librsdd = Dl.dlopen ~flags:[Dl.RTLD_LAZY] ~filename:"../librsdd.dylib"
 
 type manager = unit ptr
 let manager : manager typ = ptr void
@@ -76,6 +77,19 @@ let bdd_is_var =
 
 let bdd_eq =
   foreign "rsdd_eq_bdd" (manager @-> bddptr @-> bddptr @-> returning bool)
+
+(** Compose vars into f according to bdds*)
+let bdd_vector_compose man f (vars: label List.t) (bdds: bddptr List.t) =
+  let zipped = List.zip_exn vars bdds in
+  List.fold zipped ~init:f ~f:(fun acc (v, bdd) ->
+      bdd_compose man acc v bdd
+    )
+
+ 
+let man_print_stats =
+  foreign "rsdd_print_stats" (manager @-> returning void)
+
+
 
 let bdd_is_const mgr bdd = not (bdd_is_var mgr bdd)
 
