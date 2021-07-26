@@ -1,9 +1,16 @@
+(* why is this here? For some reason, the static object file for rsdd is not
+   linked in and recognizable by Ctypes unless you reference an external symbol
+   *before* Ctypes is imported, so I reference a symbol here.
+
+   You do not want to know how long it took me to resolve this.
+*)
+(* original source: https://github.com/ocamllabs/ocaml-ctypes/issues/541*)
+external _force_link_ : unit -> unit = "rsdd_mk_bdd_manager_default_order"
+
 open Core
 open Foreign
 open Ctypes
 open PosixTypes
-
-let librsdd = Dl.dlopen ~flags:[Dl.RTLD_LAZY] ~filename:"../librsdd.dylib"
 
 type manager = unit ptr
 let manager : manager typ = ptr void
