@@ -285,6 +285,22 @@ let test_unif_4 _ =
   assert_feq 0.25 (parse_and_prob prog)
   
 
+let test_binom_1 _ = 
+  let prog = "let b = binomial(3, 4, 0.25) in b == int(3, 1)" in
+  assert_feq 0.421875 (parse_and_prob prog)
+
+let test_binom_2 _ = 
+  let prog = "let b = binomial(5, 29, 0.5) in b <= int(5, 14)" in 
+  assert_feq 0.5 (parse_and_prob prog)
+
+let test_binom_3 _ = 
+  let prog = "let b = binomial(3, 0, 0.5) in b == int(3, 0)" in
+  assert_feq 1. (parse_and_prob prog)
+
+let test_binom_4 _ = 
+  let prog = "let b = binomial(3, 1, 0.3) in b == int(3, 1)" in
+  assert_feq 0.3 (parse_and_prob prog)
+
 
 let test_fcall1 _ =
   let prog = "
@@ -741,6 +757,11 @@ let expression_tests =
   "test_unif_2">::test_unif_2;
   "test_unif_3">::test_unif_3;
   "test_unif_4">::test_unif_4;
+
+  "test_binom_1">::test_binom_1;
+  "test_binom_2">::test_binom_2;
+  "test_binom_3">::test_binom_3;
+  "test_binom_4">::test_binom_4;
 
   "test_fcall1">::test_fcall1;
   "test_fcall2">::test_fcall2;

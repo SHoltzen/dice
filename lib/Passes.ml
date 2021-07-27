@@ -471,7 +471,10 @@ let rec type_of (cfg: config) (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast
                            s.startpos.pos_lnum (get_col s.startpos)))) 
     else (TInt(sz), Unif(s, sz, b, e))
   | Binom (s, sz, n, p) -> 
-    (TInt(sz), Binom(s, sz, n, p))
+    if n > 1 lsl sz then 
+      (raise (Type_error (Format.sprintf "Type error at line %d column %d: integer constant out of range"
+                           s.startpos.pos_lnum (get_col s.startpos)))) 
+    else (TInt(sz), Binom(s, sz, n, p))
   | ListLit(s, es) ->
     let len = List.length es in
     if len > cfg.max_list_length then
@@ -810,9 +813,9 @@ let rec from_external_expr_h (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
         (t, Let(s, "$binomexp", (t, Ite(s, flip,   
           (t, Plus(s, intone, ident)), 
           ident)), make_binom_let(k-1))) in
+    if n = 0 then from_external_expr_h ctx cfg intzero else 
     from_external_expr_h ctx cfg 
-      (t, Let(s, "$binomexp", (t, Ite(s, flip, intone, intzero)), make_binom_let(n-1)))
-    
+      (t, Let(s, "$binomexp", (t, Ite(s, flip, intone, intzero)), make_binom_let(n-1)))   
   | Int(_, sz, v) ->
     let bits = int_to_bin sz v
                |> List.map ~f:(fun i -> if i = 1 then CG.True else CG.False) in
