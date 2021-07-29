@@ -471,7 +471,7 @@ let rec type_of (cfg: config) (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast
                            s.startpos.pos_lnum (get_col s.startpos)))) 
     else (TInt(sz), Unif(s, sz, b, e))
   | Binom (s, sz, n, p) -> 
-    if n > 1 lsl sz then 
+    if n+1 > 1 lsl sz then 
       (raise (Type_error (Format.sprintf "Type error at line %d column %d: integer constant out of range"
                            s.startpos.pos_lnum (get_col s.startpos)))) 
     else (TInt(sz), Binom(s, sz, n, p))
@@ -802,6 +802,7 @@ let rec from_external_expr_h (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
 								  (TInt(sz), Unif(s, sz, 0, power_lt_int)), 
 								  (TInt(sz), Unif(s, sz, power_lt_int, e))))
   | Binom(s, sz, n, p) -> 
+    assert(n >= 0);
     let t = EG.TInt(sz) in
     let intone = (t, Int(s, sz, 1)) in
     let intzero = (t, Int(s, sz, 0)) in
