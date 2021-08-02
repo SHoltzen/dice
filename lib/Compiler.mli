@@ -1,23 +1,22 @@
 open VarState
-open Cudd
 open Core
 open Wmc
 
 (** Result of compiling an expression *)
 type compiled_expr = {
-  state: Bdd.dt btree;
-  z: Bdd.dt;
-  flips: Bdd.dt List.t}
+  state: Bdd.bddptr btree;
+  z: Bdd.bddptr;
+  flips: Bdd.bddptr List.t}
 
 type compiled_func = {
-  args: (Bdd.dt btree) List.t;
+  args: (Bdd.bddptr btree) List.t;
   body: compiled_expr;
 }
 
 
 type compile_context = {
-  man: Man.dt;
-  name_map: (int, String.t) Hashtbl.Poly.t; (* map from variable identifiers to names, for debugging *)
+  man: Bdd.manager;
+  name_map: (Bdd.label, String.t) Hashtbl.Poly.t; (* map from variable identifiers to names, for debugging *)
   weights: weight; (* map from variables to weights *)
   eager_eval: bool; (* true if lazy let evaluation *)
   funcs: (String.t, compiled_func) Hashtbl.Poly.t;
