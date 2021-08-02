@@ -1,0 +1,1 @@
+let b = binomial(3, 4, 0.25) in b == int(3, 1)
