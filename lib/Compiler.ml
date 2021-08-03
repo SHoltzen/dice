@@ -129,8 +129,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     let var_name = (Format.sprintf "f%d_%s" !flip_id (Bignum.to_string_hum f)) in
     Hashtbl.add_exn ctx.name_map ~key:var_lbl ~data:var_name;
     flip_id := !flip_id + 1;
-    let f = Bignum.to_float f in
-    Hashtbl.Poly.add_exn ctx.weights ~key:var_lbl ~data:(1.0-.f, f);
+    Hashtbl.Poly.add_exn ctx.weights ~key:var_lbl ~data:(Bignum.(one-f), f);
     {state=Leaf(new_f); z=Bdd.dtrue ctx.man; flips=[new_f]}
 
   | Observe(g) ->
@@ -161,7 +160,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
         {state=c2.state; z=Bdd.dand c1.z c2.z; flips=c1.flips @ c2.flips}
 
 
-  | Sample(e) ->
+  | Sample(e) -> failwith "not implemented" (*
     let sube = compile_expr ctx tenv env e in
     (* perform sequential sampling *)
     let rec sequential_sample cur_obs state =
@@ -177,7 +176,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
          (rbdd, Node(lres, rres))
       ) in
     let _, r = sequential_sample (Bdd.dtrue ctx.man) sube.state in
-    {state=r; z=Bdd.dtrue ctx.man; flips=[]}
+    {state=r; z=Bdd.dtrue ctx.man; flips=[]} *)
 
   | FuncCall(name, args) ->
     let func = try Hashtbl.Poly.find_exn ctx.funcs name
@@ -252,7 +251,7 @@ let get_prob p =
   let c = compile_program ~eager_eval:false p in
   let z = Wmc.wmc c.body.z c.ctx.weights in
   let prob = Wmc.wmc (Bdd.dand (extract_leaf c.body.state) c.body.z) c.ctx.weights in
-  prob /. z
+  Bignum.(prob / z)
 
 
 module I = Parser.MenhirInterpreter
@@ -286,7 +285,7 @@ let parse_and_prob ?debug txt =
      Format.printf "Program: %s\n" (ExternalGrammar.string_of_prog parsed);
      Format.printf "After passes: %s\n" (CoreGrammar.string_of_prog (transformed));
    | _ -> ());
-  get_prob transformed
+   Bignum.to_float (get_prob transformed)
 
 let parse_optimize_and_prob ?debug txt =
   let buf = Lexing.from_string txt in
@@ -303,7 +302,7 @@ let parse_optimize_and_prob ?debug txt =
      Format.printf "Program: %s\n" (ExternalGrammar.string_of_prog parsed);
      Format.printf "After passes: %s\n" (CoreGrammar.string_of_prog (transformed));
    | _ -> ());
-  get_prob transformed
+   Bignum.to_float (get_prob transformed)
 
 let get_lexing_position lexbuf =
   let p = Lexing.lexeme_start_p lexbuf in

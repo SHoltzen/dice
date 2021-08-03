@@ -32,10 +32,6 @@ type lexing_position =
 type source = {startpos: lexing_position; endpos: lexing_position}
 [@@deriving sexp_of]
 
-type num = 
-  Bignum.t
-[@@deriving sexp_of]
-
 type eexpr =
     And of source * eexpr * eexpr
   | Or of source * eexpr * eexpr
@@ -45,11 +41,11 @@ type eexpr =
   | IntConst of source * int
   | Not of source * eexpr
   | Ite of source * eexpr * eexpr * eexpr
-  | Flip of source * num
+  | Flip of source * Bignum.t
   | Let of source * String.t * eexpr * eexpr
   | Observe of source * eexpr
   | Ident of source * String.t
-  | Discrete of source * num List.t
+  | Discrete of source * Bignum.t List.t
   | Int of source * int * int (* value, size *)
   | Eq of source * eexpr * eexpr
   | LeftShift of source * eexpr * int

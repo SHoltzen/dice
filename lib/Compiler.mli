@@ -31,7 +31,7 @@ type compiled_program = {
 (** Compile the input program to a [compiled_program] *)
 val compile_program: CoreGrammar.program -> eager_eval:bool -> compiled_program
 
-val get_prob: CoreGrammar.program -> float
+val get_prob: CoreGrammar.program -> Bignum.t
 
 exception Syntax_error of string
 

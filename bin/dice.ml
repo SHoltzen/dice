@@ -61,7 +61,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~inline_functions ~sample_amount ~show_recursive_calls
     ~flip_lifting ~branch_elimination ~determinism ~print_state_bdd
     ~show_function_size ~print_unparsed ~print_function_bdd
-    ~recursion_limit ~max_list_length ~eager_eval
+    ~recursion_limit ~max_list_length ~eager_eval 
     lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
@@ -88,11 +88,11 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
        (let z = Wmc.wmc zbdd compiled.ctx.weights in
        let table = VarState.get_table cfg compiled.body.state t in
        let probs = List.map table ~f:(fun (label, bdd) ->
-           if Util.within_epsilon z 0.0 then (label, 0.0) else
-             let prob = (Wmc.wmc (Bdd.dand bdd zbdd) compiled.ctx.weights) /. z in
+           if Bignum.(z = zero) then (label, Bignum.zero) else
+             let prob = Bignum.((Wmc.wmc (Bdd.dand bdd zbdd) compiled.ctx.weights) / z) in
              (label, prob)) in
        let l = [["Value"; "Probability"]] @
-         List.map probs ~f:(fun (typ, prob) -> [print_pretty typ; string_of_float prob]) in
+         List.map probs ~f:(fun (typ, prob) -> [print_pretty typ; Bignum.to_string_hum prob]) in
        [TableRes("Joint Distribution", l)]
       ) in
     let res = if show_recursive_calls then res @ [StringRes("Number of recursive calls",
@@ -134,19 +134,19 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
         let zbdd = compiled.body.z in
         let z = Wmc.wmc zbdd compiled.ctx.weights in
         let probs = List.map table ~f:(fun (label, bdd) ->
-            if Util.within_epsilon z 0.0 then (label, 0.0) else
+          if Bignum.(z = zero) then (label, Bignum.zero) else
               let prob = (Wmc.wmc (Bdd.dand bdd zbdd) compiled.ctx.weights) in
               (label, prob)) in
         (match prob with
          | None -> draw_sample (Some(probs), z) (n-1)
          | Some(v) ->
-           let summed = List.map (List.zip_exn v probs) ~f:(fun ((_, a), (lbl, b)) -> (lbl, a +. b)) in
-           draw_sample (Some(summed), z +. oldz) (n-1)) in
-    let (res_state, z) = draw_sample (None, 0.0) n in
+           let summed = List.map (List.zip_exn v probs) ~f:(fun ((_, a), (lbl, b)) -> (lbl, Bignum.(a + b))) in
+           draw_sample (Some(summed), Bignum.(z + oldz)) (n-1)) in
+    let (res_state, z) = draw_sample (None, Bignum.zero) n in
     let res = if skip_table then [] else
         let l = [["Value"; "Probability"]] @
           List.map (Option.value_exn res_state) ~f:(fun (typ, prob) ->
-            [print_pretty typ; string_of_float (prob /. z)]) in
+            [print_pretty typ; Bignum.to_string_hum Bignum.(prob / z)]) in
         [TableRes("Joint Probability", l)] in
     let res = if print_size then
         res @ [StringRes("Compiled BDD size", string_of_float(float_of_int !sz /. float_of_int n))] else res in
@@ -180,7 +180,6 @@ let command =
      and eager_eval = flag "-eager-eval" no_arg ~doc:" eager let compilation"
      and recursion_limit = flag "-recursion-limit" (optional int) ~doc:" maximum recursion depth"
      and max_list_length = flag "-max-list-length" (optional int) ~doc:" maximum list length"
-     and float_wmc = flag "-float-wmc" ~doc:" float-based wmc"
      (* and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order" *)
      and json = flag "-json" no_arg ~doc:" print output as JSON"
      in fun () ->
@@ -191,7 +190,7 @@ let command =
                   ~print_size ~inline_functions ~skip_table ~flip_lifting
                   ~branch_elimination ~determinism ~show_recursive_calls ~print_state_bdd
                   ~show_function_size ~print_unparsed ~print_function_bdd
-                  ~recursion_limit ~max_list_length ~float_wmc ~eager_eval
+                  ~recursion_limit ~max_list_length ~eager_eval
                   lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res

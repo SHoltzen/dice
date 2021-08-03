@@ -19,9 +19,6 @@ let fresh () =
 let within_epsilon x y =
   (Float.compare (Float.abs (x -. y)) 0.0001) < 0
 
-let num_to_float n = 
-  Bignum.to_float n
-
 let map_eexpr f =
   let open EG in
   function
@@ -246,11 +243,11 @@ type ast =
   | IntConst of source * int
   | Not of source * tast
   | Ite of source * tast * tast * tast
-  | Flip of source * EG.num
+  | Flip of source * Bignum.t
   | Let of source * String.t * tast * tast
   | Observe of source * tast
   | Ident of source * String.t
-  | Discrete of source * EG.num List.t
+  | Discrete of source * Bignum.t List.t
   | Int of source * int * int (* value, size *)
   | Eq of source * tast * tast
   | Plus of source * tast * tast
@@ -384,7 +381,7 @@ let rec type_of (cfg: config) (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast
                            src.startpos.pos_lnum (get_col src.startpos)))) else ();
     (TInt(sz), Int(src, sz, v))
   | Discrete(src, l) ->
-    let sum = List.fold (List.map l num_to_float) ~init:0.0 ~f:(fun acc i -> acc +. i) in
+    let sum = List.fold (List.map l Bignum.to_float) ~init:0.0 ~f:(fun acc i -> acc +. i) in
     if not (within_epsilon sum 1.0) then
       raise (Type_error (Format.sprintf "Type error at line %d column %d: discrete parameters must sum to 1, got %f"
                            src.startpos.pos_lnum (get_col src.startpos) sum))
@@ -774,7 +771,7 @@ let rec from_external_expr_h (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
   | Not(_, e) -> Not(from_external_expr_h ctx cfg e)
   | Flip(_, f) -> Flip(f)
   | Ident(_, s) -> Ident(s)
-  | Discrete(_, l) -> gen_discrete ctx (List.map l num_to_float)
+  | Discrete(_, l) -> gen_discrete ctx (List.map l Bignum.to_float)
   | Unif(s, sz, b, e) -> 
 	  assert(b >= 0);
 	  assert(e > b);
