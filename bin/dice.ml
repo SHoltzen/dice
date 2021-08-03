@@ -180,6 +180,7 @@ let command =
      and eager_eval = flag "-eager-eval" no_arg ~doc:" eager let compilation"
      and recursion_limit = flag "-recursion-limit" (optional int) ~doc:" maximum recursion depth"
      and max_list_length = flag "-max-list-length" (optional int) ~doc:" maximum list length"
+     and float_wmc = flag "-float-wmc" ~doc:" float-based wmc"
      (* and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order" *)
      and json = flag "-json" no_arg ~doc:" print output as JSON"
      in fun () ->
@@ -190,7 +191,7 @@ let command =
                   ~print_size ~inline_functions ~skip_table ~flip_lifting
                   ~branch_elimination ~determinism ~show_recursive_calls ~print_state_bdd
                   ~show_function_size ~print_unparsed ~print_function_bdd
-                  ~recursion_limit ~max_list_length ~eager_eval
+                  ~recursion_limit ~max_list_length ~float_wmc ~eager_eval
                   lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res

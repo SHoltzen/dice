@@ -4,6 +4,7 @@
 
 open Core
 open Sexplib.Std
+open Bignum
 
 type typ =
     TBool
@@ -32,9 +33,7 @@ type source = {startpos: lexing_position; endpos: lexing_position}
 [@@deriving sexp_of]
 
 type num = 
-    I of int
-  | F of float
-  | R of int * int
+  Bignum.t
 [@@deriving sexp_of]
 
 type eexpr =

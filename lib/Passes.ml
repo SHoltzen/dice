@@ -20,10 +20,7 @@ let within_epsilon x y =
   (Float.compare (Float.abs (x -. y)) 0.0001) < 0
 
 let num_to_float n = 
-  match n with
-    EG.F fl -> fl
-    | EG.I i -> float_of_int i
-    | EG.R (n, d) -> (float_of_int n) /. (float_of_int d)
+  Bignum.to_float n
 
 let map_eexpr f =
   let open EG in
@@ -567,9 +564,9 @@ let rec gen_discrete mgr (l: float List.t) =
       (* now build the expression *)
       (match l with
        | [] -> failwith "unreachable"
-       | [(_, param)] -> [cur_name, Flip(param)]
+       | [(_, param)] -> [cur_name, Flip((Bignum.of_float_dyadic param))]
        | (_, param)::xs ->
-         let ifbody = List.fold xs ~init:(Flip(param)) ~f:(fun acc (guard, param) -> Ite(guard, Flip(param), acc)) in
+         let ifbody = List.fold xs ~init:(Flip((Bignum.of_float_dyadic param))) ~f:(fun acc (guard, param) -> Ite(guard, Flip((Bignum.of_float_dyadic param)), acc)) in
          [cur_name, ifbody]
       ) @ acc
     ) in
@@ -775,7 +772,7 @@ let rec from_external_expr_h (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
   | Gt(s, e1, e2) -> from_external_expr_h ctx cfg (TBool, Not(s, (TBool, Lte(s, e1, e2))))
   | Gte(s, e1, e2) -> from_external_expr_h ctx cfg (TBool, Not(s, (TBool, Lt(s, e1, e2))))
   | Not(_, e) -> Not(from_external_expr_h ctx cfg e)
-  | Flip(_, f) -> Flip(num_to_float f)
+  | Flip(_, f) -> Flip(f)
   | Ident(_, s) -> Ident(s)
   | Discrete(_, l) -> gen_discrete ctx (List.map l num_to_float)
   | Unif(s, sz, b, e) -> 
@@ -785,7 +782,7 @@ let rec from_external_expr_h (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
 	  let rec make_flip_list bit_count length = 
 		  if length = 0 then []
 		  else if length > bit_count then CG.False :: (make_flip_list bit_count (length-1))
-		  else CG.Flip(0.5) :: (make_flip_list bit_count (length-1)) in
+		  else CG.Flip(Bignum.(1 // 2)) :: (make_flip_list bit_count (length-1)) in
 	  let make_simple_unif bit_count length = 
 		  mk_dfs_tuple (make_flip_list bit_count length) in 
 	  let is_power_of_two num = 
@@ -797,7 +794,7 @@ let rec from_external_expr_h (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
 		  let power_lt_float = 2.0 ** (float_of_int((num_binary_digits e) - 1)) in
 		  let power_lt_int = int_of_float power_lt_float in 
 		  from_external_expr_h ctx cfg 
-			  (TInt(sz), Ite(s, 	(TBool, Flip(s, F(power_lt_float /. (float_of_int e)))), 
+			  (TInt(sz), Ite(s, 	(TBool, Flip(s, Bignum.(power_lt_int // e))), 
 								  (TInt(sz), Unif(s, sz, 0, power_lt_int)), 
 								  (TInt(sz), Unif(s, sz, power_lt_int, e))))
   | Int(_, sz, v) ->

@@ -1,6 +1,7 @@
 (** Defines the core internal dice grammar *)
 
 
+
 type expr =
   | And of expr * expr
   | Or of expr * expr
@@ -15,7 +16,7 @@ type expr =
   | Ite of expr * expr * expr
   | True
   | False
-  | Flip of float
+  | Flip of Bignum.t
   | Let of String.t * expr * expr
   | FuncCall of String.t * expr List.t
   | Observe of expr

@@ -1,5 +1,6 @@
 %{
   open ExternalGrammar
+  open Bignum
 %}
 
 /* Tokens */
@@ -34,9 +35,9 @@
 
 %%
 num:
-    | FLOAT_LIT { F($1) }
-    | INT_LIT { I($1) }
-    | INT_LIT DIVIDE INT_LIT { R($1, $3) }
+    | FLOAT_LIT { (Bignum.of_float_decimal $1) }
+    | INT_LIT { (Bignum.of_int $1) }
+    | INT_LIT DIVIDE INT_LIT { Bignum.($1 // $3) }
 
 expr:
     | delimited(LPAREN, expr, RPAREN) { $1 }
@@ -70,7 +71,7 @@ expr:
     | expr XOR expr { Xor({startpos=$startpos; endpos=$endpos}, $1, $3) }
     | NOT expr { Not({startpos=$startpos; endpos=$endpos}, $2) }
     | FLIP num { Flip({startpos=$startpos; endpos=$endpos}, $2) }
-    | FLIP LPAREN FLOAT_LIT RPAREN { Flip({startpos=$startpos; endpos=$endpos}, F($3)) }
+    | FLIP LPAREN num RPAREN { Flip({startpos=$startpos; endpos=$endpos}, $3) }
     | OBSERVE expr { Observe({startpos=$startpos; endpos=$endpos}, $2) }
     | IF expr THEN expr ELSE expr { Ite({startpos=$startpos; endpos=$endpos}, $2, $4, $6) }
     | ITERATE LPAREN id=ID COMMA e=expr COMMA k=INT_LIT RPAREN { Iter({startpos=$startpos; endpos=$endpos}, id, e, k) }
