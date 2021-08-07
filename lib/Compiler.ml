@@ -249,8 +249,8 @@ let compile_program (p:program) ~eager_eval : compiled_program =
 
 let get_prob p =
   let c = compile_program ~eager_eval:false p in
-  let z = Wmc.wmc c.body.z c.ctx.weights in
-  let prob = Wmc.wmc (Bdd.dand (extract_leaf c.body.state) c.body.z) c.ctx.weights in
+  let z = Wmc.wmc ~float_wmc:false c.body.z c.ctx.weights in
+  let prob = Wmc.wmc ~float_wmc:false (Bdd.dand (extract_leaf c.body.state) c.body.z) c.ctx.weights in
   Bignum.(prob / z)
 
 
