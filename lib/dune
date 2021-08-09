@@ -6,11 +6,12 @@
 
 (rule
  (deps (source_tree ../rsdd))
- (targets librsdd.a)
+ (targets librsdd.a dllrsdd.so)
  (action
   (no-infer
     (progn
       (chdir ../rsdd (run cargo build --release))
+      (copy ../rsdd/target/release/librsdd.so dllrsdd.so)
       (copy ../rsdd/target/release/librsdd.a librsdd.a)
       ))))
 
@@ -21,3 +22,4 @@
  (library_flags (-linkall))
  (name diceLib)
  (preprocess (pps ppx_jane)))
+
