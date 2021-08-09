@@ -15,6 +15,7 @@ depends: [
   "core_bench"
   "ppx_deriving"
   "yojson"
+  "ctypes.foreign"
 ]
 
 pin-depends: [

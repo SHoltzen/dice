@@ -6,12 +6,11 @@
 
 (rule
  (deps (source_tree ../rsdd))
- (targets librsdd.a dllrsdd.so)
+ (targets librsdd.a)
  (action
   (no-infer
     (progn
       (chdir ../rsdd (run cargo build --release))
-      (copy ../rsdd/target/release/librsdd.dylib dllrsdd.so)
       (copy ../rsdd/target/release/librsdd.a librsdd.a)
       ))))
 
