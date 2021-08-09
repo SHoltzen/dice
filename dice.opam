@@ -16,6 +16,7 @@ depends: [
   "ppx_deriving"
   "yojson"
   "ctypes"
+  "ctypes-foreign"
 ]
 
 pin-depends: [
