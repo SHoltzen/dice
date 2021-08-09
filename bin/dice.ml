@@ -59,7 +59,7 @@ let rec print_pretty e =
 let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~inline_functions ~sample_amount ~show_recursive_calls
     ~flip_lifting ~branch_elimination ~determinism ~sbk_encoding ~print_state_bdd
-    ~show_function_size ~print_unparsed ~print_function_bdd
+    ~show_function_size ~show_flip_count ~print_unparsed ~print_function_bdd
     ~recursion_limit ~max_list_length ~eager_eval
     lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
@@ -79,6 +79,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     else from_external_prog ~cfg sbk_encoding parsed_norec in
   let res = if print_internal then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog internal)] else res in
   let res = if print_unparsed then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog_unparsed internal)] else res in
+  let res = if show_flip_count then res @ [StringRes("Number of flips", CoreGrammar.count_flips internal)] else res in
   match sample_amount with
   | None ->
     let compiled = Compiler.compile_program internal ~eager_eval in
@@ -180,6 +181,7 @@ let command =
      and eager_eval = flag "-eager-eval" no_arg ~doc:" eager let compilation"
      and recursion_limit = flag "-recursion-limit" (optional int) ~doc:" maximum recursion depth"
      and max_list_length = flag "-max-list-length" (optional int) ~doc:" maximum list length"
+     and show_flip_count = flag "-show-flip-count" no_arg ~doc:" show the number of flips in the program"
      (* and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order" *)
      and json = flag "-json" no_arg ~doc:" print output as JSON"
      in fun () ->
@@ -189,8 +191,8 @@ let command =
        let r = (parse_and_print ~print_parsed ~print_internal ~sample_amount
                   ~print_size ~inline_functions ~skip_table ~flip_lifting
                   ~branch_elimination ~determinism ~sbk_encoding ~show_recursive_calls ~print_state_bdd
-                  ~show_function_size ~print_unparsed ~print_function_bdd
-                  ~recursion_limit ~max_list_length ~eager_eval
+                  ~show_function_size ~show_flip_count ~print_unparsed ~print_function_bdd
+                  ~recursion_limit ~max_list_length ~eager_eval 
                   lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res

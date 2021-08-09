@@ -168,3 +168,32 @@ let string_of_prog_unparsed p =
     Format.dprintf "@[%t\n@[fun@ %s(%t)@]@\n@<100>{@;<1 2>%t@;}@]\n" prev func.name string_of_args (pr_func func.body)
   ) in
   Format.asprintf "%s%s" (Format.asprintf "%t\n" string_of_functions) (Format.asprintf "%t\n" (pr_func body))
+
+let count_flips p = 
+  let body = p.body in
+  let functions = p.functions in 
+
+  let rec count e = 
+    match e with
+    | Let(_, e1, e2) | And(e1, e2) | Xor(e1, e2) | Eq(e1, e2) | Or(e1, e2) | Tup(e1, e2) -> 
+      let c1 = count e1 in
+      let c2 = count e2 in
+      c1 + c2
+    | Ite(g, thn, els) ->
+      let c0 = count g in
+      let c1 = count thn in
+      let c2 = count els in
+      c0 + c1 + c2
+    | Not(e1) | Observe(e1) | Fst(e1) | Snd(e1) | Sample(e1) -> 
+      count e1
+    | Flip(f) -> 1
+    | FuncCall(_, args) ->
+      List.fold args ~init: 0 ~f:(fun prev arg -> prev + (count arg))
+    | Ident(_) | True | False | _ -> 0
+  in 
+  
+  let count_func = List.fold functions ~init:0 ~f:(fun prev func -> 
+    (count func.body) + prev
+  ) in
+
+  Format.sprintf "%d\n" ((count body) + (count_func))
