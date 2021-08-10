@@ -1,5 +1,5 @@
 
-type weight = (Bdd.label, (float*float)) Core.Hashtbl.Poly.t
+type weight = (Bdd.label, (Bignum.t*Bignum.t)) Core.Hashtbl.Poly.t
 
 (** Performs a weighted model count of the BDD with the supplied weight function. *)
-val wmc : Bdd.manager -> Bdd.bddptr -> weight -> float
+val wmc : float_wmc:bool -> Bdd.manager -> Bdd.bddptr -> weight -> Bignum.t

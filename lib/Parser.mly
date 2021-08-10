@@ -1,5 +1,6 @@
 %{
   open ExternalGrammar
+  open Bignum
 %}
 
 /* Tokens */
@@ -14,7 +15,7 @@
 %token LIST LBRACKET RBRACKET CONS HEAD TAIL LENGTH
 
 %token <int>    INT_LIT
-%token <float>  FLOAT_LIT
+%token <string> FLOAT_LIT
 %token <string> ID
 
 /* associativity rules */
@@ -33,6 +34,10 @@
 %type <ExternalGrammar.program> program
 
 %%
+num:
+    | FLOAT_LIT { (Bignum.of_string $1) }
+    | INT_LIT { (Bignum.of_int $1) }
+    | INT_LIT DIVIDE INT_LIT { Bignum.($1 // $3) }
 
 expr:
     | delimited(LPAREN, expr, RPAREN) { $1 }
@@ -40,7 +45,7 @@ expr:
     | FALSE { False({startpos=$startpos; endpos=$endpos}) }
     | INT delimited(LPAREN, separated_pair(INT_LIT, COMMA, INT_LIT), RPAREN)
         { Int({startpos=$startpos; endpos=$endpos}, fst $2, snd $2) }
-    | DISCRETE delimited(LPAREN, separated_list(COMMA, FLOAT_LIT), RPAREN)
+    | DISCRETE delimited(LPAREN, separated_list(COMMA, num), RPAREN)
         { Discrete({startpos=$startpos; endpos=$endpos}, $2) }
     | SAMPLE expr { Sample({startpos=$startpos; endpos=$endpos}, $2) }
     | expr EQUAL_TO expr { Eq({startpos=$startpos; endpos=$endpos}, $1, $3) }
@@ -65,8 +70,8 @@ expr:
     | expr IFF expr { Iff({startpos=$startpos; endpos=$endpos}, $1, $3) }
     | expr XOR expr { Xor({startpos=$startpos; endpos=$endpos}, $1, $3) }
     | NOT expr { Not({startpos=$startpos; endpos=$endpos}, $2) }
-    | FLIP FLOAT_LIT { Flip({startpos=$startpos; endpos=$endpos}, $2) }
-    | FLIP LPAREN FLOAT_LIT RPAREN { Flip({startpos=$startpos; endpos=$endpos}, $3) }
+    | FLIP num { Flip({startpos=$startpos; endpos=$endpos}, $2) }
+    | FLIP LPAREN num RPAREN { Flip({startpos=$startpos; endpos=$endpos}, $3) }
     | OBSERVE expr { Observe({startpos=$startpos; endpos=$endpos}, $2) }
     | IF expr THEN expr ELSE expr { Ite({startpos=$startpos; endpos=$endpos}, $2, $4, $6) }
     | ITERATE LPAREN id=ID COMMA e=expr COMMA k=INT_LIT RPAREN { Iter({startpos=$startpos; endpos=$endpos}, id, e, k) }

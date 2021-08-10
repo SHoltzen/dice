@@ -124,10 +124,10 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
   | Flip(f) ->
     let new_f = Bdd.bdd_newvar ctx.man true in
     let var_lbl = Bdd.bdd_topvar ctx.man new_f in
-    let var_name = (Format.sprintf "f%d_%f" !flip_id f) in
+    let var_name = (Format.sprintf "f%d_%s" !flip_id (Bignum.to_string_hum f)) in
     Hashtbl.add_exn ctx.name_map ~key:var_lbl ~data:var_name;
     flip_id := !flip_id + 1;
-    Hashtbl.Poly.add_exn ctx.weights ~key:var_lbl ~data:(1.0-.f, f);
+    Hashtbl.Poly.add_exn ctx.weights ~key:var_lbl ~data:(Bignum.(one-f), f);
     {state=Leaf(new_f); z=Bdd.bdd_true ctx.man; flips=[new_f]}
 
   | Observe(g) ->
@@ -248,10 +248,10 @@ let compile_program (p:program) ~eager_eval : compiled_program =
 
 let get_prob p =
   let c = compile_program ~eager_eval:false p in
-  let z = Wmc.wmc c.ctx.man c.body.z c.ctx.weights in
-  let prob = Wmc.wmc c.ctx.man (Bdd.bdd_and c.ctx.man (extract_leaf c.body.state) c.body.z) c.ctx.weights in
+  let z = Wmc.wmc ~float_wmc:false c.ctx.man c.body.z c.ctx.weights in
+  let prob = Wmc.wmc ~float_wmc:false c.ctx.man (Bdd.bdd_and c.ctx.man (extract_leaf c.body.state) c.body.z) c.ctx.weights in
   (* Format.printf "prob: %f, z: %f" prob z; *)
-  prob /. z
+  Bignum.(prob / z)
 
 
 module I = Parser.MenhirInterpreter
@@ -285,7 +285,7 @@ let parse_and_prob ?debug txt =
      Format.printf "Program: %s\n" (ExternalGrammar.string_of_prog parsed);
      Format.printf "After passes: %s\n" (CoreGrammar.string_of_prog (transformed));
    | _ -> ());
-  get_prob transformed
+   Bignum.to_float (get_prob transformed)
 
 let parse_optimize_and_prob ?debug txt =
   let buf = Lexing.from_string txt in
@@ -302,7 +302,7 @@ let parse_optimize_and_prob ?debug txt =
      Format.printf "Program: %s\n" (ExternalGrammar.string_of_prog parsed);
      Format.printf "After passes: %s\n" (CoreGrammar.string_of_prog (transformed));
    | _ -> ());
-  get_prob transformed
+   Bignum.to_float (get_prob transformed)
 
 let get_lexing_position lexbuf =
   let p = Lexing.lexeme_start_p lexbuf in
