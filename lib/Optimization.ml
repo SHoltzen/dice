@@ -138,7 +138,7 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
         lift_new_flip flip_to_var_temp' flip_to_var var_to_expr tail
       else
         let var = fresh() in
-        lift_new_flip (flip_to_var) ((false, true, flip, var, [])::flip_to_var) (StringMap.add var (Flip((Bignum.of_float_dyadic flip))) var_to_expr) tail
+        lift_new_flip (flip_to_var) ((false, true, flip, var, [])::flip_to_var) (StringMap.add var (Flip((Bignum.of_float_decimal flip))) var_to_expr) tail
   in
   
   let rec is_var_lifted (flip_to_var: tracker) (var: string) : bool = 
@@ -298,7 +298,7 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
     | [] -> inner
     | (used, new_flip, f, var, s)::tail -> 
       if new_flip && used then
-        let expr = make_squeezed s (Let(var, Flip((Bignum.of_float_dyadic f)), inner)) in
+        let expr = make_squeezed s (Let(var, Flip((Bignum.of_float_decimal f)), inner)) in
         make_expression tail var_to_expr expr 
       else
         inner

@@ -28,6 +28,6 @@ let wmc ~float_wmc bdd (w: weight) =
         let new_weight = (addop (multop highw thnw) (multop loww elsw)) in
         Hashtbl.Poly.add_exn cache ~key:bdd ~data:new_weight;
         new_weight in
-  if float_wmc then Bignum.of_float_dyadic 
+  if float_wmc then Bignum.of_float_decimal
           (wmc_rec bdd (Hashtbl.Poly.map w hashtable_to_float) (Hashtbl.Poly.create ()) (+.) ( *. ) 1. 0.) 
     else wmc_rec bdd w (Hashtbl.Poly.create ()) Bignum.(+) Bignum.( * ) Bignum.one Bignum.zero

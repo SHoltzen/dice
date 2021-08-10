@@ -15,7 +15,7 @@
 %token LIST LBRACKET RBRACKET CONS HEAD TAIL LENGTH
 
 %token <int>    INT_LIT
-%token <float>  FLOAT_LIT
+%token <string> FLOAT_LIT
 %token <string> ID
 
 /* associativity rules */
@@ -35,7 +35,7 @@
 
 %%
 num:
-    | FLOAT_LIT { (Bignum.of_float_decimal $1) }
+    | FLOAT_LIT { (Bignum.of_string $1) }
     | INT_LIT { (Bignum.of_int $1) }
     | INT_LIT DIVIDE INT_LIT { Bignum.($1 // $3) }
 
