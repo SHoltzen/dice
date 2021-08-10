@@ -84,7 +84,7 @@ expr:
     | TAIL expr { Tail({startpos=$startpos; endpos=$endpos}, $2) }
     | LENGTH expr { Length({startpos=$startpos; endpos=$endpos}, $2) }
     | UNIFORM LPAREN sz=INT_LIT COMMA b=INT_LIT COMMA e=INT_LIT RPAREN { Unif ({startpos=$startpos; endpos=$endpos}, sz, b, e)}
-    | BINOMIAL LPAREN sz=INT_LIT COMMA n=INT_LIT COMMA p=FLOAT_LIT RPAREN { Binom({startpos=$startpos; endpos=$endpos}, sz, n, p)}
+    | BINOMIAL LPAREN sz=INT_LIT COMMA n=INT_LIT COMMA p=num RPAREN { Binom({startpos=$startpos; endpos=$endpos}, sz, n, p)}
 
 typ:
     | BOOL { TBool }

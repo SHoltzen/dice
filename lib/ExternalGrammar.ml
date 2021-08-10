@@ -65,7 +65,7 @@ type eexpr =
   | FuncCall of source * String.t * eexpr List.t
   | Iter of source * String.t * eexpr * int
   | Unif of source * int * int * int 
-  | Binom of source * int * int * float
+  | Binom of source * int * int * Bignum.t
   | True of source
   | False of source
   | ListLit of source * eexpr List.t
