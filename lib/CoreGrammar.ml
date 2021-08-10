@@ -173,27 +173,25 @@ let count_flips p =
   let body = p.body in
   let functions = p.functions in 
 
-  let rec count e = 
+  let rec count e acc = 
     match e with
     | Let(_, e1, e2) | And(e1, e2) | Xor(e1, e2) | Eq(e1, e2) | Or(e1, e2) | Tup(e1, e2) -> 
-      let c1 = count e1 in
-      let c2 = count e2 in
-      c1 + c2
+      let c1 = count e1 acc in
+      count e2 c1
     | Ite(g, thn, els) ->
-      let c0 = count g in
-      let c1 = count thn in
-      let c2 = count els in
-      c0 + c1 + c2
+      let c0 = count g acc in
+      let c1 = count thn c0 in
+      count els c1
     | Not(e1) | Observe(e1) | Fst(e1) | Snd(e1) | Sample(e1) -> 
-      count e1
-    | Flip(f) -> 1
+      count e1 acc
+    | Flip(f) -> 1 + acc
     | FuncCall(_, args) ->
-      List.fold args ~init: 0 ~f:(fun prev arg -> prev + (count arg))
-    | Ident(_) | True | False | _ -> 0
+      List.fold args ~init: 0 ~f:(fun prev arg -> count arg prev)
+    | Ident(_) | True | False | _ -> acc
   in 
   
   let count_func = List.fold functions ~init:0 ~f:(fun prev func -> 
-    (count func.body) + prev
+    (count func.body prev)
   ) in
 
-  Format.sprintf "%d\n" ((count body) + (count_func))
+  Format.sprintf "%d\n" (count body count_func)
