@@ -64,6 +64,7 @@ rule token =
     | "in"                      { IN }
     | "iterate"                 { ITERATE }
     | "uniform"                 { UNIFORM }
+    | "binomial"                { BINOMIAL }
     | "observe"                 { OBSERVE }
     | "flip"                    { FLIP }
     | "fun"                     { FUN }

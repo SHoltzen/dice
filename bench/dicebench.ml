@@ -28,7 +28,7 @@ let run_benches () =
         let r = bench () in
         let (parsed, res) = r in
         let st = [res.body.state; VarState.Leaf(res.body.z)] in
-        let sz = VarState.state_size st in
+        let sz = VarState.state_size res.ctx.man st in
         let t1 = Unix.gettimeofday () in
         print_endline (Format.sprintf "%s\t%f\t%s\t%d"
                          name (t1 -. t0) (LogProbability.to_string 10.0 (Passes.num_paths parsed)) sz);
@@ -64,7 +64,7 @@ let bench_caesar inline_functions =
       let res = Passes.from_external_prog false prog
                 |> snd
                 |> Compiler.compile_program ~eager_eval:true in
-      let sz = Cudd.Bdd.size res.body.z in
+      let sz = 0 in
       let t1 = Unix.gettimeofday () in
       let numpaths = Passes.num_paths caesar in
       print_endline (Format.sprintf "%d\t%f\t%s\t%d" len ((t1 -. t0) *. 1000.0)
@@ -103,7 +103,8 @@ let bench_caesar_error inline_functions =
       let res = Passes.from_external_prog false prog 
                 |> snd
                 |> Compiler.compile_program ~eager_eval:true in
-      let sz = Cudd.Bdd.size res.body.z in
+      (* let sz = Cudd.Bdd.size res.body.z in *)
+      let sz = 0 in
       let t1 = Unix.gettimeofday () in
       let numpaths = Passes.num_paths caesar in
       print_endline (Format.sprintf "%d\t%f\t%s\t%d" len ((t1 -. t0) *. 1000.0)
@@ -137,7 +138,7 @@ let bench_diamond inline_functions =
       let res = Passes.from_external_prog false inlined
                 |> snd
                 |> Compiler.compile_program ~eager_eval:true in
-      let sz = VarState.state_size [res.body.state] in
+      let sz = VarState.state_size res.ctx.man [res.body.state] in
       let t1 = Unix.gettimeofday () in
       let numpaths = Passes.num_paths caesar in
       print_endline (Format.sprintf "%d\t%f\t%s\t%d" len ((t1 -. t0) *. 1000.0)
@@ -176,7 +177,7 @@ let bench_ladder inline_functions =
       let res = Passes.from_external_prog false inlined
                 |> snd
                 |> Compiler.compile_program ~eager_eval:true in
-      let sz = VarState.state_size [res.body.state] in
+      let sz = VarState.state_size res.ctx.man [res.body.state] in
       let t1 = Unix.gettimeofday () in
       let numpaths = Passes.num_paths caesar in
       print_endline (Format.sprintf "%d\t%f\t%s\t%d" len ((t1 -. t0) *. 1000.0)

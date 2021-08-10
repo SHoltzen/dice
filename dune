@@ -1,4 +1,5 @@
-(data_only_dirs benchmarks)
+(data_only_dirs benchmarks rsdd)
+
 
 (env
   (dev

@@ -154,9 +154,12 @@ Value	Probability
 3	0.5
 ```
 
-The uniform distribution over integers has its own syntax. For instance,
-* `uniform(3, 2, 6)` creates a random integer of size 3 that is 2, 3, 4, 5, each with
-  probability 0.25. 
+Various distributions over integers have their own syntax. For instance,
+* `uniform(3, 2, 6)` creates a random 3-bit integer, containing a uniform distribution
+  over the integers 2, 3, 4, 5.
+* `binomial(3, 4, 0.5)` creates a random 3-bit integer, containing a binomial distribution
+  with parameters `n=4`, `p=0.5`
+
 
 ### Lists
 
@@ -317,6 +320,7 @@ expr :=
    | int (size, value)
    | discrete(list_of_probabilities) 
    | uniform(size, start, stop)
+   | binomial(size, n, p)
    | expr <binop> expr
    | (expr, expr)
    | fst expr

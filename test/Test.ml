@@ -9,7 +9,7 @@ let test_1 _ =
   let prog = "let x = flip 0.4 in x" in
   assert_feq 0.4 (parse_and_prob prog);
   assert_feq 0.4 (parse_optimize_and_prob prog)
-  
+
 let test_not test_ctx =
   let prog = "let x = flip 0.4 in !x" in
   assert_feq 0.6 (parse_and_prob prog);
@@ -284,6 +284,22 @@ let test_unif_4 _ =
     u == d && u < int(2, 3)" in
   assert_feq 0.25 (parse_and_prob prog)
   
+
+let test_binom_1 _ = 
+  let prog = "let b = binomial(3, 4, 0.25) in b == int(3, 1)" in
+  assert_feq 0.421875 (parse_and_prob prog)
+
+let test_binom_2 _ = 
+  let prog = "let b = binomial(5, 29, 0.5) in b <= int(5, 14)" in 
+  assert_feq 0.5 (parse_and_prob prog)
+
+let test_binom_3 _ = 
+  let prog = "let b = binomial(3, 0, 0.5) in b == int(3, 0)" in
+  assert_feq 1. (parse_and_prob prog)
+
+let test_binom_4 _ = 
+  let prog = "let b = binomial(3, 1, 0.3) in b == int(3, 1)" in
+  assert_feq 0.3 (parse_and_prob prog)
 
 
 let test_fcall1 _ =
@@ -679,6 +695,17 @@ let test_list_ex _ =
   assert_feq (0.2 *. 0.5 +. 0.4 *. 0.5) (parse_and_prob prog);
   assert_feq (0.2 *. 0.5 +. 0.4 *. 0.5) (parse_optimize_and_prob prog)
 
+let test_bdd _ =
+  let mgr = Bdd.mk_bdd_manager_default_order 100 in
+  let v1 = Bdd.bdd_newvar mgr true in
+  let v2 = Bdd.bdd_newvar mgr true in
+  let v3 = Bdd.bdd_newvar mgr true in
+  let and2 = Bdd.bdd_and mgr v1 v2 in
+  let and3 = Bdd.bdd_and mgr (Bdd.bdd_and mgr v1 v2) v3 in
+  let and3q = Bdd.bdd_exists mgr and3 (Bdd.bdd_topvar mgr v3) in
+  assert_bool "testing eq" (Bdd.bdd_eq mgr and3q and2)
+  (* assert_equal sz (Unsigned.UInt64.of_int 3) *)
+
 let expression_tests =
 "suite">:::
 [
@@ -742,6 +769,11 @@ let expression_tests =
   "test_unif_3">::test_unif_3;
   "test_unif_4">::test_unif_4;
 
+  "test_binom_1">::test_binom_1;
+  "test_binom_2">::test_binom_2;
+  "test_binom_3">::test_binom_3;
+  "test_binom_4">::test_binom_4;
+
   "test_fcall1">::test_fcall1;
   "test_fcall2">::test_fcall2;
   "test_fcall3">::test_fcall3;
@@ -788,8 +820,9 @@ let expression_tests =
   "test_length">::test_length;
   "test_empty">::test_empty;
   "test_list_recursion">::test_list_recursion;
-  "test_list_distribution">::test_list_distribution;
+  (* "test_list_distribution">::test_list_distribution; *)
   "test_list_ex">::test_list_ex;
+  "test_bdd">::test_bdd;
 ]
 
 let () =

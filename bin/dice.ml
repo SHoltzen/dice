@@ -1,6 +1,5 @@
 open DiceLib
 open Core
-open Cudd
 open Passes
 
 (** List of rows in a table *)
@@ -85,72 +84,73 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     let compiled = Compiler.compile_program internal ~eager_eval in
     let zbdd = compiled.body.z in
     let res = if skip_table then res else res @
-       (let z = Wmc.wmc zbdd compiled.ctx.weights in
-       let table = VarState.get_table cfg compiled.body.state t in
+       (let z = Wmc.wmc compiled.ctx.man zbdd compiled.ctx.weights in
+       let table = VarState.get_table cfg compiled.ctx.man compiled.body.state t in
        let probs = List.map table ~f:(fun (label, bdd) ->
            if Util.within_epsilon z 0.0 then (label, 0.0) else
-             let prob = (Wmc.wmc (Bdd.dand bdd zbdd) compiled.ctx.weights) /. z in
+             let prob = (Wmc.wmc compiled.ctx.man (Bdd.bdd_and compiled.ctx.man bdd zbdd) compiled.ctx.weights) /. z in
              (label, prob)) in
        let l = [["Value"; "Probability"]] @
          List.map probs ~f:(fun (typ, prob) -> [print_pretty typ; string_of_float prob]) in
        [TableRes("Joint Distribution", l)]
       ) in
-    let res = if show_recursive_calls then res @ [StringRes("Number of recursive calls",
-                                                            Format.sprintf "%f" (Man.num_recursive_calls compiled.ctx.man))]
-      else res in
-    let res = if show_function_size then
-        let all_sizes = List.map (Hashtbl.to_alist compiled.ctx.funcs) ~f:(fun (key, data) ->
-            (* let sz = VarState.state_size [data.body.state; VarState.Leaf(data.body.z)] in *)
-            let sz = Bdd.size (VarState.extract_leaf data.body.state) in
-            StringRes(Format.sprintf "Size of function '%s'" key, string_of_int sz)
-          ) in
-        res @ all_sizes else res in
-    let res = if print_function_bdd then
-        let all_bdds = List.map (Hashtbl.to_alist compiled.ctx.funcs) ~f:(fun (key, data) ->
-            let bdd = BddUtil.dump_dot_multiroot compiled.ctx.name_map data.body.state in
-            StringRes(Format.sprintf "BDD for function '%s'" key, bdd)
-          ) in
-        res @ all_bdds else res in
+    (* let res = if show_recursive_calls then res @ [StringRes("Number of recursive calls",
+     *                                                         Format.sprintf "%f" (Man.num_recursive_calls compiled.ctx.man))]
+     *   else res in *)
+    (* let res = if show_function_size then
+     *     let all_sizes = List.map (Hashtbl.to_alist compiled.ctx.funcs) ~f:(fun (key, data) ->
+     *         (\* let sz = VarState.state_size [data.body.state; VarState.Leaf(data.body.z)] in *\)
+     *         let sz = Bdd.size (VarState.extract_leaf data.body.state) in
+     *         StringRes(Format.sprintf "Size of function '%s'" key, string_of_int sz)
+     *       ) in
+     *     res @ all_sizes else res in
+     * let res = if print_function_bdd then
+     *     let all_bdds = List.map (Hashtbl.to_alist compiled.ctx.funcs) ~f:(fun (key, data) ->
+     *         let bdd = BddUtil.dump_dot_multiroot compiled.ctx.name_map data.body.state in
+     *         StringRes(Format.sprintf "BDD for function '%s'" key, bdd)
+     *       ) in
+     *     res @ all_bdds else res in *)
     let res = if print_size then
         res @ [StringRes("Final compiled BDD size",
-                         string_of_int (VarState.state_size [compiled.body.state; VarState.Leaf(compiled.body.z)]))]
+                         string_of_int (VarState.state_size compiled.ctx.man [compiled.body.state; VarState.Leaf(compiled.body.z)]))] 
       else res in
     let res = if print_state_bdd then
         res @ [StringRes("State BDD (graphviz format)",
-                         BddUtil.dump_dot_multiroot compiled.ctx.name_map compiled.body.state);
+                         BddUtil.dump_dot_multiroot compiled.ctx.man compiled.ctx.name_map compiled.body.state);
                StringRes("State accepting BDD (graphviz format)",
-                        BddUtil.dump_dot_multiroot compiled.ctx.name_map (VarState.Leaf(compiled.body.z)))
+                        BddUtil.dump_dot_multiroot compiled.ctx.man compiled.ctx.name_map (VarState.Leaf(compiled.body.z)))
               ]
       else res in
+    Bdd.man_print_stats compiled.ctx.man;
     res
-  | Some(n) ->
-    let sz = ref 0 in
-    let rec draw_sample (prob, oldz) n =
-      if n = 0 then (prob, oldz)
-      else
-        let compiled = Compiler.compile_program ~eager_eval:true internal in
-        sz := !sz + VarState.state_size [compiled.body.state; Leaf(compiled.body.z)];
-        let table = VarState.get_table cfg compiled.body.state t in
-        let zbdd = compiled.body.z in
-        let z = Wmc.wmc zbdd compiled.ctx.weights in
-        let probs = List.map table ~f:(fun (label, bdd) ->
-            if Util.within_epsilon z 0.0 then (label, 0.0) else
-              let prob = (Wmc.wmc (Bdd.dand bdd zbdd) compiled.ctx.weights) in
-              (label, prob)) in
-        (match prob with
-         | None -> draw_sample (Some(probs), z) (n-1)
-         | Some(v) ->
-           let summed = List.map (List.zip_exn v probs) ~f:(fun ((_, a), (lbl, b)) -> (lbl, a +. b)) in
-           draw_sample (Some(summed), z +. oldz) (n-1)) in
-    let (res_state, z) = draw_sample (None, 0.0) n in
-    let res = if skip_table then [] else
-        let l = [["Value"; "Probability"]] @
-          List.map (Option.value_exn res_state) ~f:(fun (typ, prob) ->
-            [print_pretty typ; string_of_float (prob /. z)]) in
-        [TableRes("Joint Probability", l)] in
-    let res = if print_size then
-        res @ [StringRes("Compiled BDD size", string_of_float(float_of_int !sz /. float_of_int n))] else res in
-    res
+  (* | Some(n) ->
+   *   let sz = ref 0 in
+   *   let rec draw_sample (prob, oldz) n =
+   *     if n = 0 then (prob, oldz)
+   *     else
+   *       let compiled = Compiler.compile_program ~eager_eval:true internal in
+   *       sz := !sz + VarState.state_size [compiled.body.state; Leaf(compiled.body.z)];
+   *       let table = VarState.get_table cfg compiled.body.state t in
+   *       let zbdd = compiled.body.z in
+   *       let z = Wmc.wmc zbdd compiled.ctx.weights in
+   *       let probs = List.map table ~f:(fun (label, bdd) ->
+   *           if Util.within_epsilon z 0.0 then (label, 0.0) else
+   *             let prob = (Wmc.wmc (Bdd.dand bdd zbdd) compiled.ctx.weights) in
+   *             (label, prob)) in
+   *       (match prob with
+   *        | None -> draw_sample (Some(probs), z) (n-1)
+   *        | Some(v) ->
+   *          let summed = List.map (List.zip_exn v probs) ~f:(fun ((_, a), (lbl, b)) -> (lbl, a +. b)) in
+   *          draw_sample (Some(summed), z +. oldz) (n-1)) in
+   *   let (res_state, z) = draw_sample (None, 0.0) n in
+   *   let res = if skip_table then [] else
+   *       let l = [["Value"; "Probability"]] @
+   *         List.map (Option.value_exn res_state) ~f:(fun (typ, prob) ->
+   *           [print_pretty typ; string_of_float (prob /. z)]) in
+   *       [TableRes("Joint Probability", l)] in
+   *   let res = if print_size then
+   *       res @ [StringRes("Compiled BDD size", string_of_float(float_of_int !sz /. float_of_int n))] else res in
+   *   res *)
   with Compiler.Syntax_error(s) -> [ErrorRes(s)]
 
 
