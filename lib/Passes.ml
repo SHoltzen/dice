@@ -568,9 +568,9 @@ let rec gen_discrete mgr (l: float List.t) =
       (* now build the expression *)
       (match l with
        | [] -> failwith "unreachable"
-       | [(_, param)] -> [cur_name, Flip((Bignum.of_float_dyadic param))]
+       | [(_, param)] -> [cur_name, Flip((Bignum.of_float_decimal param))]
        | (_, param)::xs ->
-         let ifbody = List.fold xs ~init:(Flip((Bignum.of_float_dyadic param))) ~f:(fun acc (guard, param) -> Ite(guard, Flip((Bignum.of_float_dyadic param)), acc)) in
+         let ifbody = List.fold xs ~init:(Flip((Bignum.of_float_decimal param))) ~f:(fun acc (guard, param) -> Ite(guard, Flip((Bignum.of_float_decimal param)), acc)) in
          [cur_name, ifbody]
       ) @ acc
     ) in
