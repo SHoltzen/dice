@@ -13,9 +13,10 @@ let flip_id () =
   m := !m + 1;
   !m
 
-type env = (int, (float * string option)) Hashtbl.t 
+type env = (int, (float * string option * (int * bool) list)) Hashtbl.t 
 
 type flip = float * int list
+type fact = CG.expr * int
 
 type tree = 
   | Node of flip list * tree * tree * tree
@@ -38,11 +39,26 @@ let rec print_ids (ids: int list) =
   | [] -> Format.printf "";
   | head::tail -> Format.printf "%d " head; (print_ids tail) 
 
+let print_vals (vals: (int * bool) list) = 
+  (Format.printf "{ ");
+  (List.iter (fun (id, v) -> Format.printf "%d = %s, " id (if v then "T" else "F")) vals);
+  (Format.printf "}\n")
+
 let print_env (flip_env: env) = 
-  (Hashtbl.iter (fun i (p, var) -> 
+  (Hashtbl.iter (fun i (p, var, vals) -> 
     match var with 
-    | None -> Format.printf "%d -> (%f, None)\n" i p
-    | Some(x) -> Format.printf "%d -> (%f, %s)\n" i p x) flip_env)
+    | None -> (Format.printf "%d -> (%f, None, " i p); (print_vals vals);
+    | Some(x) -> (Format.printf "%d -> (%f, %s, " i p x); (print_vals vals);) flip_env)
+
+let print_facts (facts: fact list) = 
+  let rec print_facts (facts: fact list) = 
+    match facts with
+    | [] -> Format.printf "}\n\n";
+    | (loc, id)::tail ->
+      Format.printf "%s = %d\n" (CG.string_of_expr loc) id; (print_facts tail)
+  in
+  Format.printf "{\n";
+  print_facts facts
 
 let print_string (s: string) = 
   (Format.printf "%s" s)
@@ -57,6 +73,35 @@ let round_float x =
 
 let equal f1 f2 = 
   Float.equal (round_float f1) (round_float f2)
+
+let rec equal_expr e1 e2 =
+  match e1 with
+  | Snd(e1') -> 
+    (match e2 with
+    | Snd(e2') -> equal_expr e1' e2'
+    | _ -> false)
+  | Fst(e1') -> 
+    (match e2 with
+    | Fst(e2') -> equal_expr e1' e2'
+    | _ -> false)
+  | Ident(x) ->
+    (match e2 with
+    | Ident(y) -> x = y
+    | _ -> false)
+  | _ -> false
+  
+let equal_facts (loc1, id1) (loc2, id2) = 
+  (equal_expr loc1 loc2) && id1 = id2
+
+let top s =
+  match s with
+  | [] -> None
+  | head::tail -> Some(head)
+
+let pop s =
+  match s with
+  | [] -> s
+  | head::tail -> tail
 
 let get_flip_ids (l: flip list) : int list = 
   let rec get_flip_ids_e (l: flip list) (ids: int list) : int list =
@@ -93,7 +138,7 @@ let up_pass (e: CG.expr) : tree * env =
     match e with
     | Flip(f) -> 
       let id = flip_id() in
-      (Hashtbl.add flip_env id (f, None));
+      (Hashtbl.add flip_env id (f, None, []));
       [(f, [id])], Leaf(id)
     | Ite(g, thn, els) -> 
       let g_flips, g_tree = up_pass_e g in
@@ -110,7 +155,7 @@ let up_pass (e: CG.expr) : tree * env =
       (match e1 with
       | Flip(f) -> 
         let id = flip_id() in
-        (Hashtbl.add flip_env id (1.0 -. f, None));
+        (Hashtbl.add flip_env id (1.0 -. f, None, []));
         [(1.0 -. f, [id])], Leaf(id)
       | _ -> up_pass_e e1)
     | Snd(e1) | Fst(e1) | Observe(e1) -> up_pass_e e1
@@ -118,6 +163,181 @@ let up_pass (e: CG.expr) : tree * env =
   in
   let _, t = up_pass_e e in
   (t, flip_env)
+
+let cross_up (e: CG.expr) (t: tree) (flip_env: env) : env = 
+  let merge_facts (f1: fact list) (f2: fact list) : fact list =
+    List.fold_left (fun acc fact1 -> 
+      if List.exists (equal_facts fact1) f2 then
+        fact1::acc
+      else
+        acc) [] f1 
+  in
+
+  let rec x_in_loc (old_x: CG.expr) (new_x: CG.expr) (loc: CG.expr) : CG.expr option = 
+    match loc with
+    | Ident(_) -> if equal_expr old_x loc then Some(new_x) else None
+    | Fst(e1) ->
+      (match x_in_loc old_x new_x e1 with
+      | None -> None
+      | Some(loc') -> Some(Fst(loc')))
+    | Snd(e1) ->
+      (match x_in_loc old_x new_x e1 with
+      | None -> None
+      | Some(loc') -> Some(Snd(loc')))
+    | _ -> None
+  in
+
+  let rec copy_facts (old_x: CG.expr) (new_x: CG.expr) (facts: fact list) (acc: fact list) : fact list =
+    match facts with
+    | [] -> List.rev_append acc []
+    | (loc, id)::tail ->
+      (match x_in_loc old_x new_x loc with
+      | None -> copy_facts old_x new_x tail ((loc, id)::acc)
+      | Some(loc') -> copy_facts old_x new_x tail ((loc', id)::((loc, id)::acc)))
+  in
+
+  let rec remove_facts (x: CG.expr) (facts: fact list) (acc: fact list) : fact list =
+    match facts with
+    | [] -> List.rev_append acc []
+    | (loc, id)::tail ->
+      if equal_expr loc x then remove_facts x tail acc else remove_facts x tail ((loc, id)::acc)
+  in
+
+  let flip_vals (old_vals: (int * bool) list) (new_vals: (int * bool) list) : (int * bool) list =
+    List.filter_map (fun (id1, v1) -> 
+      if List.exists (fun (id2, _) -> id1 = id2) old_vals then
+        Some(id1, v1)
+      else
+        Some(id1, not v1)) new_vals
+  in
+
+  let rec cross_up_e (e: CG.expr) (t: tree) (facts: fact list) (x_stack: CG.expr list) (vals: (int * bool) list)
+   : fact list * (int * bool) list =
+    match e with
+    | Let(x, e1, e2) ->
+      (match t with 
+      | Joint(e1_tree, e2_tree) -> 
+        let e1_facts, _ = cross_up_e e1 e1_tree facts (Ident(x)::x_stack) vals in
+        (* (Format.printf "%s\n" (CG.string_of_expr e1)); *)
+        (* (print_facts e1_facts); *)
+        let e2_facts, e2_vals = cross_up_e e2 e2_tree e1_facts x_stack vals in
+        let facts' = remove_facts (Ident(x)) e2_facts [] in
+        facts', e2_vals
+      | _ -> failwith "unexpected flip tree element")
+    | Ite(g, thn, els) ->
+      (match t with
+      | Node(_, g_tree, thn_tree, els_tree) ->
+        (* (Format.printf "%s\n" (CG.string_of_expr e)); *)
+        let g_facts, g_vals = cross_up_e g g_tree facts x_stack vals in
+        (* (print_facts g_facts); *)
+        let thn_facts, _ = cross_up_e thn thn_tree facts x_stack g_vals in
+        (* (print_facts thn_facts); *)
+        let g_vals' = flip_vals vals g_vals in
+        let els_facts, _ = cross_up_e els els_tree facts x_stack g_vals' in
+        (* (print_facts els_facts); *)
+        let facts' = merge_facts thn_facts els_facts in
+        (* (print_facts facts'); *)
+        facts', vals
+      | _ -> failwith "unexpected flip tree element")
+    | Ident(x) ->
+      let left_x_opt = top x_stack in
+      let facts'' = 
+        match left_x_opt with
+        | None -> facts
+        | Some(left_x) -> 
+          let facts' = copy_facts (Ident(x)) left_x facts [] in
+          facts'
+      in
+      let vals' = 
+        List.fold_left (fun acc (loc, id) -> 
+          if equal_expr (Ident(x)) loc then
+            (id, true)::acc
+          else
+            acc) vals facts'' 
+      in
+      facts'', vals'
+    | Flip(f) ->
+      (match t with
+      | Leaf(id) -> 
+        let facts' = 
+          let left_x_opt = top x_stack in
+          match left_x_opt with
+          | None -> facts
+          | Some(left_x) -> (left_x, id)::facts
+        in
+        let entry_opt = Hashtbl.find_opt flip_env id in
+        (match entry_opt with
+        | None -> failwith "can't find flip entry"
+        | Some(p, x, v) -> (Hashtbl.replace flip_env id (p, x, (vals@v))););
+        let vals' = (id, true)::vals in
+        facts', vals'
+      | _ -> failwith "unexpected flip tree element")
+    | Tup(e1, e2) ->
+      (match t with
+      | Joint(e1_tree, e2_tree) ->
+        let left_x_opt = top x_stack in
+        (match left_x_opt with
+        | None -> facts, vals
+        | Some(left_x) -> 
+          let x_stack_tail = pop x_stack in
+          (* Format.printf "left %s\n" (CG.string_of_expr left_x); *)
+          let e1_facts, e1_vals = cross_up_e e1 e1_tree facts (Fst(left_x)::x_stack_tail) vals in
+          (* (Format.printf "%s\n" (CG.string_of_expr e)); *)
+          (* (print_facts e1_facts); *)
+          let e2_facts, e2_vals = cross_up_e e2 e2_tree e1_facts (Snd(left_x)::x_stack_tail) e1_vals in
+          (* (print_facts e2_facts); *)
+          e2_facts, e2_vals)
+      | _ -> failwith "unexpected flip tree element")
+    | And(e1, e2) | Or(e1, e2) | Xor(e1, e2) | Eq(e1, e2) ->
+      (match t with
+      | Joint(e1_tree, e2_tree) ->
+        let e1_facts, e1_vals = cross_up_e e1 e1_tree facts x_stack vals in
+        let e2_facts, e2_vals = cross_up_e e2 e2_tree e1_facts x_stack e1_vals in
+        (* (Format.printf "%s\n" (CG.string_of_expr e)); *)
+        (* (print_facts e2_facts); *)
+        e2_facts, e2_vals
+      | _ -> failwith "unexpected flip tree element")
+    | Not(e1) -> 
+      (match e1 with
+      | Ident(x) ->
+        let left_x_opt = top x_stack in
+        let facts'' = 
+          match left_x_opt with
+          | None -> facts
+          | Some(left_x) -> 
+            let facts' = copy_facts (Ident(x)) left_x facts [] in
+            facts'
+        in
+        let vals' = 
+          List.fold_left (fun acc (loc, id) -> 
+            if equal_expr (Ident(x)) loc then
+              (id, false)::acc
+            else
+              acc) vals facts'' 
+        in
+        facts'', vals'
+      | _ -> 
+        let e1_facts, e1_vals = cross_up_e e1 t facts x_stack vals in
+        e1_facts, vals)
+    | Snd(e1) | Fst(e1) ->
+      let vals' = 
+        List.fold_left (fun acc (loc, id) -> 
+          if equal_expr e loc then
+            (id, true)::acc
+          else
+            acc) vals facts 
+      in
+      let e1_facts, e1_vals = cross_up_e e1 t facts x_stack vals' in
+      e1_facts, e1_vals    
+    | Observe(e1) ->
+      let e1_facts, e1_vals = cross_up_e e1 t facts x_stack vals in
+      e1_facts, e1_vals
+    | _ -> facts, vals
+  in
+  let facts, vals = cross_up_e e t [] [] [] in
+  (print_facts facts);
+  (print_env flip_env);
+  flip_env
 
   (* Replace the flips with corresponding variables *)
 let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr = 
@@ -130,14 +350,14 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
   in
 
   let rec flips_to_hoist (shared: flip list) (hoisted: int list) : int list =
-    let rec create_flip (ids: int list) (entry: float * string option) : unit = 
+    let rec create_flip (ids: int list) (entry: float * string option * (int * bool) list) : unit = 
       match ids with
       | [] -> ()
       | head::tail ->
         let curr_opt = Hashtbl.find_opt flip_env head in
         (match curr_opt with
         | None -> Hashtbl.add flip_env head entry
-        | Some((p, var)) -> 
+        | Some((p, var, vals)) -> 
           (match var with
           | None -> Hashtbl.replace flip_env head entry
           | Some(x) -> ()));
@@ -147,7 +367,7 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
     | [] -> List.sort_uniq compare hoisted 
     | (p, ids)::tail -> 
       let x = fresh() in 
-      (create_flip ids (p, Some(x)));
+      (create_flip ids (p, Some(x), []));
       flips_to_hoist tail (ids@hoisted)
   in
 
@@ -172,7 +392,7 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
         let entry = Hashtbl.find_opt flip_env head in
         match entry with
         | None -> failwith "unknown flip id"
-        | Some((prob, var)) -> 
+        | Some((prob, var, vals)) -> 
           (match var with
           | None -> failwith "missing identifier for hoisted flip"
           | Some(x) -> make_exprs_e tail (Let(x, Flip(prob), inner)))
@@ -200,14 +420,14 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
           let entry = Hashtbl.find_opt flip_env id in
           (match entry with
           | None -> failwith "unknown flip id"
-          | Some((p, var)) -> 
+          | Some((p, var, vals)) -> 
             (match var with
             | None -> 
               (match hoisted with
               | [] -> e, hoisted, carried
               | _ ->
                 let x = fresh() in
-                (Hashtbl.replace flip_env id (p, Some(x)));
+                (Hashtbl.replace flip_env id (p, Some(x), vals));
                 Ident(x), hoisted, (id::carried))
             | Some(x)-> 
               let hoisted' = List.sort_uniq compare (id::hoisted) in
@@ -301,7 +521,8 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
 let flip_code_motion (e: CG.expr) (new_n: int) : CG.expr = 
   n := new_n;
   let t, flip_env = up_pass e in
-  let e' = down_pass e t flip_env in
+  let flip_env' = cross_up e t flip_env in
+  let e' = down_pass e t flip_env' in
   e'
 
 let rec merge_branch (e: CG.expr) : CG.expr = 
