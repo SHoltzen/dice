@@ -130,7 +130,7 @@ let up_pass (e: CG.expr) : tree * env =
     | [] -> new_l, None
     | (p, i)::tail -> 
       if equal prob p then 
-        (List.rev_append new_l tail), Some((p, ids@i)) 
+        (List.rev_append new_l tail), Some((p, i@ids)) 
       else 
         merge tail (prob, ids) ((p, i)::new_l)
   in
@@ -234,9 +234,9 @@ let cross_up (e: CG.expr) (t: tree) (flip_env: env) : env =
       (match t with 
       | Joint(_, e1_tree, e2_tree) -> 
         let e1_facts, _, _ = cross_up_guard e1 e1_tree facts (Ident(x)::x_stack) vals_thn vals_els in
-        let e2_facts, e2_vals_then, e2_vals_els = cross_up_guard e2 e2_tree e1_facts x_stack vals_thn vals_els in
+        let e2_facts, e2_vals_thn, e2_vals_els = cross_up_guard e2 e2_tree e1_facts x_stack vals_thn vals_els in
         let facts' = remove_facts (Ident(x)) e2_facts [] in
-        facts', e2_vals_then, e2_vals_els
+        facts', e2_vals_thn, e2_vals_els
       | _ -> failwith "unexpected flip tree element")
     | Ite(g, thn, els) ->
       (match t with
@@ -347,7 +347,7 @@ let cross_up (e: CG.expr) (t: tree) (flip_env: env) : env =
     | Snd(e1) | Fst(e1) ->
       let vals_thn', vals_els' = 
         List.fold_left (fun (vals_thn, vals_els) (loc, id) -> 
-          if equal_expr e1 loc then
+          if equal_expr e loc then
             (id, true)::vals_thn, (id, false)::vals_els
           else
             vals_thn, vals_els) (vals_thn, vals_els) facts
@@ -729,10 +729,10 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
   e'
 
   (* Perform code motion on flip f paterns *)
-let flip_code_motion (e: CG.expr) (new_n: int) : CG.expr = 
+let do_flip_hoisting (e: CG.expr) (new_n: int) (cross_table: bool) : CG.expr = 
   n := new_n;
   let t, flip_env = up_pass e in
-  let flip_env' = cross_up e t flip_env in
+  let flip_env' = if cross_table then cross_up e t flip_env else flip_env in
   let e' = down_pass e t flip_env' in
   e'
 
@@ -849,9 +849,9 @@ let rec redundant_flip_elimination (e: CG.expr) : CG.expr =
     Observe(n1)
   | _ -> e
 
-let do_optimize (e: CG.expr) (new_n: int) (flip_lifting: bool) (branch_elimination: bool) (determinism: bool) : CG.expr = 
+let do_optimize (e: CG.expr) (new_n: int) (flip_hoisting: bool) (cross_table: bool) (branch_elimination: bool) (determinism: bool) : CG.expr = 
   let e0 = if determinism then redundant_flip_elimination e else e in
   let e0_1 = if branch_elimination then merge_branch e0 else e0 in
-  let e1 = if flip_lifting then flip_code_motion e0_1 new_n else e0_1 in 
+  let e1 = if flip_hoisting then do_flip_hoisting e0_1 new_n cross_table else e0_1 in 
   let e2 = if branch_elimination then merge_branch e1 else e1 in
   e2
