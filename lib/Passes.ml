@@ -160,7 +160,7 @@ let num_paths (p: EG.program) : LogProbability.t =
       LogProbability.make 1.0
     | Discrete(_,l) -> LogProbability.make (float_of_int (List.length l))
     | Unif(_, _, b, e) -> LogProbability.make (float_of_int (e-b))
-    | Binom(_, _, n, p) -> LogProbability.make (float_of_int (n+1))
+    | Binom(_, _, n, _) -> LogProbability.make (float_of_int (n+1))
     | Observe(_,e) -> helper e
     | Ite(_,g, thn, els) ->
       let gc = helper g in
@@ -173,7 +173,7 @@ let num_paths (p: EG.program) : LogProbability.t =
     | _ -> failwith "unreachable, functions inlined" in
   helper inlined.body
 
-let num_binary_digits d = int_of_float (floor (Util.log2 (float_of_int (d)))) + 1
+let num_binary_digits d = int_of_float (Float.round_down (Util.log2 (float_of_int (d)))) + 1
 
 (** converts a little-endian binary vector into an integer *)
 let bin_to_int l =
@@ -536,7 +536,7 @@ let rec and_of_l l =
   | [x] -> x
   | x::xs -> CG.And(x, and_of_l xs)
 
-let rec gen_discrete mgr (l: float List.t) =
+let gen_discrete mgr (l: float List.t) =
   let open Cudd in
   let open CG in
   (* first generate the ADD *)
@@ -588,7 +588,7 @@ let gen_discrete_sbk (l: float List.t) (priority: (float * int) List.t option) =
       |> List.map  ~f:(fun i -> if i = 1 then True else False)
       |> mk_dfs_tuple
   in
-  let sift_priority (l: (int * float) List.t) (priority: (float * int) List.t) (rest: (int * float) List.t) : (int * float) List.t = 
+  let sift_priority (l: (int * float) List.t) (priority: (float * int) List.t) : (int * float) List.t = 
     List.sort l ~compare: (fun (_, p1) (_, p2) -> 
       let c1 = List.Assoc.find priority ~equal: (fun f1 f2 -> Float.equal f1 f2) p1 in
       let c2 = List.Assoc.find priority ~equal: (fun f1 f2 -> Float.equal f1 f2) p2 in
@@ -620,10 +620,10 @@ let gen_discrete_sbk (l: float List.t) (priority: (float * int) List.t option) =
   let sorted_probs = 
     match priority with
     (* Heuristic: gen flips in order of large to small probabilities *)
-    | None -> List.sort idxProb ~compare: (fun (idx1, p1) (idx2, p2) -> Poly.descending p1 p2) 
+    | None -> List.sort idxProb ~compare: (fun (_, p1) (_, p2) -> Poly.descending p1 p2) 
     (* Heuristic: choose priority flips to do first *)
     | Some(p) -> 
-      sift_priority idxProb p [] 
+      sift_priority idxProb p 
   in
   let probs_length = List.length sorted_probs in
   let probs, _ = List.foldi sorted_probs ~init: ([], 0.0) ~f:(fun idx (probs, total) (i, p) -> 
@@ -632,21 +632,21 @@ let gen_discrete_sbk (l: float List.t) (priority: (float * int) List.t option) =
     else
       ((i, fresh(), p /. (1. -. total))::probs, total +. p))
   in
-  let (inner_idx, inner_ident, inner_prob) = 
+  let (inner_idx, _, _) = 
     match List.hd probs with
     | None -> failwith "Discrete with no values"
     | Some(i, x, p) -> i, x, p 
   in
   let inner_body = get_tuples inner_idx in 
   let final_ident = fresh() in
-  let final_body = List.foldi probs ~init: inner_body ~f: (fun idx acc (i, x, p) -> 
+  let final_body = List.foldi probs ~init: inner_body ~f: (fun idx acc (i, x, _) -> 
     if idx = 0 then
       (get_tuples i)
     else
       Ite(Ident(x), (get_tuples i), acc))
   in
   let final_expr = Let(final_ident, final_body, Ident(final_ident)) in
-  let e = List.foldi (List.rev_append probs []) ~init: final_expr ~f: (fun idx acc (i, x, p) ->
+  let e = List.foldi (List.rev_append probs []) ~init: final_expr ~f: (fun idx acc (_, x, p) ->
     if idx = max then
       acc
     else
@@ -985,7 +985,7 @@ let from_external_expr_h_sbk (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
   let largest_count (tbl: (float * int) List.t) : (float * int) List.t =
     List.sort tbl ~compare:(fun (_, v1) (_, v2) -> Poly.descending v1 v2) 
   in
-  let rec annotate ((t, e): tast) : float List.t * tree =
+  let rec annotate ((_, e): tast) : float List.t * tree =
     match e with
     | And(_, e1, e2) | Or(_, e1, e2) | Iff(_, e1, e2) | Xor(_, e1, e2) | Plus(_, e1, e2) | Minus(_, e1, e2)
     | Eq(_, e1, e2) | Neq(_, e1, e2) | Mult(_, e1, e2) | Lt(_, e1, e2) | Lte(_, e1, e2) | Gt(_, e1, e2)
@@ -999,7 +999,7 @@ let from_external_expr_h_sbk (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
       | _ -> annotate e) *)
     | LeftShift(_, e, _) | RightShift(_, e, _) | Observe(_, e) | Snd(_, e) | Fst(_, e) | Sample(_, e) | Length(_, e) -> 
       annotate e 
-    | FuncCall(src, "nth_bit", [(_, Int(_, sz, v)); e2]) -> annotate e2
+    | FuncCall(_, "nth_bit", [(_, Int(_, _, _)); e2]) -> annotate e2
     | Flip(_, f) -> [f], Leaf
     | Discrete(_, l) -> 
       (List.dedup_and_sort ~compare: Poly.compare l), Leaf
@@ -1014,10 +1014,11 @@ let from_external_expr_h_sbk (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
       List.iter f2 ~f: update_tbl;
       List.iter f3 ~f: update_tbl;
       let lst = Hashtbl.to_alist counts in
-      let largest_prob = match lst with head::tail -> Some(largest_count lst) | [] -> None in     
+      let largest_prob = match lst with _::_ -> Some(largest_count lst) | [] -> None in     
       (merge_uniq f1 (f2@f3) []), Node(largest_prob, t1, t2, t3)
     | IntConst(_, _) -> failwith "not implemented"
     | Div(_, _, _) -> failwith "not implemented"
+    | Unif (_, _, _, _) | Binom (_, _, _, _) -> failwith "not implemented"
   in
 
   let rec from_external_expr_h_sbk_e (ctx: external_ctx) (cfg: config) (ann: tree) (prob: (float * int) List.t option) ((t, e): tast) : CG.expr =
@@ -1305,6 +1306,45 @@ let from_external_expr_h_sbk (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
             build_res_core 1 @@ CG.Snd (CG.Ident xs) in
         gen_check_empty t xs @@ Tup(length_core, res_core)
     | Length(_, e) -> Fst (from_external_expr_h_sbk_e ctx cfg ann prob e)
+    | Unif(s, sz, b, e) -> 
+      assert(b >= 0);
+      assert(e > b);
+      if b > 0 then from_external_expr_h_sbk_e ctx cfg ann prob 
+        (TInt(sz), Plus(s, (TInt(sz), Int(s, sz, b)), (TInt(sz), Unif(s, sz, 0, e-b)))) else
+      let rec make_flip_list bit_count length = 
+        if length = 0 then []
+        else if length > bit_count then CG.False :: (make_flip_list bit_count (length-1))
+        else CG.Flip(0.5) :: (make_flip_list bit_count (length-1)) in
+      let make_simple_unif bit_count length = 
+        mk_dfs_tuple (make_flip_list bit_count length) in 
+      let is_power_of_two num = 
+        (num land (num-1) = 0) in (* no zero check *) 
+      if is_power_of_two e then
+        let num_size = num_binary_digits e-1 in
+        make_simple_unif num_size sz
+      else
+        let power_lt_float = 2.0 ** (float_of_int((num_binary_digits e) - 1)) in
+        let power_lt_int = int_of_float power_lt_float in 
+        from_external_expr_h_sbk_e ctx cfg ann prob
+          (TInt(sz), Ite(s, 	(TBool, Flip(s, power_lt_float /. (float_of_int e))), 
+                    (TInt(sz), Unif(s, sz, 0, power_lt_int)), 
+                    (TInt(sz), Unif(s, sz, power_lt_int, e))))
+    | Binom(s, sz, n, p) -> 
+      assert(n >= 0);
+      let t = EG.TInt(sz) in
+      let intone = (t, Int(s, sz, 1)) in
+      let intzero = (t, Int(s, sz, 0)) in
+      let ident = (t, Ident(s, "$binomexp")) in
+      let flip = (EG.TBool, Flip(s, p)) in
+      let rec make_binom_let k = 
+        if k = 0 then ident
+        else 
+          (t, Let(s, "$binomexp", (t, Ite(s, flip,   
+            (t, Plus(s, intone, ident)), 
+            ident)), make_binom_let(k-1))) in
+      if n = 0 then from_external_expr_h_sbk_e ctx cfg ann prob intzero else 
+      from_external_expr_h_sbk_e ctx cfg ann prob
+        (t, Let(s, "$binomexp", (t, Ite(s, flip, intone, intzero)), make_binom_let(n-1)))   
   in
   let _, ann = annotate (t, e) in
   let e1 = from_external_expr_h_sbk_e ctx cfg ann None (t, e) in
