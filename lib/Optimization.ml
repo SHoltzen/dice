@@ -20,7 +20,7 @@ type fact = CG.expr * int
 
 type tree = 
   | Node of flip list * tree * tree * tree
-  | Joint of tree * tree
+  | Joint of flip list * tree * tree
   | Leaf of int
   | Non
 
@@ -59,6 +59,16 @@ let print_facts (facts: fact list) =
   in
   Format.printf "{\n";
   print_facts facts
+
+let print_flips (flips: flip list) = 
+  let rec print_flips_e (flips: flip list) =
+    match flips with
+    | [] -> Format.printf "\n";
+    | (p, ids)::tail -> 
+      Format.printf "(%f, " p; print_ids ids; Format.printf "), "; 
+      print_flips_e tail
+  in
+  print_flips_e flips
 
 let print_string (s: string) = 
   (Format.printf "%s" s)
@@ -120,7 +130,7 @@ let up_pass (e: CG.expr) : tree * env =
     | [] -> new_l, None
     | (p, i)::tail -> 
       if equal prob p then 
-        (List.rev_append new_l tail), Some((p, i@ids)) 
+        (List.rev_append new_l tail), Some((p, ids@i)) 
       else 
         merge tail (prob, ids) ((p, i)::new_l)
   in
@@ -146,11 +156,16 @@ let up_pass (e: CG.expr) : tree * env =
       let els_flips, els_tree = up_pass_e els in
       let flips, shared = find_shared thn_flips els_flips [] [] in
       (g_flips@flips), Node(shared, g_tree, thn_tree, els_tree)
-    | Let(_, e1, e2) | And(e1, e2) | Or(e1, e2) | Xor(e1, e2) | Eq(e1, e2) | Tup(e1, e2) ->
+    | Let(_, e1, e2) ->
+      let e1_flips, e1_tree = up_pass_e e1 in
+      let e2_flips, e2_tree = up_pass_e e2 in
+      let flips, shared = find_shared e1_flips e2_flips [] [] in
+      flips, Joint(shared, e1_tree, e2_tree)
+    | And(e1, e2) | Or(e1, e2) | Xor(e1, e2) | Eq(e1, e2) | Tup(e1, e2) ->
       let e1_flips, e1_tree = up_pass_e e1 in
       let e2_flips, e2_tree = up_pass_e e2 in
       let flips = e1_flips@e2_flips in
-      flips, Joint(e1_tree, e2_tree)
+      flips, Joint([], e1_tree, e2_tree)
     | Not(e1) -> 
       (match e1 with
       | Flip(f) -> 
@@ -211,15 +226,147 @@ let cross_up (e: CG.expr) (t: tree) (flip_env: env) : env =
         Some(id1, not v1)) new_vals
   in
 
+  let rec cross_up_guard (e: CG.expr) (t: tree) (facts: fact list) (x_stack: CG.expr list) 
+    (vals_thn: (int * bool) list) (vals_els: (int * bool) list)
+   : fact list * (int * bool) list * (int * bool) list = 
+    match e with
+    | Let(x, e1, e2) ->
+      (match t with 
+      | Joint(_, e1_tree, e2_tree) -> 
+        let e1_facts, _, _ = cross_up_guard e1 e1_tree facts (Ident(x)::x_stack) vals_thn vals_els in
+        let e2_facts, e2_vals_then, e2_vals_els = cross_up_guard e2 e2_tree e1_facts x_stack vals_thn vals_els in
+        let facts' = remove_facts (Ident(x)) e2_facts [] in
+        facts', e2_vals_then, e2_vals_els
+      | _ -> failwith "unexpected flip tree element")
+    | Ite(g, thn, els) ->
+      (match t with
+      | Node(_, g_tree, thn_tree, els_tree) ->
+        let g_facts, g_vals_thn, g_vals_els = cross_up_guard g g_tree facts x_stack vals_thn vals_thn in
+        let thn_facts, _, _ = cross_up_guard thn thn_tree facts x_stack g_vals_thn g_vals_thn in
+        let els_facts, _, _ = cross_up_guard els els_tree facts x_stack g_vals_els g_vals_els in
+        let facts' = merge_facts thn_facts els_facts in
+        facts', vals_thn, vals_els
+      | _ -> failwith "unexpected flip tree element")
+    | Ident(x) ->
+      let left_x_opt = top x_stack in
+      let facts'' = 
+        match left_x_opt with
+        | None -> facts
+        | Some(left_x) -> 
+          let facts' = copy_facts (Ident(x)) left_x facts [] in
+          facts'
+      in
+      let vals_thn', vals_els' = 
+        List.fold_left (fun (thn, els) (loc, id) -> 
+          if equal_expr (Ident(x)) loc then
+            (id, true)::thn, (id, false)::els
+          else
+            thn, els) (vals_thn, vals_els) facts'' 
+      in
+      facts'', vals_thn', vals_els'
+    | Flip(f) ->
+      (match t with
+      | Leaf(id) -> 
+        let facts' = 
+          let left_x_opt = top x_stack in
+          match left_x_opt with
+          | None -> facts
+          | Some(left_x) -> (left_x, id)::facts
+        in
+        let entry_opt = Hashtbl.find_opt flip_env id in
+        (match entry_opt with
+        | None -> failwith "can't find flip entry"
+        | Some(p, x, v) -> (Hashtbl.replace flip_env id (p, x, (vals_thn@v))););
+        let vals_thn' = (id, true)::vals_thn in
+        let vals_els' = (id, false)::vals_els in
+        facts', vals_thn', vals_els'
+      | _ -> failwith "unexpected flip tree element")
+    | Tup(e1, e2) ->
+      (match t with
+      | Joint(_, e1_tree, e2_tree) ->
+        let left_x_opt = top x_stack in
+        (match left_x_opt with
+        | None -> facts, vals_thn, vals_els
+        | Some(left_x) -> 
+          let x_stack_tail = pop x_stack in
+          let e1_facts, e1_vals_thn, e1_vals_els = cross_up_guard e1 e1_tree facts 
+            (Fst(left_x)::x_stack_tail) vals_thn vals_els in
+          let e2_facts, e2_vals_thn, e2_vals_els = cross_up_guard e2 e2_tree e1_facts 
+            (Snd(left_x)::x_stack_tail) e1_vals_thn e1_vals_els in
+          e2_facts, e2_vals_thn, e2_vals_els)
+      | _ -> failwith "unexpected flip tree element")
+    | And(e1, e2) | Eq(e1, e2) ->
+      (match t with
+      | Joint(_, e1_tree, e2_tree) ->
+        let e1_facts, e1_vals_thn, _ = cross_up_guard e1 e1_tree facts x_stack 
+          vals_thn vals_els in
+        let e2_facts, e2_vals_thn, _ = cross_up_guard e2 e2_tree e1_facts x_stack 
+          e1_vals_thn vals_els in
+        e2_facts, e2_vals_thn, vals_els
+      | _ -> failwith "unexpected flip tree element")
+    | Or(e1, e2) ->
+      (match t with
+      | Joint(_, e1_tree, e2_tree) ->
+        let e1_facts, _, e1_vals_els = cross_up_guard e1 e1_tree facts x_stack 
+          vals_thn vals_els in
+        let e2_facts, _, e2_vals_els = cross_up_guard e2 e2_tree e1_facts x_stack 
+          vals_thn e1_vals_els in
+        e2_facts, vals_thn, e2_vals_els
+      | _ -> failwith "unexpected flip tree element")
+    | Xor(e1, e2) ->
+      (match t with
+      | Joint(_, e1_tree, e2_tree) ->
+        let e1_facts, _, _ = cross_up_guard e1 e1_tree facts x_stack 
+          vals_thn vals_els in
+        let e2_facts, _, _ = cross_up_guard e2 e2_tree e1_facts x_stack 
+          vals_thn vals_els in
+        e2_facts, vals_thn, vals_els
+      | _ -> failwith "unexpected flip tree element")
+    | Not(e1) -> 
+      (match e1 with
+      | Ident(x) ->
+        let left_x_opt = top x_stack in
+        let facts'' = 
+          match left_x_opt with
+          | None -> facts
+          | Some(left_x) -> 
+            let facts' = copy_facts (Ident(x)) left_x facts [] in
+            facts'
+        in
+        let vals_thn', vals_els' = 
+          List.fold_left (fun (vals_thn, vals_els) (loc, id) -> 
+            if equal_expr (Ident(x)) loc then
+              (id, false)::vals_thn, (id, true)::vals_els
+            else
+              vals_thn, vals_els) (vals_thn, vals_els) facts'' 
+        in
+        facts'', vals_thn', vals_els'
+      | _ -> 
+        let e1_facts, _, _ = cross_up_guard e1 t facts x_stack vals_thn vals_els in
+        e1_facts, vals_thn, vals_els)
+    | Snd(e1) | Fst(e1) ->
+      let vals_thn', vals_els' = 
+        List.fold_left (fun (vals_thn, vals_els) (loc, id) -> 
+          if equal_expr e1 loc then
+            (id, true)::vals_thn, (id, false)::vals_els
+          else
+            vals_thn, vals_els) (vals_thn, vals_els) facts
+      in
+      let e1_facts, e1_vals_thn, e1_vals_els = cross_up_guard e1 t facts x_stack vals_thn' vals_els' in
+      e1_facts, e1_vals_thn, e1_vals_els    
+    | Observe(e1) ->
+      let e1_facts, e1_vals_thn, e1_vals_els = cross_up_guard e1 t facts x_stack vals_thn vals_els in
+      e1_facts, e1_vals_thn, e1_vals_els
+    | _ -> facts, vals_thn, vals_els
+  in
+
   let rec cross_up_e (e: CG.expr) (t: tree) (facts: fact list) (x_stack: CG.expr list) (vals: (int * bool) list)
    : fact list * (int * bool) list =
     match e with
     | Let(x, e1, e2) ->
       (match t with 
-      | Joint(e1_tree, e2_tree) -> 
+      | Joint(_, e1_tree, e2_tree) -> 
         let e1_facts, _ = cross_up_e e1 e1_tree facts (Ident(x)::x_stack) vals in
-        (* (Format.printf "%s\n" (CG.string_of_expr e1)); *)
-        (* (print_facts e1_facts); *)
         let e2_facts, e2_vals = cross_up_e e2 e2_tree e1_facts x_stack vals in
         let facts' = remove_facts (Ident(x)) e2_facts [] in
         facts', e2_vals
@@ -227,16 +374,10 @@ let cross_up (e: CG.expr) (t: tree) (flip_env: env) : env =
     | Ite(g, thn, els) ->
       (match t with
       | Node(_, g_tree, thn_tree, els_tree) ->
-        (* (Format.printf "%s\n" (CG.string_of_expr e)); *)
-        let g_facts, g_vals = cross_up_e g g_tree facts x_stack vals in
-        (* (print_facts g_facts); *)
-        let thn_facts, _ = cross_up_e thn thn_tree facts x_stack g_vals in
-        (* (print_facts thn_facts); *)
-        let g_vals' = flip_vals vals g_vals in
-        let els_facts, _ = cross_up_e els els_tree facts x_stack g_vals' in
-        (* (print_facts els_facts); *)
+        let g_facts, g_vals_thn, g_vals_els = cross_up_guard g g_tree facts x_stack vals vals in
+        let thn_facts, _ = cross_up_e thn thn_tree facts x_stack g_vals_thn in
+        let els_facts, _ = cross_up_e els els_tree facts x_stack g_vals_els in
         let facts' = merge_facts thn_facts els_facts in
-        (* (print_facts facts'); *)
         facts', vals
       | _ -> failwith "unexpected flip tree element")
     | Ident(x) ->
@@ -274,27 +415,21 @@ let cross_up (e: CG.expr) (t: tree) (flip_env: env) : env =
       | _ -> failwith "unexpected flip tree element")
     | Tup(e1, e2) ->
       (match t with
-      | Joint(e1_tree, e2_tree) ->
+      | Joint(_, e1_tree, e2_tree) ->
         let left_x_opt = top x_stack in
         (match left_x_opt with
         | None -> facts, vals
         | Some(left_x) -> 
           let x_stack_tail = pop x_stack in
-          (* Format.printf "left %s\n" (CG.string_of_expr left_x); *)
           let e1_facts, e1_vals = cross_up_e e1 e1_tree facts (Fst(left_x)::x_stack_tail) vals in
-          (* (Format.printf "%s\n" (CG.string_of_expr e)); *)
-          (* (print_facts e1_facts); *)
           let e2_facts, e2_vals = cross_up_e e2 e2_tree e1_facts (Snd(left_x)::x_stack_tail) e1_vals in
-          (* (print_facts e2_facts); *)
           e2_facts, e2_vals)
       | _ -> failwith "unexpected flip tree element")
     | And(e1, e2) | Or(e1, e2) | Xor(e1, e2) | Eq(e1, e2) ->
       (match t with
-      | Joint(e1_tree, e2_tree) ->
+      | Joint(_, e1_tree, e2_tree) ->
         let e1_facts, e1_vals = cross_up_e e1 e1_tree facts x_stack vals in
         let e2_facts, e2_vals = cross_up_e e2 e2_tree e1_facts x_stack e1_vals in
-        (* (Format.printf "%s\n" (CG.string_of_expr e)); *)
-        (* (print_facts e2_facts); *)
         e2_facts, e2_vals
       | _ -> failwith "unexpected flip tree element")
     | Not(e1) -> 
@@ -335,18 +470,22 @@ let cross_up (e: CG.expr) (t: tree) (flip_env: env) : env =
     | _ -> facts, vals
   in
   let facts, vals = cross_up_e e t [] [] [] in
-  (print_facts facts);
-  (print_env flip_env);
   flip_env
 
   (* Replace the flips with corresponding variables *)
 let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr = 
 
-  let rec get_hoisted (shared: flip list) (hoisted: int list) : int list =
-    match shared with
-    | [] -> List.sort_uniq compare hoisted 
-    | (p, ids)::tail -> 
-      get_hoisted tail ((List.hd ids)::hoisted)
+  let get_hoisted (shared: flip list) (to_hoist: int list) (to_hoist': int list) : int list =
+    let rec get_hoisted_e (shared: flip list) (hoisted: int list) : int list =
+      match shared with
+      | [] -> List.sort_uniq compare hoisted 
+      | (p, ids)::tail -> 
+        let ids' = List.filter (fun id -> not (List.mem id to_hoist) && (List.mem id to_hoist')) ids in
+        (match ids' with
+        | [] -> get_hoisted_e tail hoisted
+        | head::_ -> get_hoisted_e tail (head::hoisted))
+    in
+    get_hoisted_e shared []
   in
 
   let rec flips_to_hoist (shared: flip list) (hoisted: int list) : int list =
@@ -356,7 +495,7 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
       | head::tail ->
         let curr_opt = Hashtbl.find_opt flip_env head in
         (match curr_opt with
-        | None -> Hashtbl.add flip_env head entry
+        | None -> failwith "cannot find flip with flip id"
         | Some((p, var, vals)) -> 
           (match var with
           | None -> Hashtbl.replace flip_env head entry
@@ -369,6 +508,56 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
       let x = fresh() in 
       (create_flip ids (p, Some(x), []));
       flips_to_hoist tail (ids@hoisted)
+  in
+
+  let rec cross_flips_to_hoist (shared: flip list) (hoisted: int list) : int list = 
+    let create_flip (ids: int list) (p: float) (hoisted: int list) : int list = 
+      let check_flips (id: int) (prev: int list) (hoisted: int list): int list = 
+        let check_facts (vals1: (int * bool) list) (vals2: (int * bool) list) : bool =
+          List.fold_left (fun acc (id1, v1) ->
+            List.fold_left (fun acc (id2, v2) -> 
+              if id1 = id2 && not v1 = v2 then
+                true
+              else
+                acc
+              ) acc vals2
+            ) false vals1
+        in
+        let id1_entry_opt = Hashtbl.find_opt flip_env id in
+        (match id1_entry_opt with
+        | None -> failwith "cannot find flip with flip id"
+        | Some((p1, var1, vals1)) ->
+          List.fold_left (fun acc id2 -> 
+            let id2_entry_opt = Hashtbl.find_opt flip_env id2 in
+            (match id2_entry_opt with
+            | None -> failwith "cannot find flip with flip id"
+            | Some((p2, var2, vals2)) -> 
+              if check_facts vals1 vals2 then
+                let acc' = (id::(id2::acc)) in
+                (match var2 with
+                | None -> 
+                  let x = fresh() in
+                  (Hashtbl.replace flip_env id (p1, Some(x), vals1));
+                  (Hashtbl.replace flip_env id2 (p2, Some(x), vals2));
+                | Some(x) ->
+                  (Hashtbl.replace flip_env id (p1, Some(x), vals1)););
+                acc'
+              else
+                acc)
+          ) hoisted prev)
+      in
+      let hoisted', _ = List.fold_left (fun (acc, prev) id -> 
+        let acc' = check_flips id prev acc in
+        let prev' = id::prev in
+        acc', prev') (hoisted, []) ids in
+      hoisted'
+    in
+    match shared with
+    | [] -> 
+      List.sort_uniq compare hoisted 
+    | (p, ids)::tail -> 
+      let hoisted' = create_flip ids p hoisted in
+      cross_flips_to_hoist tail hoisted'
   in
 
   let last_flip (hoisted: int list) : int option =
@@ -384,7 +573,7 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
     | head::tail -> Some(max tail head)
   in
 
-  let make_exprs (ids: int list) (inner: CG.expr) (rev: bool) : CG.expr = 
+  let make_exprs (ids: int list) (inner: CG.expr) : CG.expr = 
     let rec make_exprs_e (ids: int list) (inner: CG.expr) : CG.expr = 
       match ids with
       | [] -> inner
@@ -397,7 +586,7 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
           | None -> failwith "missing identifier for hoisted flip"
           | Some(x) -> make_exprs_e tail (Let(x, Flip(prob), inner)))
     in
-    let ids' = if rev then ids else List.rev_append ids [] in
+    let ids' = List.rev_append ids [] in
     make_exprs_e ids' inner
   in
 
@@ -423,12 +612,16 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
           | Some((p, var, vals)) -> 
             (match var with
             | None -> 
-              (match hoisted with
-              | [] -> e, hoisted, carried
-              | _ ->
-                let x = fresh() in
-                (Hashtbl.replace flip_env id (p, Some(x), vals));
-                Ident(x), hoisted, (id::carried))
+              let last_opt = last_flip to_hoist in
+              (match last_opt with
+              | None -> e, hoisted, carried
+              | Some(last) ->
+                if id < last then
+                  let x = fresh() in
+                  (Hashtbl.replace flip_env id (p, Some(x), vals));
+                  Ident(x), hoisted, (id::carried)
+                else
+                  e, hoisted, carried)
             | Some(x)-> 
               let hoisted' = List.sort_uniq compare (id::hoisted) in
               Ident(x), hoisted', carried))
@@ -438,9 +631,9 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
       | Node(shared, g_tree, thn_tree, els_tree) -> 
         let to_hoist' = flips_to_hoist shared to_hoist in
         let thn', thn_hoisted, thn_carried = down_pass_e thn thn_tree to_hoist' [] carried in
-        let els', els_hoisted, els_carried = down_pass_e els els_tree to_hoist' [] thn_carried in
-        let g', g_hoisted, g_carried = down_pass_e g g_tree to_hoist' [] els_carried in
-        let prev_last_opt = last_flip hoisted in
+        let els', els_hoisted, els_carried = down_pass_e els els_tree to_hoist' thn_hoisted thn_carried in
+        let g', g_hoisted, g_carried = down_pass_e g g_tree to_hoist' els_hoisted els_carried in
+        let prev_last_opt = last_flip to_hoist in
         let curr_carried = 
           match prev_last_opt with
           | None -> g_carried
@@ -451,51 +644,69 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
           | None -> []
           | Some(last) -> List.filter (fun id -> id <= last) g_carried
         in
-        let curr_flips = get_hoisted shared [] in
-        let curr_hoisted = List.filter (fun id -> not (List.mem id to_hoist)) curr_flips in
-        let hoisted_expr = make_exprs curr_hoisted (Ite(g', thn', els')) false in
-        let carried_expr = make_exprs curr_carried hoisted_expr true in
+        let curr_hoisted = get_hoisted shared to_hoist to_hoist' in
+        let hoisted_flips = List.rev_append curr_hoisted curr_carried
+          |> List.sort compare in
+        let hoisted_expr = make_exprs hoisted_flips (Ite(g', thn', els')) in
         let hoisted' = List.sort_uniq compare (hoisted@(thn_hoisted@(els_hoisted@g_hoisted))) in
-        carried_expr, hoisted', prev_carried
+        hoisted_expr, hoisted', prev_carried
       | _ -> failwith "unexpected flip tree element")
     | Let(x, e1, e2) -> 
       (match t with
-      | Joint(e1_tree, e2_tree) ->
-        let e2', e2_hoisted, e2_carried = down_pass_e e2 e2_tree to_hoist hoisted carried in
-        let e1', e1_hoisted, e1_carried = down_pass_e e1 e1_tree to_hoist hoisted e2_carried in
-        Let(x, e1', e2'), e1_hoisted, e1_carried
+      | Joint(shared, e1_tree, e2_tree) ->
+        let to_hoist' = cross_flips_to_hoist shared to_hoist in
+        
+        let e2', e2_hoisted, e2_carried = down_pass_e e2 e2_tree to_hoist' hoisted carried in
+        let e1', e1_hoisted, e1_carried = down_pass_e e1 e1_tree to_hoist' e2_hoisted e2_carried in
+        let prev_last_opt = last_flip to_hoist in
+        let curr_carried = 
+          (match prev_last_opt with
+          | None -> e1_carried
+          | Some(last) -> List.filter (fun id -> id > last) e1_carried)
+        in
+        let prev_carried = 
+          match prev_last_opt with
+          | None -> []
+          | Some(last) -> List.filter (fun id -> id <= last) e1_carried
+        in
+        let curr_hoisted = get_hoisted shared to_hoist to_hoist' in
+        let hoisted_flips = List.rev_append curr_hoisted curr_carried
+          |> List.sort compare in
+        let hoisted_expr = make_exprs hoisted_flips (Let(x, e1', e2')) in
+        let hoisted' = List.sort_uniq compare (hoisted@(e2_hoisted@e1_hoisted)) in
+        hoisted_expr, hoisted', prev_carried
       | _ -> failwith "unexpected flip tree element")
     | And(e1, e2) ->
       (match t with
-      | Joint(e1_tree, e2_tree) ->
+      | Joint(_, e1_tree, e2_tree) ->
         let e2', e2_hoisted, e2_carried = down_pass_e e2 e2_tree to_hoist hoisted carried in
         let e1', e1_hoisted, e1_carried = down_pass_e e1 e1_tree to_hoist e2_hoisted e2_carried in
         And(e1', e2'), e1_hoisted, e1_carried
       | _ -> failwith "unexpected flip tree element")
     | Or(e1, e2) ->
       (match t with
-      | Joint(e1_tree, e2_tree) ->
+      | Joint(_, e1_tree, e2_tree) ->
         let e2', e2_hoisted, e2_carried = down_pass_e e2 e2_tree to_hoist hoisted carried in
         let e1', e1_hoisted, e1_carried = down_pass_e e1 e1_tree to_hoist e2_hoisted e2_carried in
         Or(e1', e2'), e1_hoisted, e1_carried
       | _ -> failwith "unexpected flip tree element")
     | Xor(e1, e2) ->
       (match t with
-      | Joint(e1_tree, e2_tree) ->
+      | Joint(_, e1_tree, e2_tree) ->
         let e2', e2_hoisted, e2_carried = down_pass_e e2 e2_tree to_hoist hoisted carried in
         let e1', e1_hoisted, e1_carried = down_pass_e e1 e1_tree to_hoist e2_hoisted e2_carried in
         Xor(e1', e2'), e1_hoisted, e1_carried
       | _ -> failwith "unexpected flip tree element")
     | Eq(e1, e2) ->
       (match t with
-      | Joint(e1_tree, e2_tree) ->
+      | Joint(_, e1_tree, e2_tree) ->
         let e2', e2_hoisted, e2_carried = down_pass_e e2 e2_tree to_hoist hoisted carried in
         let e1', e1_hoisted, e1_carried = down_pass_e e1 e1_tree to_hoist e2_hoisted e2_carried in
         Eq(e1', e2'), e1_hoisted, e1_carried
       | _ -> failwith "unexpected flip tree element")
     | Tup(e1, e2) ->
       (match t with
-      | Joint(e1_tree, e2_tree) ->
+      | Joint(_, e1_tree, e2_tree) ->
         let e2', e2_hoisted, e2_carried = down_pass_e e2 e2_tree to_hoist hoisted carried in
         let e1', e1_hoisted, e1_carried = down_pass_e e1 e1_tree to_hoist e2_hoisted e2_carried in
         Tup(e1', e2'), e1_hoisted, e1_carried
