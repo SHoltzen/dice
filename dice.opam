@@ -17,6 +17,7 @@ depends: [
   "yojson"
   "ctypes"
   "ctypes-foreign"
+  "bignum"
 ]
 
 pin-depends: [

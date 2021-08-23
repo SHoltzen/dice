@@ -67,7 +67,7 @@ let rec up_pass (e: CG.expr) : float list * tree  =
   in
 
   match e with
-  | Flip(f) -> [f], Leaf
+  | Flip(f) -> [(Bignum.to_float f)], Leaf
   | Ite(g, thn, els) -> 
     let g_flips, _ = up_pass g in
 
@@ -138,7 +138,7 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
         lift_new_flip flip_to_var_temp' flip_to_var var_to_expr tail
       else
         let var = fresh() in
-        lift_new_flip (flip_to_var) ((false, true, flip, var, [])::flip_to_var) (StringMap.add var (Flip(flip)) var_to_expr) tail
+        lift_new_flip (flip_to_var) ((false, true, flip, var, [])::flip_to_var) (StringMap.add var (Flip((Bignum.of_float_decimal flip))) var_to_expr) tail
   in
   
   let rec is_var_lifted (flip_to_var: tracker) (var: string) : bool = 
@@ -298,7 +298,7 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
     | [] -> inner
     | (used, new_flip, f, var, s)::tail -> 
       if new_flip && used then
-        let expr = make_squeezed s (Let(var, Flip(f), inner)) in
+        let expr = make_squeezed s (Let(var, Flip((Bignum.of_float_decimal f)), inner)) in
         make_expression tail var_to_expr expr 
       else
         inner
@@ -332,7 +332,7 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
   let rec replace_expr_flips (flip_to_var: tracker) (e: CG.expr) (replaced_vars: string list) : CG.expr * tracker * string list = 
     match e with 
     | Flip(f) -> 
-      let var, flip_to_var' = get_var [] flip_to_var f in 
+      let var, flip_to_var' = get_var [] flip_to_var (Bignum.to_float f) in 
       (match var with
       | None -> e, flip_to_var, replaced_vars
       | Some(v) -> Ident(v), flip_to_var', (v::replaced_vars))
@@ -512,7 +512,7 @@ let down_pass (e: CG.expr) (t: tree) : CG.expr =
     : CG.expr * tracker * env = 
     match e with
     | Flip(f) -> 
-      let var, flip_to_var' = get_var [] flip_to_var f in 
+      let var, flip_to_var' = get_var [] flip_to_var (Bignum.to_float f) in 
       (match var with
       | None -> e, flip_to_var, var_to_expr
       | Some(v) -> Ident(v), flip_to_var', var_to_expr)
@@ -671,9 +671,9 @@ let rec merge_branch (e: CG.expr) : CG.expr =
 let rec redundant_flip_elimination (e: CG.expr) : CG.expr =
   match e with 
   | Flip(f) ->
-    if f = 0.0 then
+    if f = Bignum.zero then
       False
-    else if f = 1.0 then
+    else if f = Bignum.one then
       True
     else
       Flip(f)
