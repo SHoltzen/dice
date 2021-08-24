@@ -510,9 +510,9 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
       flips_to_hoist tail (ids@hoisted)
   in
 
-  let rec cross_flips_to_hoist (shared: flip list) (hoisted: int list) : int list = 
-    let create_flip (ids: int list) (p: float) (hoisted: int list) : int list = 
-      let check_flips (id: int) (prev: int list) (hoisted: int list): int list = 
+  let rec cross_flips_to_hoist (shared: flip list) (hoisted: int list) (curr_flips: int list) : int list * int list = 
+    let create_flip (ids: int list) (p: float) (hoisted: int list) (curr_flips: int list) : int list * int list = 
+      let check_flips (id: int) (prev: int list) (hoisted: int list) (curr_flips: int list) : int list * int list = 
         let check_facts (vals1: (int * bool) list) (vals2: (int * bool) list) : bool =
           List.fold_left (fun acc (id1, v1) ->
             List.fold_left (fun acc (id2, v2) -> 
@@ -527,37 +527,42 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
         (match id1_entry_opt with
         | None -> failwith "cannot find flip with flip id"
         | Some((p1, var1, vals1)) ->
-          List.fold_left (fun acc id2 -> 
+          List.fold_left (fun (hoisted, curr_flips) id2 -> 
             let id2_entry_opt = Hashtbl.find_opt flip_env id2 in
             (match id2_entry_opt with
             | None -> failwith "cannot find flip with flip id"
             | Some((p2, var2, vals2)) -> 
               if check_facts vals1 vals2 then
-                let acc' = (id::(id2::acc)) in
-                (match var2 with
-                | None -> 
-                  let x = fresh() in
-                  (Hashtbl.replace flip_env id (p1, Some(x), vals1));
-                  (Hashtbl.replace flip_env id2 (p2, Some(x), vals2));
-                | Some(x) ->
-                  (Hashtbl.replace flip_env id (p1, Some(x), vals1)););
-                acc'
+                let hoisted' = (id::(id2::hoisted)) in
+                let curr_flips' = 
+                  (match var2 with
+                  | None -> 
+                    let x = fresh() in
+                    (Hashtbl.replace flip_env id (p1, Some(x), vals1));
+                    (Hashtbl.replace flip_env id2 (p2, Some(x), vals2));
+                    (id::curr_flips)
+                  | Some(x) ->
+                    (Hashtbl.replace flip_env id (p1, Some(x), vals1));
+                    curr_flips)
+                in
+                hoisted', curr_flips'
               else
-                acc)
-          ) hoisted prev)
+                hoisted, curr_flips)
+          ) (hoisted, curr_flips) prev)
       in
-      let hoisted', _ = List.fold_left (fun (acc, prev) id -> 
-        let acc' = check_flips id prev acc in
+      let hoisted', curr_flips', _ = List.fold_left (fun (hoisted, curr_flips, prev) id -> 
+        let hoisted', curr_flips' = check_flips id prev hoisted curr_flips in
         let prev' = id::prev in
-        acc', prev') (hoisted, []) ids in
-      hoisted'
+        hoisted', curr_flips', prev') (hoisted, curr_flips, []) ids in
+      hoisted', curr_flips'
     in
     match shared with
     | [] -> 
-      List.sort_uniq compare hoisted 
+      let hoisted' = List.sort_uniq compare hoisted in
+      hoisted', curr_flips
     | (p, ids)::tail -> 
-      let hoisted' = create_flip ids p hoisted in
-      cross_flips_to_hoist tail hoisted'
+      let hoisted', curr_flips' = create_flip ids p hoisted curr_flips in
+      cross_flips_to_hoist tail hoisted' curr_flips'
   in
 
   let last_flip (hoisted: int list) : int option =
@@ -618,8 +623,19 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
               | Some(last) ->
                 if id < last then
                   let x = fresh() in
-                  (Hashtbl.replace flip_env id (p, Some(x), vals));
-                  Ident(x), hoisted, (id::carried)
+                  let entry = Hashtbl.find_opt flip_env id in
+                  (match entry with
+                  | None -> 
+                    Hashtbl.add flip_env id (p, Some(x), vals);
+                    Ident(x), hoisted, (id::carried)
+                  | Some(_, var', _) ->
+                    (match var' with 
+                    | None -> 
+                      Hashtbl.replace flip_env id (p, Some(x), vals);
+                      Ident(x), hoisted, (id::carried)
+                    | Some(x') -> 
+                      Hashtbl.replace flip_env id (p, Some(x'), vals);
+                      Ident(x'), hoisted, (id::carried)))
                 else
                   e, hoisted, carried)
             | Some(x)-> 
@@ -654,7 +670,7 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
     | Let(x, e1, e2) -> 
       (match t with
       | Joint(shared, e1_tree, e2_tree) ->
-        let to_hoist' = cross_flips_to_hoist shared to_hoist in
+        let to_hoist', curr_flips = cross_flips_to_hoist shared to_hoist [] in
         
         let e2', e2_hoisted, e2_carried = down_pass_e e2 e2_tree to_hoist' hoisted carried in
         let e1', e1_hoisted, e1_carried = down_pass_e e1 e1_tree to_hoist' e2_hoisted e2_carried in
@@ -669,8 +685,8 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
           | None -> []
           | Some(last) -> List.filter (fun id -> id <= last) e1_carried
         in
-        let curr_hoisted = get_hoisted shared to_hoist to_hoist' in
-        let hoisted_flips = List.rev_append curr_hoisted curr_carried
+        (* let curr_hoisted = get_hoisted shared to_hoist to_hoist' in *)
+        let hoisted_flips = List.rev_append curr_flips curr_carried
           |> List.sort compare in
         let hoisted_expr = make_exprs hoisted_flips (Let(x, e1', e2')) in
         let hoisted' = List.sort_uniq compare (hoisted@(e2_hoisted@e1_hoisted)) in
