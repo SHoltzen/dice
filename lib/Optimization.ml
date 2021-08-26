@@ -488,7 +488,19 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
     get_hoisted_e shared []
   in
 
-  let rec flips_to_hoist (shared: flip list) (hoisted: int list) : int list =
+  let rec flips_to_hoist (shared: flip list) (hoisted: int list) (curr_flips: int list) : int list * int list =
+    let rec find_hoisted_var (ids: int list) : string option = 
+      match ids with
+      | [] -> None
+      | head::tail ->         
+        let entry_opt = Hashtbl.find_opt flip_env head in
+        (match entry_opt with
+        | None -> failwith "cannot find flip with flip id"
+        | Some((_, var, _)) -> 
+          (match var with
+          | None -> find_hoisted_var tail
+          | Some(x) -> Some(x)))
+    in
     let rec create_flip (ids: int list) (entry: float * string option * (int * bool) list) : unit = 
       match ids with
       | [] -> ()
@@ -503,11 +515,15 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
         create_flip tail entry
     in
     match shared with
-    | [] -> List.sort_uniq compare hoisted 
+    | [] -> (List.sort_uniq compare hoisted), curr_flips
     | (p, ids)::tail -> 
-      let x = fresh() in 
+      let x, curr_flips' = 
+        match find_hoisted_var ids with
+        | None -> fresh(), ((List.hd ids)::curr_flips)
+        | Some(x) -> x, curr_flips
+      in 
       (create_flip ids (p, Some(x), []));
-      flips_to_hoist tail (ids@hoisted)
+      flips_to_hoist tail (ids@hoisted) curr_flips'
   in
 
   let rec cross_flips_to_hoist (shared: flip list) (hoisted: int list) (curr_flips: int list) : int list * int list = 
@@ -540,7 +556,7 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
                     let x = fresh() in
                     (Hashtbl.replace flip_env id (p1, Some(x), vals1));
                     (Hashtbl.replace flip_env id2 (p2, Some(x), vals2));
-                    (id::curr_flips)
+                    (id2::curr_flips)
                   | Some(x) ->
                     (Hashtbl.replace flip_env id (p1, Some(x), vals1));
                     curr_flips)
@@ -589,7 +605,8 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
         | Some((prob, var, vals)) -> 
           (match var with
           | None -> failwith "missing identifier for hoisted flip"
-          | Some(x) -> make_exprs_e tail (Let(x, Flip(prob), inner)))
+          | Some(x) -> 
+          make_exprs_e tail (Let(x, Flip(prob), inner)))
     in
     let ids' = List.rev_append ids [] in
     make_exprs_e ids' inner
@@ -645,52 +662,59 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
     | Ite(g, thn, els) -> 
       (match t with
       | Node(shared, g_tree, thn_tree, els_tree) -> 
-        let to_hoist' = flips_to_hoist shared to_hoist in
+        let to_hoist', curr_hoisted = flips_to_hoist shared to_hoist [] in
         let thn', thn_hoisted, thn_carried = down_pass_e thn thn_tree to_hoist' [] carried in
         let els', els_hoisted, els_carried = down_pass_e els els_tree to_hoist' thn_hoisted thn_carried in
         let g', g_hoisted, g_carried = down_pass_e g g_tree to_hoist' els_hoisted els_carried in
+
         let prev_last_opt = last_flip to_hoist in
-        let curr_carried = 
+
+        let all_flips = List.rev_append curr_hoisted g_carried
+          |> List.sort_uniq compare in
+
+        let curr_flips = 
           match prev_last_opt with
-          | None -> g_carried
-          | Some(last) -> List.filter (fun id -> id > last) g_carried
+          | None -> all_flips
+          | Some(last) -> List.filter (fun id -> id > last) all_flips
         in
-        let prev_carried = 
+        let prev_flips = 
           match prev_last_opt with
           | None -> []
-          | Some(last) -> List.filter (fun id -> id <= last) g_carried
+          | Some(last) -> List.filter (fun id -> id <= last) all_flips
         in
-        let curr_hoisted = get_hoisted shared to_hoist to_hoist' in
-        let hoisted_flips = List.rev_append curr_hoisted curr_carried
-          |> List.sort compare in
-        let hoisted_expr = make_exprs hoisted_flips (Ite(g', thn', els')) in
-        let hoisted' = List.sort_uniq compare (hoisted@(thn_hoisted@(els_hoisted@g_hoisted))) in
-        hoisted_expr, hoisted', prev_carried
+
+        let hoisted_expr = make_exprs curr_flips (Ite(g', thn', els')) in
+        let hoisted' = List.sort_uniq compare (hoisted@g_hoisted) in
+        hoisted_expr, hoisted', prev_flips
       | _ -> failwith "unexpected flip tree element")
     | Let(x, e1, e2) -> 
       (match t with
-      | Joint(shared, e1_tree, e2_tree) ->
-        let to_hoist', curr_flips = cross_flips_to_hoist shared to_hoist [] in
+      | Joint(shared, e1_tree, e2_tree) -> 
+        let to_hoist', curr_hoisted = cross_flips_to_hoist shared to_hoist [] in
         
         let e2', e2_hoisted, e2_carried = down_pass_e e2 e2_tree to_hoist' hoisted carried in
         let e1', e1_hoisted, e1_carried = down_pass_e e1 e1_tree to_hoist' e2_hoisted e2_carried in
+
         let prev_last_opt = last_flip to_hoist in
-        let curr_carried = 
-          (match prev_last_opt with
-          | None -> e1_carried
-          | Some(last) -> List.filter (fun id -> id > last) e1_carried)
+
+        let all_flips = List.rev_append curr_hoisted e1_carried
+          |> List.sort_uniq compare in
+
+        let curr_flips = 
+          match prev_last_opt with
+          | None -> all_flips
+          | Some(last) -> List.filter (fun id -> id > last) all_flips
         in
-        let prev_carried = 
+        let prev_flips = 
           match prev_last_opt with
           | None -> []
-          | Some(last) -> List.filter (fun id -> id <= last) e1_carried
+          | Some(last) -> List.filter (fun id -> id <= last) all_flips
         in
-        (* let curr_hoisted = get_hoisted shared to_hoist to_hoist' in *)
-        let hoisted_flips = List.rev_append curr_flips curr_carried
-          |> List.sort compare in
-        let hoisted_expr = make_exprs hoisted_flips (Let(x, e1', e2')) in
-        let hoisted' = List.sort_uniq compare (hoisted@(e2_hoisted@e1_hoisted)) in
-        hoisted_expr, hoisted', prev_carried
+
+        let hoisted_expr = make_exprs curr_flips (Let(x, e1', e2')) in
+        
+        let hoisted' = List.sort_uniq compare (hoisted@e1_hoisted) in
+        hoisted_expr, hoisted', prev_flips
       | _ -> failwith "unexpected flip tree element")
     | And(e1, e2) ->
       (match t with
