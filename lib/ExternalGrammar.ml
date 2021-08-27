@@ -144,3 +144,51 @@ let string_of_typ t =
 
 (** type environment *)
 type tenv = (String.t, typ) Core.Map.Poly.t
+
+let count_params p = 
+  let funcs = p.functions in
+  let e = p.body in
+  let round_float x =
+    let d = 6 in
+    let m = 10. ** (float d) in 
+    (Float.round_down ((x *. m) +. 0.5)) /. m
+  in
+  let equal f1 f2 = Float.equal (round_float f1) (round_float f2) in
+  let rec count_params_e e c s params =
+    match e with
+    | Let(_, _, e1, e2) ->
+      let c1, s1, _ = count_params_e e1 c s [] in
+      count_params_e e2 c1 s1 []
+    | And(_, e1, e2) | Or(_, e1, e2) | Iff(_, e1, e2) | Xor(_, e1, e2) 
+    | Plus(_, e1, e2) | Minus(_, e1, e2) | Eq(_, e1, e2) | Neq(_, e1, e2) 
+    | Mult(_, e1, e2) | Lt(_, e1, e2) | Lte(_, e1, e2) | Gt(_, e1, e2)
+    | Gte(_, e1, e2) | Tup(_, e1, e2) | Cons(_, e1, e2) 
+    | Div(_, e1, e2) ->
+      let c1, s1, p1 = count_params_e e1 c s params in
+      count_params_e e2 c1 s1 p1
+    | Not(_, e1) | LeftShift(_, e1, _) | RightShift(_, e1, _) | Observe(_, e1) 
+    | Snd(_, e1) | Fst(_, e1) | Sample(_, e1) | Length(_, e1) | Iter(_, _, e1, _) 
+    | Head(_, e1) | Tail(_, e1) ->
+      count_params_e e1 c s params
+    | Flip(_, f) -> 
+      let s1 = s + 1 in
+      if List.mem params f ~equal: equal then c, s1, params else (c + 1), s1, f::params
+    | Discrete(_, l) -> 
+      List.fold l ~init: (c, s, params) ~f: (fun (c, s, p) a -> 
+        let s1 = s + 1 in
+        if List.mem p a ~equal: equal then (c, s1, p) else (c + 1, s1, a::p))
+    | Ident(_, _) | Int(_, _, _) | True(_) | False(_) | IntConst(_, _) 
+    | ListLitEmpty _ | Unif (_, _, _, _) | Binom (_, _, _, _) -> c, s, params
+    | ListLit(_, es) | FuncCall(_, _, es) ->
+      List.fold es ~init: (c, s, params) ~f: (fun (c, s, params) e1 -> count_params_e e1 c s params)
+    | Ite(_, g, thn, els) -> 
+      let c1, s1, p1 = count_params_e g c s params in
+      let c2, s2, p2 = count_params_e thn c1 s1 p1 in
+      count_params_e els c2 s2 p2
+  in
+
+  let c, s, _ = List.fold funcs ~init: (0, 0, []) ~f: (fun (c, s, params) f -> 
+    count_params_e f.body c s params) in
+  let c1, s1, _ = count_params_e e c s [] in
+  
+  (Format.sprintf "%d\n" c1), (Format.sprintf "%d\n" s1)

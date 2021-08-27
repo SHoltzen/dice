@@ -58,8 +58,8 @@ let rec print_pretty e =
 let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~inline_functions ~sample_amount ~show_recursive_calls
     ~flip_hoisting ~cross_table ~branch_elimination ~determinism ~sbk_encoding ~print_state_bdd
-    ~show_function_size ~show_flip_count ~print_unparsed ~print_function_bdd
-    ~recursion_limit ~max_list_length ~eager_eval
+    ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_function_bdd
+    ~recursion_limit ~max_list_length ~eager_eval ~no_compile
     lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
@@ -79,7 +79,10 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
   let res = if print_internal then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog internal)] else res in
   let res = if print_unparsed then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog_unparsed internal)] else res in
   let res = if show_flip_count then res @ [StringRes("Number of flips", CoreGrammar.count_flips internal)] else res in
-  match sample_amount with
+  let res = if show_params then
+    let distinct, total = ExternalGrammar.count_params parsed in
+     res @ [StringRes("Number of Distinct Parameters", distinct); StringRes("Number of Parameters", total)] else res in
+  if no_compile then res else match sample_amount with
   | None ->
     let compiled = Compiler.compile_program internal ~eager_eval in
     let zbdd = compiled.body.z in
@@ -183,6 +186,8 @@ let command =
      and recursion_limit = flag "-recursion-limit" (optional int) ~doc:" maximum recursion depth"
      and max_list_length = flag "-max-list-length" (optional int) ~doc:" maximum list length"
      and show_flip_count = flag "-show-flip-count" no_arg ~doc:" show the number of flips in the program"
+     and show_params = flag "-show-params" no_arg ~doc:" show the sum of number of unique parameters in each table in the program"
+     and no_compile = flag "-no-compile" no_arg ~doc: " parse the program only"
      (* and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order" *)
      and json = flag "-json" no_arg ~doc:" print output as JSON"
      in fun () ->
@@ -192,8 +197,8 @@ let command =
        let r = (parse_and_print ~print_parsed ~print_internal ~sample_amount
                   ~print_size ~inline_functions ~skip_table ~flip_hoisting ~cross_table
                   ~branch_elimination ~determinism ~sbk_encoding ~show_recursive_calls ~print_state_bdd
-                  ~show_function_size ~show_flip_count ~print_unparsed ~print_function_bdd
-                  ~recursion_limit ~max_list_length ~eager_eval 
+                  ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_function_bdd
+                  ~recursion_limit ~max_list_length ~eager_eval ~no_compile
                   lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res
