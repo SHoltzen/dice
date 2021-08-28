@@ -539,11 +539,10 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
               ) acc vals2
             ) false vals1
         in
-        let id1_entry_opt = Hashtbl.find_opt flip_env id in
-        (match id1_entry_opt with
-        | None -> failwith "cannot find flip with flip id"
-        | Some((p1, var1, vals1)) ->
-          List.fold_left (fun (hoisted, curr_flips) id2 -> 
+        let rec match_var (p1, var1, vals1) (prev: int list) (hoisted: int list) (curr_flips: int list) : int list * int list =
+          match prev with
+          | [] -> hoisted, curr_flips
+          | id2::tail ->
             let id2_entry_opt = Hashtbl.find_opt flip_env id2 in
             (match id2_entry_opt with
             | None -> failwith "cannot find flip with flip id"
@@ -563,8 +562,13 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
                 in
                 hoisted', curr_flips'
               else
-                hoisted, curr_flips)
-          ) (hoisted, curr_flips) prev)
+                match_var (p1, var1, vals1) tail hoisted curr_flips)
+        in
+        let id1_entry_opt = Hashtbl.find_opt flip_env id in
+        (match id1_entry_opt with
+        | None -> failwith "cannot find flip with flip id"
+        | Some(entry) ->
+          match_var entry prev hoisted curr_flips)
       in
       let hoisted', curr_flips', _ = List.fold_left (fun (hoisted, curr_flips, prev) id -> 
         let hoisted', curr_flips' = check_flips id prev hoisted curr_flips in
@@ -640,19 +644,8 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
               | Some(last) ->
                 if id < last then
                   let x = fresh() in
-                  let entry = Hashtbl.find_opt flip_env id in
-                  (match entry with
-                  | None -> 
-                    Hashtbl.add flip_env id (p, Some(x), vals);
-                    Ident(x), hoisted, (id::carried)
-                  | Some(_, var', _) ->
-                    (match var' with 
-                    | None -> 
-                      Hashtbl.replace flip_env id (p, Some(x), vals);
-                      Ident(x), hoisted, (id::carried)
-                    | Some(x') -> 
-                      Hashtbl.replace flip_env id (p, Some(x'), vals);
-                      Ident(x'), hoisted, (id::carried)))
+                  Hashtbl.replace flip_env id (p, Some(x), vals);
+                  Ident(x), hoisted, (id::carried)
                 else
                   e, hoisted, carried)
             | Some(x)-> 
