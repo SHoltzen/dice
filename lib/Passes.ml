@@ -627,7 +627,7 @@ let gen_discrete_sbk (l: float List.t) (priority: (float * int) List.t option) =
   in
   let probs_length = List.length sorted_probs in
   let probs, _ = List.foldi sorted_probs ~init: ([], 0.0) ~f:(fun idx (probs, total) (i, p) -> 
-    if idx = probs_length then
+    if idx = probs_length - 1 then
       ((i, fresh(), 1.0)::probs, total +. p)
     else
       ((i, fresh(), p /. (1. -. total))::probs, total +. p))
