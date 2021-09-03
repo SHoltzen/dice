@@ -171,11 +171,21 @@ let count_params p =
     | Head(_, e1) | Tail(_, e1) ->
       count_params_e e1 c s params
     | Flip(_, f) -> 
-      let s1 = s + 1 in
+      let s1 = 
+        if equal f 1.0 or equal f 0.0 then
+          s 
+        else 
+          s + 1 
+      in
       if List.mem params f ~equal: equal then c, s1, params else (c + 1), s1, f::params
     | Discrete(_, l) -> 
       List.fold l ~init: (c, s, params) ~f: (fun (c, s, p) a -> 
-        let s1 = s + 1 in
+        let s1 =
+          if equal a 1.0 or equal a 0.0 then
+            s
+          else 
+            s + 1
+        in
         if List.mem p a ~equal: equal then (c, s1, p) else (c + 1, s1, a::p))
     | Ident(_, _) | Int(_, _, _) | True(_) | False(_) | IntConst(_, _) 
     | ListLitEmpty _ | Unif (_, _, _, _) | Binom (_, _, _, _) -> c, s, params
