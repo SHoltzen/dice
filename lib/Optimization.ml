@@ -5,6 +5,8 @@ open CG
 let n = ref 0
 let m = ref 0
 
+let default_max_flips = 10000 
+
 let fresh () =
   n := !n + 1;
   (Format.sprintf "$%d" !n)
@@ -122,8 +124,8 @@ let get_flip_ids (l: flip list) : int list =
   get_flip_ids_e l []
 
 (* Collect flips that need to be replaced *)
-let up_pass (e: CG.expr) : tree * env =
-  let flip_env = Hashtbl.create 50 in
+let up_pass (e: CG.expr) (max_flips: int) : tree * env =
+  let flip_env = Hashtbl.create max_flips in
 
   let rec merge l (prob, ids) new_l : flip list * flip option = 
     match l with
@@ -147,9 +149,12 @@ let up_pass (e: CG.expr) : tree * env =
   let rec up_pass_e (e: CG.expr) : flip list * tree =
     match e with
     | Flip(f) -> 
-      let id = flip_id() in
-      (Hashtbl.add flip_env id (f, None, []));
-      [(f, [id])], Leaf(id)
+      if Hashtbl.length flip_env >= max_flips then
+        [], Non
+      else
+        let id = flip_id() in
+        (Hashtbl.add flip_env id (f, None, []));
+        [(f, [id])], Leaf(id)
     | Ite(g, thn, els) -> 
       let g_flips, g_tree = up_pass_e g in
       let thn_flips, thn_tree = up_pass_e thn in
@@ -412,6 +417,7 @@ let cross_up (e: CG.expr) (t: tree) (flip_env: env) : env =
         | Some(p, x, v) -> (Hashtbl.replace flip_env id (p, x, (vals@v))););
         let vals' = (id, true)::vals in
         facts', vals'
+      | Non -> facts, vals
       | _ -> failwith "unexpected flip tree element")
     | Tup(e1, e2) ->
       (match t with
@@ -578,6 +584,7 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr * env * tree =
             | Some(x)-> 
               let hoisted' = List.sort_uniq compare (id::hoisted) in
               Ident(x), hoisted', carried, Non))
+        | Non -> e, hoisted, carried, t
         | _ -> failwith "unexpected flip tree element"))
     | Ite(g, thn, els) -> 
       (match t with
@@ -761,6 +768,8 @@ let cross_down (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
             | Some(x)-> 
               let hoisted' = List.sort_uniq compare (id::hoisted) in
               Ident(x), hoisted', carried))
+
+        | Non -> e, hoisted, carried
         | _ -> failwith "unexpected flip tree element"))
     | Ite(g, thn, els) -> 
       (match t with
@@ -853,9 +862,10 @@ let cross_down (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
   e'
 
   (* Perform code motion on flip f paterns *)
-let do_flip_hoisting (e: CG.expr) (new_n: int) (cross_table: bool) : CG.expr = 
+let do_flip_hoisting (e: CG.expr) (new_n: int) (cross_table: bool) (max_flips: int option) : CG.expr = 
   n := new_n;
-  let t, flip_env = up_pass e in
+  let max_f = match max_flips with None -> default_max_flips | Some(f) -> f in
+  let t, flip_env = up_pass e max_f in
   let e', flip_env', t' = down_pass e t flip_env in
   let e'' = 
     if cross_table then 
@@ -978,9 +988,9 @@ let rec redundant_flip_elimination (e: CG.expr) : CG.expr =
     Observe(n1)
   | _ -> e
 
-let do_optimize (e: CG.expr) (new_n: int) (flip_hoisting: bool) (cross_table: bool) (branch_elimination: bool) (determinism: bool) : CG.expr = 
+let do_optimize (e: CG.expr) (new_n: int) (flip_hoisting: bool) (cross_table: bool) (max_flips: int option) (branch_elimination: bool) (determinism: bool) : CG.expr = 
   let e0 = if determinism then redundant_flip_elimination e else e in
   let e0_1 = if branch_elimination then merge_branch e0 else e0 in
-  let e1 = if flip_hoisting then do_flip_hoisting e0_1 new_n cross_table else e0_1 in 
+  let e1 = if flip_hoisting then do_flip_hoisting e0_1 new_n cross_table max_flips else e0_1 in 
   let e2 = if branch_elimination then merge_branch e1 else e1 in
   e2

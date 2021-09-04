@@ -16,4 +16,4 @@ val num_paths : ExternalGrammar.program -> LogProbability.t
 
 val from_external_prog: ?cfg:config -> bool -> ExternalGrammar.program -> (ExternalGrammar.typ * CoreGrammar.program)
 
-val from_external_prog_optimize: ?cfg:config -> bool -> ExternalGrammar.program -> bool -> bool -> bool -> bool -> (ExternalGrammar.typ * CoreGrammar.program)
+val from_external_prog_optimize: ?cfg:config -> bool -> ExternalGrammar.program -> bool -> bool -> int option -> bool -> bool -> (ExternalGrammar.typ * CoreGrammar.program)
