@@ -298,6 +298,7 @@ let cross_up (e: CG.expr) (t: tree) (flip_env: env) : env =
         let vals_thn' = (id, true)::vals_thn in
         let vals_els' = (id, false)::vals_els in
         facts', vals_thn', vals_els'
+      | Non -> facts, vals_thn, vals_els
       | _ -> failwith "unexpected flip tree element")
     | Tup(e1, e2) ->
       (match t with
