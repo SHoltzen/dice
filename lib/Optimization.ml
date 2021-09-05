@@ -154,7 +154,7 @@ let up_pass (e: CG.expr) (max_flips: int) : tree * env =
       let l2', head' = merge l2 head [] in
       match head' with
       | None -> find_shared_global tail l2' (head::flips) shared
-      | Some(h) -> find_shared_global tail l2' flips (h ::shared)
+      | Some(h) -> find_shared_global tail l2' (h::flips) (h ::shared)
   in
   let rec up_pass_e (e: CG.expr) : flip list * flip list * tree =
     match e with
