@@ -146,52 +146,55 @@ let up_pass (e: CG.expr) (max_flips: int) : tree * env =
       | None -> find_shared tail l2' (head::flips) shared
       | Some(h) -> find_shared tail l2' (h::flips) (h ::shared)
   in
-  let rec find_shared_let (l1: flip list) (l2: flip list) (flips: flip list) (shared: flip list)
+  let rec find_shared_global (l1: flip list) (l2: flip list) (flips: flip list) (shared: flip list)
     : flip list * flip list = 
     match l1 with
     | [] -> (List.rev_append flips []), (List.rev_append shared [])
     | head::tail ->
       let l2', head' = merge l2 head [] in
       match head' with
-      | None -> find_shared_let tail l2' (head::flips) shared
-      | Some(h) -> find_shared_let tail l2' flips (h ::shared)
+      | None -> find_shared_global tail l2' (head::flips) shared
+      | Some(h) -> find_shared_global tail l2' flips (h ::shared)
   in
-  let rec up_pass_e (e: CG.expr) : flip list * tree =
+  let rec up_pass_e (e: CG.expr) : flip list * flip list * tree =
     match e with
     | Flip(f) -> 
       if Hashtbl.length flip_env >= max_flips then
-        [], Non
+        [], [], Non
       else
         let id = flip_id() in
         (Hashtbl.add flip_env id (f, None, []));
-        [(f, [id])], Leaf(id)
+        [(f, [id])], [(f, [id])], Leaf(id)
     | Ite(g, thn, els) -> 
-      let g_flips, g_tree = up_pass_e g in
-      let thn_flips, thn_tree = up_pass_e thn in
-      let els_flips, els_tree = up_pass_e els in
-      let flips, shared = find_shared thn_flips els_flips [] [] in
-      (g_flips@flips), Node(shared, g_tree, thn_tree, els_tree)
+      let g_flips_l, g_flips_g, g_tree = up_pass_e g in
+      let thn_flips_l, thn_flips_g, thn_tree = up_pass_e thn in
+      let els_flips_l, els_flips_g, els_tree = up_pass_e els in
+      let flips_l, shared = find_shared thn_flips_l els_flips_l [] [] in
+      let flips_g, _ = find_shared thn_flips_g els_flips_g [] [] in
+      (g_flips_l@flips_l), (g_flips_g@flips_g), Node(shared, g_tree, thn_tree, els_tree)
     | Let(_, e1, e2) ->
-      let e1_flips, e1_tree = up_pass_e e1 in
-      let e2_flips, e2_tree = up_pass_e e2 in
-      let flips, shared = find_shared_let e1_flips e2_flips [] [] in
-      flips, Joint(shared, e1_tree, e2_tree)
+      let e1_flips_l, e1_flips_g, e1_tree = up_pass_e e1 in
+      let e2_flips_l, e1_flips_g, e2_tree = up_pass_e e2 in
+      let flips_local, _ = find_shared e1_flips_l e2_flips_l [] [] in
+      let flips_global, shared_global = find_shared_global e1_flips_g e1_flips_g [] [] in
+      flips_local, flips_global, Joint(shared_global, e1_tree, e2_tree)
     | And(e1, e2) | Or(e1, e2) | Xor(e1, e2) | Eq(e1, e2) | Tup(e1, e2) ->
-      let e1_flips, e1_tree = up_pass_e e1 in
-      let e2_flips, e2_tree = up_pass_e e2 in
-      let flips = e1_flips@e2_flips in
-      flips, Joint([], e1_tree, e2_tree)
+      let e1_flips_l, e1_flips_g, e1_tree = up_pass_e e1 in
+      let e2_flips_l, e2_flips_g, e2_tree = up_pass_e e2 in
+      let flips_l = e1_flips_l@e2_flips_l in
+      let flips_g = e1_flips_g@e2_flips_g in
+      flips_l, flips_g, Joint([], e1_tree, e2_tree)
     | Not(e1) -> 
       (match e1 with
       | Flip(f) -> 
         let id = flip_id() in
         (Hashtbl.add flip_env id (1.0 -. f, None, []));
-        [(1.0 -. f, [id])], Leaf(id)
+        [(1.0 -. f, [id])], [(1.0 -. f, [id])], Leaf(id)
       | _ -> up_pass_e e1)
     | Snd(e1) | Fst(e1) | Observe(e1) -> up_pass_e e1
-    | Ident(_) | _ -> [], Non
+    | Ident(_) | _ -> [], [], Non
   in
-  let _, t = up_pass_e e in
+  let _, _, t = up_pass_e e in
   (t, flip_env)
 
 let cross_up (e: CG.expr) (t: tree) (flip_env: env) : env = 
