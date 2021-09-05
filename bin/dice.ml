@@ -59,7 +59,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~inline_functions ~sample_amount ~show_recursive_calls
     ~flip_hoisting ~cross_table ~branch_elimination ~determinism ~sbk_encoding ~print_state_bdd
     ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_function_bdd
-    ~recursion_limit ~max_list_length ~eager_eval ~no_compile
+    ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips
     lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
@@ -70,11 +70,11 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
   let optimize = flip_hoisting || branch_elimination || determinism in
   let (t, internal) =
     if inline_functions && optimize then
-      (from_external_prog_optimize ~cfg sbk_encoding (Passes.inline_functions parsed_norec) flip_hoisting cross_table branch_elimination determinism)
+      (from_external_prog_optimize ~cfg sbk_encoding (Passes.inline_functions parsed_norec) flip_hoisting cross_table max_flips branch_elimination determinism)
     else if inline_functions && not optimize then
       (from_external_prog ~cfg sbk_encoding (Passes.inline_functions parsed_norec))
     else if not inline_functions && optimize then
-      (from_external_prog_optimize ~cfg sbk_encoding parsed_norec flip_hoisting cross_table branch_elimination determinism)
+      (from_external_prog_optimize ~cfg sbk_encoding parsed_norec flip_hoisting cross_table max_flips branch_elimination determinism)
     else from_external_prog ~cfg sbk_encoding parsed_norec in
   let res = if print_internal then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog internal)] else res in
   let res = if print_unparsed then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog_unparsed internal)] else res in
@@ -188,6 +188,7 @@ let command =
      and show_flip_count = flag "-show-flip-count" no_arg ~doc:" show the number of flips in the program"
      and show_params = flag "-show-params" no_arg ~doc:" show the sum of number of unique parameters in each table in the program"
      and no_compile = flag "-no-compile" no_arg ~doc: " parse the program only"
+     and max_flips = flag "-max-flips" (optional int) ~doc: " limit the number of flips during flip-hoisting"
      (* and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order" *)
      and json = flag "-json" no_arg ~doc:" print output as JSON"
      in fun () ->
@@ -198,7 +199,7 @@ let command =
                   ~print_size ~inline_functions ~skip_table ~flip_hoisting ~cross_table
                   ~branch_elimination ~determinism ~sbk_encoding ~show_recursive_calls ~print_state_bdd
                   ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_function_bdd
-                  ~recursion_limit ~max_list_length ~eager_eval ~no_compile
+                  ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips
                   lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res

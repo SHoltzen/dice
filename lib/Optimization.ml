@@ -146,6 +146,16 @@ let up_pass (e: CG.expr) (max_flips: int) : tree * env =
       | None -> find_shared tail l2' (head::flips) shared
       | Some(h) -> find_shared tail l2' (h::flips) (h ::shared)
   in
+  let rec find_shared_let (l1: flip list) (l2: flip list) (flips: flip list) (shared: flip list)
+    : flip list * flip list = 
+    match l1 with
+    | [] -> (List.rev_append flips []), (List.rev_append shared [])
+    | head::tail ->
+      let l2', head' = merge l2 head [] in
+      match head' with
+      | None -> find_shared_let tail l2' (head::flips) shared
+      | Some(h) -> find_shared_let tail l2' flips (h ::shared)
+  in
   let rec up_pass_e (e: CG.expr) : flip list * tree =
     match e with
     | Flip(f) -> 
@@ -164,7 +174,7 @@ let up_pass (e: CG.expr) (max_flips: int) : tree * env =
     | Let(_, e1, e2) ->
       let e1_flips, e1_tree = up_pass_e e1 in
       let e2_flips, e2_tree = up_pass_e e2 in
-      let flips, shared = find_shared e1_flips e2_flips [] [] in
+      let flips, shared = find_shared_let e1_flips e2_flips [] [] in
       flips, Joint(shared, e1_tree, e2_tree)
     | And(e1, e2) | Or(e1, e2) | Xor(e1, e2) | Eq(e1, e2) | Tup(e1, e2) ->
       let e1_flips, e1_tree = up_pass_e e1 in
