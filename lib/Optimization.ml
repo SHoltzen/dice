@@ -174,9 +174,9 @@ let up_pass (e: CG.expr) (max_flips: int) : tree * env =
       (g_flips_l@flips_l), (g_flips_g@flips_g), Node(shared, g_tree, thn_tree, els_tree)
     | Let(_, e1, e2) ->
       let e1_flips_l, e1_flips_g, e1_tree = up_pass_e e1 in
-      let e2_flips_l, e1_flips_g, e2_tree = up_pass_e e2 in
+      let e2_flips_l, e2_flips_g, e2_tree = up_pass_e e2 in
       let flips_local, _ = find_shared e1_flips_l e2_flips_l [] [] in
-      let flips_global, shared_global = find_shared_global e1_flips_g e1_flips_g [] [] in
+      let flips_global, shared_global = find_shared_global e1_flips_g e2_flips_g [] [] in
       flips_local, flips_global, Joint(shared_global, e1_tree, e2_tree)
     | And(e1, e2) | Or(e1, e2) | Xor(e1, e2) | Eq(e1, e2) | Tup(e1, e2) ->
       let e1_flips_l, e1_flips_g, e1_tree = up_pass_e e1 in
