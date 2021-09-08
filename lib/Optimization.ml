@@ -722,6 +722,7 @@ let cross_down (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
                   (match var2 with
                   | None -> 
                     let x = fresh() in
+                    let saf = if x = "$118" then print_string "huh\n" else () in
                     (Hashtbl.replace flip_env id (p1, Some(x), vals1));
                     (Hashtbl.replace flip_env id2 (p2, Some(x), vals2));
                     (id2::curr_flips)
@@ -736,8 +737,10 @@ let cross_down (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
         let id1_entry_opt = Hashtbl.find_opt flip_env id in
         (match id1_entry_opt with
         | None -> failwith "cannot find flip with flip id"
-        | Some(entry) ->
-          match_var entry prev hoisted curr_flips)
+        | Some((p1, var1, vals1)) ->
+          (match var1 with 
+          | None -> match_var (p1, var1, vals1) prev hoisted curr_flips
+          | Some(x) -> hoisted, curr_flips))
       in
       let hoisted', curr_flips', _ = List.fold_left (fun (hoisted, curr_flips, prev) id -> 
         let hoisted', curr_flips' = check_flips id prev hoisted curr_flips in
