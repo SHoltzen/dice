@@ -27,6 +27,8 @@ docker pull sholtzen/dice
 
 
 ## Building From Source
+
+The following steps set up the environment for building `dice`.
 First install `opam` (version 2.0 or higher) following the instructions
 [here](https://opam.ocaml.org/doc/Install.html).
 Then, install `rust` following the commands [here](https://rustup.rs/).
@@ -34,16 +36,12 @@ Then, run the following in your
 terminal:
 
 ```
-opam init   # must be performed before installing opam packages
+opam init                  # must be performed before installing opam packages
 opam switch create 4.09.0  # switch to use OCaml version 4.09
 eval `opam config env`     # optional: add this line to your .bashrc
-opam depext mlcuddidl      # install external dependencies
-opam pin add dice git+https://github.com/SHoltzen/dice.git#master  # Install dice
+source $HOME/.cargo/env    # set up rust environment
+git submodule update --init --recursive    # populate the rsdd subdirectory
 ```
-
-This command will download the necessary dependencies and place the `dice` and
-`dicebench` executables in your path. (If they are not found, try evaluating `opam
-config env` again).
 
 ### Building 
 
