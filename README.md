@@ -28,7 +28,9 @@ docker pull sholtzen/dice
 
 ## Building From Source
 First install `opam` (version 2.0 or higher) following the instructions
-[here](https://opam.ocaml.org/doc/Install.html). Then, run the following in your
+[here](https://opam.ocaml.org/doc/Install.html).
+Then, install `rust` following the commands [here](https://rustup.rs/).
+Then, run the following in your
 terminal:
 
 ```
