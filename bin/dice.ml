@@ -181,7 +181,7 @@ let command =
      and eager_eval = flag "-eager-eval" no_arg ~doc:" eager let compilation"
      and recursion_limit = flag "-recursion-limit" (optional int) ~doc:" maximum recursion depth"
      and max_list_length = flag "-max-list-length" (optional int) ~doc:" maximum list length"
-     and wmc_type = flag "-wmc-type" (optional_with_default 0 int) ~doc:" choose wmc computation (0: log based, 1: rational based, 2: float based)"
+     and wmc_type = flag "-wmc-type" (optional_with_default 0 int) ~doc:" choose computation type (0: log based [default], 1: rational based, 2: float based)"
      (* and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order" *)
      and json = flag "-json" no_arg ~doc:" print output as JSON"
      in fun () ->
