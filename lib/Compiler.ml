@@ -248,10 +248,10 @@ let compile_program (p:program) ~eager_eval : compiled_program =
 
 let get_prob p =
   let c = compile_program ~eager_eval:false p in
-  let z = Wmc.wmc ~float_wmc:false c.ctx.man c.body.z c.ctx.weights in
-  let prob = Wmc.wmc ~float_wmc:false c.ctx.man (Bdd.bdd_and c.ctx.man (extract_leaf c.body.state) c.body.z) c.ctx.weights in
+  let z = Wmc.wmc ~wmc_type:0 c.ctx.man c.body.z c.ctx.weights in
+  let prob = Wmc.wmc ~wmc_type:0 c.ctx.man (Bdd.bdd_and c.ctx.man (extract_leaf c.body.state) c.body.z) c.ctx.weights in
   (* Format.printf "prob: %f, z: %f" prob z; *)
-  Bignum.(prob / z)
+  LogProbability.rat_div_and_conv prob z
 
 
 module I = Parser.MenhirInterpreter

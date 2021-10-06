@@ -60,7 +60,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~inline_functions ~sample_amount ~show_recursive_calls
     ~flip_lifting ~branch_elimination ~determinism ~print_state_bdd
     ~show_function_size ~print_unparsed ~print_function_bdd
-    ~recursion_limit ~max_list_length ~eager_eval ~float_wmc
+    ~recursion_limit ~max_list_length ~eager_eval ~wmc_type
     lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
@@ -84,12 +84,13 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     let compiled = Compiler.compile_program internal ~eager_eval in
     let zbdd = compiled.body.z in
     let res = if skip_table then res else res @
-       (let z = Wmc.wmc ~float_wmc compiled.ctx.man zbdd compiled.ctx.weights in
+       (let z = Wmc.wmc ~wmc_type compiled.ctx.man zbdd compiled.ctx.weights in
        let table = VarState.get_table cfg compiled.ctx.man compiled.body.state t in
        let probs = List.map table ~f:(fun (label, bdd) ->
-           if Bignum.(z = zero) then (label, Bignum.zero) else
-             let prob = Bignum.((Wmc.wmc ~float_wmc compiled.ctx.man (Bdd.bdd_and compiled.ctx.man bdd zbdd) compiled.ctx.weights) / z) in
-             (label, prob)) in
+          if (Bignum.(z = zero) && (wmc_type = 1 || wmc_type = 2)) || Bignum.((den z) = zero) then (label, Bignum.zero) else 
+             let numer = (Wmc.wmc ~wmc_type compiled.ctx.man (Bdd.bdd_and compiled.ctx.man bdd zbdd) compiled.ctx.weights) in
+             let div_res = if wmc_type = 1 || wmc_type = 2 then Bignum.(numer / z) else LogProbability.rat_div_and_conv numer z in 
+             (label, div_res)) in
        let l = [["Value"; "Probability"]] @
          List.map probs ~f:(fun (typ, prob) -> [print_pretty typ; Bignum.to_string_hum prob]) in
        [TableRes("Joint Distribution", l)]
@@ -180,7 +181,7 @@ let command =
      and eager_eval = flag "-eager-eval" no_arg ~doc:" eager let compilation"
      and recursion_limit = flag "-recursion-limit" (optional int) ~doc:" maximum recursion depth"
      and max_list_length = flag "-max-list-length" (optional int) ~doc:" maximum list length"
-     and float_wmc = flag "-float-wmc" no_arg ~doc:" use float-based wmc"
+     and wmc_type = flag "-wmc-type" (optional_with_default 0 int) ~doc:" choose wmc computation (0: log based, 1: rational based, 2: float based)"
      (* and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order" *)
      and json = flag "-json" no_arg ~doc:" print output as JSON"
      in fun () ->
@@ -191,7 +192,7 @@ let command =
                   ~print_size ~inline_functions ~skip_table ~flip_lifting
                   ~branch_elimination ~determinism ~show_recursive_calls ~print_state_bdd
                   ~show_function_size ~print_unparsed ~print_function_bdd
-                  ~recursion_limit ~max_list_length ~eager_eval ~float_wmc
+                  ~recursion_limit ~max_list_length ~eager_eval ~wmc_type
                   lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res
