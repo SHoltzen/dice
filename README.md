@@ -41,6 +41,7 @@ opam switch create 4.09.0  # switch to use OCaml version 4.09
 eval `opam config env`     # optional: add this line to your .bashrc
 source $HOME/.cargo/env    # set up rust environment
 git submodule update --init --recursive    # populate the rsdd subdirectory
+opam install . --deps-only # install dependencies
 ```
 
 ### Building 
