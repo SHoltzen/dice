@@ -882,13 +882,13 @@ let cross_down (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
   e'
 
   (* Perform code motion on flip f paterns *)
-let do_flip_hoisting (e: CG.expr) (new_n: int) (cross_table: bool) (max_flips: int option) : CG.expr = 
+let do_flip_hoisting (e: CG.expr) (new_n: int) (global_hoisting: bool) (max_flips: int option) : CG.expr = 
   n := new_n;
   let max_f = match max_flips with None -> default_max_flips | Some(f) -> f in
   let t, flip_env = up_pass e max_f in
   let e', flip_env', t' = down_pass e t flip_env in
   let e'' = 
-    if cross_table then 
+    if global_hoisting then 
       let flip_env'' = cross_up e' t' flip_env' in
       cross_down e' t' flip_env''
     else e'
@@ -1008,9 +1008,9 @@ let rec redundant_flip_elimination (e: CG.expr) : CG.expr =
     Observe(n1)
   | _ -> e
 
-let do_optimize (e: CG.expr) (new_n: int) (flip_hoisting: bool) (cross_table: bool) (max_flips: int option) (branch_elimination: bool) (determinism: bool) : CG.expr = 
+let do_optimize (e: CG.expr) (new_n: int) (local_hoisting: bool) (global_hoisting: bool) (max_flips: int option) (branch_elimination: bool) (determinism: bool) : CG.expr = 
   let e0 = if determinism then redundant_flip_elimination e else e in
   let e0_1 = if branch_elimination then merge_branch e0 else e0 in
-  let e1 = if flip_hoisting then do_flip_hoisting e0_1 new_n cross_table max_flips else e0_1 in 
+  let e1 = if local_hoisting || global_hoisting then do_flip_hoisting e0_1 new_n global_hoisting max_flips else e0_1 in 
   let e2 = if branch_elimination then merge_branch e1 else e1 in
   e2

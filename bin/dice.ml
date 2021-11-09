@@ -57,7 +57,7 @@ let rec print_pretty e =
 
 let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~inline_functions ~sample_amount ~show_recursive_calls
-    ~flip_hoisting ~cross_table ~branch_elimination ~determinism ~sbk_encoding ~print_state_bdd
+    ~local_hoisting ~global_hoisting ~branch_elimination ~determinism ~sbk_encoding ~print_state_bdd
     ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_function_bdd
     ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc
     lexbuf : result List.t = try
@@ -67,14 +67,14 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
   let cfg =
     { max_list_length = Option.value (Option.first_some max_list_length recursion_limit)
         ~default:Passes.default_config.max_list_length } in
-  let optimize = flip_hoisting || branch_elimination || determinism in
+  let optimize = local_hoisting || global_hoisting || branch_elimination || determinism in
   let (t, internal) =
     if inline_functions && optimize then
-      (from_external_prog_optimize ~cfg sbk_encoding (Passes.inline_functions parsed_norec) flip_hoisting cross_table max_flips branch_elimination determinism)
+      (from_external_prog_optimize ~cfg sbk_encoding (Passes.inline_functions parsed_norec) local_hoisting global_hoisting max_flips branch_elimination determinism)
     else if inline_functions && not optimize then
       (from_external_prog ~cfg sbk_encoding (Passes.inline_functions parsed_norec))
     else if not inline_functions && optimize then
-      (from_external_prog_optimize ~cfg sbk_encoding parsed_norec flip_hoisting cross_table max_flips branch_elimination determinism)
+      (from_external_prog_optimize ~cfg sbk_encoding parsed_norec local_hoisting global_hoisting max_flips branch_elimination determinism)
     else from_external_prog ~cfg sbk_encoding parsed_norec in
   let res = if print_internal then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog internal)] else res in
   let res = if print_unparsed then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog_unparsed internal)] else res in
@@ -169,8 +169,8 @@ let command =
      and print_size = flag "-show-size" no_arg ~doc:" show the size of the final compiled BDD"
      and sample_amount = flag "-sample" (optional int) ~doc:" number of samples to draw"
      and print_parsed = flag "-show-parsed" no_arg ~doc:" print parsed dice program"
-     and flip_hoisting = flag "-flip-hoisting" no_arg ~doc:" optimize dice program before compilation using flip hoisting"
-     and cross_table = flag "-cross-table" no_arg ~doc: " perform flip hoisting with cross table hoisting. Must use with -flip-hoisting."
+     and local_hoisting = flag "-local-hoisting" no_arg ~doc:" optimize dice program before compilation using local flip-hoisting"
+     and global_hoisting = flag "-global-hoisting" no_arg ~doc: " perform global flip-hoisting."
      and branch_elimination = flag "-branch-elimination" no_arg ~doc:" optimize dice program before compilation using branch elimination"
      and determinism = flag "-determinism" no_arg ~doc:" optimize dice program before compilation using determinism"
      and sbk_encoding = flag "-sbk-encoding" no_arg ~doc:" use Sang-Beame-Kautz encoding for integers and categorical distributions"
@@ -197,7 +197,7 @@ let command =
        let lexbuf = Lexing.from_channel inx in
        lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = fname };
        let r = (parse_and_print ~print_parsed ~print_internal ~sample_amount
-                  ~print_size ~inline_functions ~skip_table ~flip_hoisting ~cross_table
+                  ~print_size ~inline_functions ~skip_table ~local_hoisting ~global_hoisting
                   ~branch_elimination ~determinism ~sbk_encoding ~show_recursive_calls ~print_state_bdd
                   ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_function_bdd
                   ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc

@@ -1391,14 +1391,14 @@ let from_external_func mgr cfg sbk (tenv: EG.tenv) (f: EG.func) : (EG.typ * CG.f
        args = args;
        body = conv})
 
-let from_external_func_optimize mgr cfg sbk (tenv: EG.tenv) (f: EG.func) (flip_lifting: bool) (cross_table: bool) (max_flips: int option) (branch_elimination: bool) (determinism: bool) : (EG.typ * CG.func) =
+let from_external_func_optimize mgr cfg sbk (tenv: EG.tenv) (f: EG.func) (local_hoisting: bool) (global_hoisting: bool) (max_flips: int option) (branch_elimination: bool) (determinism: bool) : (EG.typ * CG.func) =
   (* add the arguments to the type environment *)
   let tenvwithargs = List.fold f.args ~init:tenv ~f:(fun acc (name, typ) ->
       Map.Poly.set acc ~key:name ~data:typ
     ) in
   let (t, conv) = from_external_expr mgr cfg true sbk tenvwithargs f.body in
   check_return_type f t;
-  let optbody = Optimization.do_optimize conv !n flip_lifting cross_table max_flips branch_elimination determinism in
+  let optbody = Optimization.do_optimize conv !n local_hoisting global_hoisting max_flips branch_elimination determinism in
   (* convert arguments *)
   let args = List.map f.args ~f:(from_external_arg cfg) in
   (TFunc(List.map f.args ~f:snd, t), {name = f.name;
@@ -1415,13 +1415,13 @@ let from_external_prog ?(cfg: config = default_config) sbk (p: EG.program) : (EG
   let (t, convbody) = from_external_expr mgr cfg false sbk tenv p.body in
   (t, {functions = functions; body = convbody})
 
-let from_external_prog_optimize ?(cfg: config = default_config) sbk (p: EG.program) (flip_lifting: bool) (cross_table: bool) (max_flips: int option) (branch_elimination: bool) (determinism: bool) : (EG.typ * CG.program) =
+let from_external_prog_optimize ?(cfg: config = default_config) sbk (p: EG.program) (local_hoisting: bool) (global_hoisting: bool) (max_flips: int option) (branch_elimination: bool) (determinism: bool) : (EG.typ * CG.program) =
   let mgr = Cudd.Man.make_d () in
   let (tenv, functions) = List.fold p.functions ~init:(Map.Poly.empty, []) ~f:(fun (tenv, flst) i ->
-      let (t, conv) = from_external_func_optimize mgr cfg sbk tenv i flip_lifting cross_table max_flips branch_elimination determinism in
+      let (t, conv) = from_external_func_optimize mgr cfg sbk tenv i local_hoisting global_hoisting max_flips branch_elimination determinism in
       let tenv' = Map.Poly.set tenv ~key:i.name ~data:t in
       (tenv', flst @ [conv])
     ) in
   let (t, convbody) = from_external_expr mgr cfg false sbk tenv p.body in
-  let optbody = Optimization.do_optimize convbody !n flip_lifting cross_table max_flips branch_elimination determinism in
+  let optbody = Optimization.do_optimize convbody !n local_hoisting global_hoisting max_flips branch_elimination determinism in
   (t, {functions = functions; body = optbody})
