@@ -163,8 +163,9 @@ let up_pass (e: CG.expr) (max_flips: int) : tree * env =
         [], [], Non
       else
         let id = flip_id() in
-        (Hashtbl.add flip_env id (f, None, []));
-        [(f, [id])], [(f, [id])], Leaf(id)
+        let f_float = Bignum.to_float f in
+        (Hashtbl.add flip_env id (f_float, None, []));
+        [(f_float, [id])], [(f_float, [id])], Leaf(id)
     | Ite(g, thn, els) -> 
       let g_flips_l, g_flips_g, g_tree = up_pass_e g in
       let thn_flips_l, thn_flips_g, thn_tree = up_pass_e thn in
@@ -188,8 +189,10 @@ let up_pass (e: CG.expr) (max_flips: int) : tree * env =
       (match e1 with
       | Flip(f) -> 
         let id = flip_id() in
-        (Hashtbl.add flip_env id (Bignum.one -. f, None, []));
-        [(Bignum.one -. f, [id])], [(Bignum.one -. f, [id])], Leaf(id)
+        let negate = Bignum.(one - f) in
+        let negate_float = Bignum.to_float negate in
+        (Hashtbl.add flip_env id (negate_float, None, []));
+        [(negate_float, [id])], [(negate_float, [id])], Leaf(id)
       | _ -> up_pass_e e1)
     | Snd(e1) | Fst(e1) | Observe(e1) -> up_pass_e e1
     | Ident(_) | _ -> [], [], Non
@@ -518,7 +521,7 @@ let make_exprs (flip_env: env) (ids: int list) (inner: CG.expr) (t: tree option)
         | Some(x) -> 
           let t' = match t with None -> None | Some(t_inner) -> Some(Joint([], Leaf(head), t_inner)) in
           (Hashtbl.replace flip_env head (prob, None, vals));
-          make_exprs_e tail (Let(x, Flip(prob), inner)) t')
+          make_exprs_e tail (Let(x, Flip((Bignum.of_float_decimal prob)), inner)) t')
   in
   let ids' = List.rev_append ids [] in
   make_exprs_e ids' inner t
@@ -908,7 +911,7 @@ let rec merge_branch (e: CG.expr) : CG.expr =
       | True, False -> g
       | False, True -> 
         (match g with
-        | Flip(f) -> Flip(Bignum.one -. f)
+        | Flip(f) -> Flip(Bignum.(one - f))
         | _ -> Not(g))
       | _, _ ->
         if n1 = n2 then

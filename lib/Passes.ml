@@ -650,7 +650,7 @@ let gen_discrete_sbk (l: float List.t) (priority: (float * int) List.t option) =
     if idx = max then
       acc
     else
-      Let(x, Flip(p), acc))
+      Let(x, Flip((Bignum.of_float_decimal p)), acc))
   in
   e
 
@@ -1000,9 +1000,9 @@ let from_external_expr_h_sbk (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
     | LeftShift(_, e, _) | RightShift(_, e, _) | Observe(_, e) | Snd(_, e) | Fst(_, e) | Sample(_, e) | Length(_, e) -> 
       annotate e 
     | FuncCall(_, "nth_bit", [(_, Int(_, _, _)); e2]) -> annotate e2
-    | Flip(_, f) -> [f], Leaf
+    | Flip(_, f) -> [(Bignum.to_float f)], Leaf
     | Discrete(_, l) -> 
-      (List.dedup_and_sort ~compare: Poly.compare l), Leaf
+      (List.dedup_and_sort ~compare: Poly.compare (List.map l ~f:(fun a -> Bignum.to_float(a)))), Leaf
     | Ident(_, _) | Int(_, _, _) | True(_) | False(_) | Iter(_, _, _, _)
     | ListLit(_, _) | ListLitEmpty _ | Cons(_, _, _) | Head(_, _) | Tail(_, _) | FuncCall(_, _, _) -> [], Leaf
     | Ite(_, g, thn, els) -> 
@@ -1196,9 +1196,10 @@ let from_external_expr_h_sbk (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
     | Flip(_, f) -> Flip(f)
     | Ident(_, s) -> Ident(s)
     | Discrete(_, l) -> 
+      let float_l = (List.map l ~f:(fun a -> Bignum.to_float(a))) in 
       (match prob with
-      | None -> gen_discrete ctx l
-      | Some(_) -> gen_discrete_sbk l prob)
+      | None -> gen_discrete ctx float_l
+      | Some(_) -> gen_discrete_sbk float_l prob)
     | Int(_, sz, v) ->
       let bits = int_to_bin sz v
                 |> List.map ~f:(fun i -> if i = 1 then CG.True else CG.False) in
@@ -1314,7 +1315,7 @@ let from_external_expr_h_sbk (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
       let rec make_flip_list bit_count length = 
         if length = 0 then []
         else if length > bit_count then CG.False :: (make_flip_list bit_count (length-1))
-        else CG.Flip(0.5) :: (make_flip_list bit_count (length-1)) in
+        else CG.Flip(Bignum.(1 // 2)) :: (make_flip_list bit_count (length-1)) in
       let make_simple_unif bit_count length = 
         mk_dfs_tuple (make_flip_list bit_count length) in 
       let is_power_of_two num = 
@@ -1326,7 +1327,7 @@ let from_external_expr_h_sbk (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
         let power_lt_float = 2.0 ** (float_of_int((num_binary_digits e) - 1)) in
         let power_lt_int = int_of_float power_lt_float in 
         from_external_expr_h_sbk_e ctx cfg ann prob
-          (TInt(sz), Ite(s, 	(TBool, Flip(s, power_lt_float /. (float_of_int e))), 
+          (TInt(sz), Ite(s, 	(TBool, Flip(s, Bignum.(power_lt_int // e))), 
                     (TInt(sz), Unif(s, sz, 0, power_lt_int)), 
                     (TInt(sz), Unif(s, sz, power_lt_int, e))))
     | Binom(s, sz, n, p) -> 

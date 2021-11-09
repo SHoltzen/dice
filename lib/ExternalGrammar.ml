@@ -149,12 +149,6 @@ type tenv = (String.t, typ) Core.Map.Poly.t
 let count_params p = 
   let funcs = p.functions in
   let e = p.body in
-  let round_float x =
-    let d = 6 in
-    let m = 10. ** (float d) in 
-    (Float.round_down ((x *. m) +. 0.5)) /. m
-  in
-  let equal f1 f2 = Float.equal (round_float f1) (round_float f2) in
   let rec count_params_e e c s params =
     match e with
     | Let(_, _, e1, e2) ->
@@ -173,21 +167,21 @@ let count_params p =
       count_params_e e1 c s params
     | Flip(_, f) -> 
       let s1 = 
-        if equal f 1.0 or equal f 0.0 then
+        if f = Bignum.one || f = Bignum.zero then
           s 
         else 
-          s + 1 
+          s + Bignum.one
       in
-      if List.mem params f ~equal: equal then c, s1, params else (c + 1), s1, f::params
+      if List.mem params f ~equal: (fun a b -> a = b) then c, s1, params else (c + Bignum.one), s1, f::params
     | Discrete(_, l) -> 
       List.fold l ~init: (c, s, params) ~f: (fun (c, s, p) a -> 
         let s1 =
-          if equal a 1.0 or equal a 0.0 then
+          if a = Bignum.one || a = Bignum.zero then
             s
           else 
-            s + 1
+            s + Bignum.one
         in
-        if List.mem p a ~equal: equal then (c, s1, p) else (c + 1, s1, a::p))
+        if List.mem p a ~equal: (fun a b -> a = b) then (c, s1, p) else (c + Bignum.one, s1, a::p))
     | Ident(_, _) | Int(_, _, _) | True(_) | False(_) | IntConst(_, _) 
     | ListLitEmpty _ | Unif (_, _, _, _) | Binom (_, _, _, _) -> c, s, params
     | ListLit(_, es) | FuncCall(_, _, es) ->
@@ -198,8 +192,8 @@ let count_params p =
       count_params_e els c2 s2 p2
   in
 
-  let c, s, _ = List.fold funcs ~init: (0, 0, []) ~f: (fun (c, s, params) f -> 
+  let c, s, _ = List.fold funcs ~init: (Bignum.zero, Bignum.zero, []) ~f: (fun (c, s, params) f -> 
     count_params_e f.body c s params) in
   let c1, s1, _ = count_params_e e c s [] in
   
-  (Format.sprintf "%d\n" c1), (Format.sprintf "%d\n" s1)
+  (Format.sprintf "%d\n" (Bignum.to_int_exn c1)), (Format.sprintf "%d\n" (Bignum.to_int_exn s1))
