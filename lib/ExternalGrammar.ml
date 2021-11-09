@@ -4,6 +4,7 @@
 
 open Core
 open Sexplib.Std
+open Bignum
 
 type typ =
     TBool
@@ -40,11 +41,11 @@ type eexpr =
   | IntConst of source * int
   | Not of source * eexpr
   | Ite of source * eexpr * eexpr * eexpr
-  | Flip of source * float
+  | Flip of source * Bignum.t
   | Let of source * String.t * eexpr * eexpr
   | Observe of source * eexpr
   | Ident of source * String.t
-  | Discrete of source * float List.t
+  | Discrete of source * Bignum.t List.t
   | Int of source * int * int (* value, size *)
   | Eq of source * eexpr * eexpr
   | LeftShift of source * eexpr * int
@@ -64,7 +65,7 @@ type eexpr =
   | FuncCall of source * String.t * eexpr List.t
   | Iter of source * String.t * eexpr * int
   | Unif of source * int * int * int 
-  | Binom of source * int * int * float
+  | Binom of source * int * int * Bignum.t
   | True of source
   | False of source
   | ListLit of source * eexpr List.t

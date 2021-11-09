@@ -59,7 +59,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~inline_functions ~sample_amount ~show_recursive_calls
     ~flip_hoisting ~cross_table ~branch_elimination ~determinism ~sbk_encoding ~print_state_bdd
     ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_function_bdd
-    ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips
+    ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc
     lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
@@ -87,14 +87,14 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     let compiled = Compiler.compile_program internal ~eager_eval in
     let zbdd = compiled.body.z in
     let res = if skip_table then res else res @
-       (let z = Wmc.wmc compiled.ctx.man zbdd compiled.ctx.weights in
+       (let z = Wmc.wmc ~float_wmc compiled.ctx.man zbdd compiled.ctx.weights in
        let table = VarState.get_table cfg compiled.ctx.man compiled.body.state t in
        let probs = List.map table ~f:(fun (label, bdd) ->
-           if Util.within_epsilon z 0.0 then (label, 0.0) else
-             let prob = (Wmc.wmc compiled.ctx.man (Bdd.bdd_and compiled.ctx.man bdd zbdd) compiled.ctx.weights) /. z in
+           if Bignum.(z = zero) then (label, Bignum.zero) else
+             let prob = Bignum.((Wmc.wmc ~float_wmc compiled.ctx.man (Bdd.bdd_and compiled.ctx.man bdd zbdd) compiled.ctx.weights) / z) in
              (label, prob)) in
        let l = [["Value"; "Probability"]] @
-         List.map probs ~f:(fun (typ, prob) -> [print_pretty typ; string_of_float prob]) in
+         List.map probs ~f:(fun (typ, prob) -> [print_pretty typ; Bignum.to_string_hum prob]) in
        [TableRes("Joint Distribution", l)]
       ) in
     (* let res = if show_recursive_calls then res @ [StringRes("Number of recursive calls",
@@ -189,6 +189,7 @@ let command =
      and show_params = flag "-show-params" no_arg ~doc:" show the sum of number of unique parameters in each table in the program"
      and no_compile = flag "-no-compile" no_arg ~doc: " parse the program only"
      and max_flips = flag "-max-flips" (optional int) ~doc: " limit the number of flips during flip-hoisting"
+     and float_wmc = flag "-float-wmc" no_arg ~doc:" use float-based wmc"
      (* and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order" *)
      and json = flag "-json" no_arg ~doc:" print output as JSON"
      in fun () ->
@@ -199,7 +200,7 @@ let command =
                   ~print_size ~inline_functions ~skip_table ~flip_hoisting ~cross_table
                   ~branch_elimination ~determinism ~sbk_encoding ~show_recursive_calls ~print_state_bdd
                   ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_function_bdd
-                  ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips
+                  ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc
                   lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res

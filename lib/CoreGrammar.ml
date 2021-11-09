@@ -14,7 +14,7 @@ type expr =
   | Ite of expr * expr * expr
   | True
   | False
-  | Flip of float
+  | Flip of Bignum.t
   | Let of String.t * expr * expr
   | FuncCall of String.t * expr List.t
   | Observe of expr
@@ -29,6 +29,7 @@ type typ =
     TBool
   | TTuple of typ * typ
 [@@deriving sexp_of]
+
 
 type arg = String.t * typ
 [@@deriving sexp_of]
@@ -142,7 +143,7 @@ let string_of_prog_unparsed p =
     | Observe(e1) | Fst(e1) | Snd(e1) | Sample(e1) ->
       let s1 = pr_expr e1 in
       Format.dprintf "@[<hov 2>%s@ %t@]" (string_of_op e) s1
-    | Flip(f) -> Format.dprintf "flip %s" (Format.asprintf "%f" f)
+    | Flip(f) -> Format.dprintf "flip %s" (Bignum.to_string_hum f)
     | Ident(s) -> Format.dprintf "%s" s
     | FuncCall(id, args) ->
       let args_s = 

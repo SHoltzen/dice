@@ -188,8 +188,8 @@ let up_pass (e: CG.expr) (max_flips: int) : tree * env =
       (match e1 with
       | Flip(f) -> 
         let id = flip_id() in
-        (Hashtbl.add flip_env id (1.0 -. f, None, []));
-        [(1.0 -. f, [id])], [(1.0 -. f, [id])], Leaf(id)
+        (Hashtbl.add flip_env id (Bignum.one -. f, None, []));
+        [(Bignum.one -. f, [id])], [(Bignum.one -. f, [id])], Leaf(id)
       | _ -> up_pass_e e1)
     | Snd(e1) | Fst(e1) | Observe(e1) -> up_pass_e e1
     | Ident(_) | _ -> [], [], Non
@@ -908,7 +908,7 @@ let rec merge_branch (e: CG.expr) : CG.expr =
       | True, False -> g
       | False, True -> 
         (match g with
-        | Flip(f) -> Flip(1.0 -. f)
+        | Flip(f) -> Flip(Bignum.one -. f)
         | _ -> Not(g))
       | _, _ ->
         if n1 = n2 then
@@ -956,9 +956,9 @@ let rec merge_branch (e: CG.expr) : CG.expr =
 let rec redundant_flip_elimination (e: CG.expr) : CG.expr =
   match e with 
   | Flip(f) ->
-    if f = 0.0 then
+    if f = Bignum.zero then
       False
-    else if f >= 1.0 then
+    else if f = Bignum.one then
       True
     else
       Flip(f)
