@@ -123,7 +123,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
                         BddUtil.dump_dot_multiroot compiled.ctx.man compiled.ctx.name_map (VarState.Leaf(compiled.body.z)))
               ]
       else res in
-    Bdd.man_print_stats compiled.ctx.man;
+    (* Bdd.man_print_stats compiled.ctx.man; *)
     res
   (* | Some(n) ->
    *   let sz = ref 0 in

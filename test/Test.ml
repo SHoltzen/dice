@@ -132,12 +132,14 @@ let test_sub4 _ =
   assert_feq 0.125 (parse_and_prob prog);
   assert_feq 0.125 (parse_optimize_and_prob prog)
 
-
 let test_op1 _ =
-  let prog = "
+  (*let prog = "
    let x = discrete(0.1, 0.2, 0.3, 0.4) in
    let y = discrete(0.4, 0.3, 0.2, 0.1) in
-   x < y" in
+   x < y" in*)
+  let prog = "
+   discrete(0.1, 0.2, 0.3, 0.4) < discrete(0.4, 0.3, 0.2, 0.1)" in
+
   assert_feq (3.0 /. 20.0) (parse_and_prob prog);
   assert_feq (3.0 /. 20.0) (parse_optimize_and_prob prog)
 
@@ -703,6 +705,15 @@ let test_lte_name _ =
     a <= b" in
   assert_feq (parse_and_prob prog1) (parse_and_prob prog2)
 
+let test_lt_name _ = 
+  let prog1 = "uniform(3, 0, 8) < uniform(3, 0, 8)" in
+  let prog2 = "
+    let a = uniform(3, 0, 8) in
+    let b = uniform(3, 0, 8) in
+    a < b" in
+  assert_feq (parse_and_prob prog1) (parse_and_prob prog2)
+
+
 let test_bdd _ =
   let mgr = Bdd.mk_bdd_manager_default_order 100 in
   let v1 = Bdd.bdd_newvar mgr true in
@@ -832,6 +843,7 @@ let expression_tests =
   "test_list_ex">::test_list_ex;
   "test_bdd">::test_bdd;
   "test_lte_name">::test_lte_name; 
+  "test_lt_name">::test_lt_name; 
 ]
 
 let () =
