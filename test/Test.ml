@@ -695,6 +695,14 @@ let test_list_ex _ =
   assert_feq (0.2 *. 0.5 +. 0.4 *. 0.5) (parse_and_prob prog);
   assert_feq (0.2 *. 0.5 +. 0.4 *. 0.5) (parse_optimize_and_prob prog)
 
+let test_lte_name _ = 
+  let prog1 = "uniform(3, 0, 8) <= uniform(3, 0, 8)" in
+  let prog2 = "
+    let a = uniform(3, 0, 8) in
+    let b = uniform(3, 0, 8) in
+    a <= b" in
+  assert_feq (parse_and_prob prog1) (parse_and_prob prog2)
+
 let test_bdd _ =
   let mgr = Bdd.mk_bdd_manager_default_order 100 in
   let v1 = Bdd.bdd_newvar mgr true in
@@ -823,6 +831,7 @@ let expression_tests =
   (* "test_list_distribution">::test_list_distribution; *)
   "test_list_ex">::test_list_ex;
   "test_bdd">::test_bdd;
+  "test_lte_name">::test_lte_name;
 ]
 
 let () =

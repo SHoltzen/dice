@@ -666,8 +666,6 @@ let unreachable_core e = CG.Let("$_", Observe False, e)
 type external_ctx = Cudd.Man.dt
 
 let rec from_external_expr_h (ctx: external_ctx) (cfg: config) ((t, e): tast) : CG.expr =
-  (* Format.printf "converting %s\n" (string_of_tast (t,e));
-   * flush_all (); *)
   let list_len_bits = bit_length cfg.max_list_length in
   let list_len_type = EG.TInt list_len_bits in
   let mk_length_int x = (list_len_type, Int(EG.gen_src, list_len_bits, x)) in
@@ -772,7 +770,16 @@ let rec from_external_expr_h (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
                Ite(And(Not(nth_bit sz idx (Ident(n1))), nth_bit sz idx (Ident n2)), True,
                h (idx + 1))) in
     Let(n1, from_external_expr_h ctx cfg (t1, e1), Let(n2, from_external_expr_h ctx cfg (t2, e2), h 0))
-  | Lte(s, e1, e2) -> from_external_expr_h ctx cfg (TBool, Or(s, (TBool, Lt(s, e1, e2)), (TBool, Eq(s, e1, e2))))
+  | Lte(s, (e1t, e1), (e2t, e2)) -> from_external_expr_h ctx cfg (TBool, 
+      (* create temporary identifiers to resolve the issue with comparing two uniforms *)
+      let e1name = fresh () in
+      let e2name = fresh () in
+      Let(s, e1name, (e1t, e1), (
+        (TBool, Let(s, e2name, (e2t, e2), (
+          (TBool, Or(s, (TBool, Lt(s, (e1t, Ident(s, e1name)), (e2t, Ident(s, e2name)))), 
+          (TBool, Eq(s, (e1t, Ident(s, e1name)), (e2t, Ident(s, e2name)))))))
+        )))
+      ))
   | Gt(s, e1, e2) -> from_external_expr_h ctx cfg (TBool, Not(s, (TBool, Lte(s, e1, e2))))
   | Gte(s, e1, e2) -> from_external_expr_h ctx cfg (TBool, Not(s, (TBool, Lt(s, e1, e2))))
   | Not(_, e) -> Not(from_external_expr_h ctx cfg e)
