@@ -95,9 +95,10 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
          List.map probs ~f:(fun (typ, prob) -> [print_pretty typ; Bignum.to_string_hum prob]) in
        [TableRes("Joint Distribution", l)]
       ) in
-    (* let res = if show_recursive_calls then res @ [StringRes("Number of recursive calls",
-     *                                                         Format.sprintf "%f" (Man.num_recursive_calls compiled.ctx.man))]
-     *   else res in *)
+    let res = if show_recursive_calls then res @ [StringRes("Number of recursive calls",
+                                                            Format.sprintf "%s" 
+                                                            (Unsigned.UInt64.to_string (Bdd.bdd_num_recursive_calls compiled.ctx.man)))]
+       else res in 
     (* let res = if show_function_size then
      *     let all_sizes = List.map (Hashtbl.to_alist compiled.ctx.funcs) ~f:(fun (key, data) ->
      *         (\* let sz = VarState.state_size [data.body.state; VarState.Leaf(data.body.z)] in *\)

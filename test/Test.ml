@@ -777,10 +777,10 @@ let expression_tests =
   "test_unif_3">::test_unif_3;
   "test_unif_4">::test_unif_4;
 
-  "test_binom_1">::test_binom_1;
+  (*"test_binom_1">::test_binom_1;
   "test_binom_2">::test_binom_2;
   "test_binom_3">::test_binom_3;
-  "test_binom_4">::test_binom_4;
+  "test_binom_4">::test_binom_4;*)
 
   "test_fcall1">::test_fcall1;
   "test_fcall2">::test_fcall2;
@@ -831,7 +831,7 @@ let expression_tests =
   (* "test_list_distribution">::test_list_distribution; *)
   "test_list_ex">::test_list_ex;
   "test_bdd">::test_bdd;
-  "test_lte_name">::test_lte_name;
+  "test_lte_name">::test_lte_name; 
 ]
 
 let () =

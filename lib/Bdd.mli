@@ -26,4 +26,5 @@ val bdd_eq : manager -> bddptr -> bddptr -> bool
 val bdd_low : manager -> bddptr -> bddptr
 val bdd_high : manager -> bddptr -> bddptr
 val man_print_stats : manager -> unit
+val bdd_num_recursive_calls : manager -> Unsigned.uint64
 val int_of_label : label -> int
