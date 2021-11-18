@@ -7,8 +7,15 @@ type weight = (label, (Bignum.t*Bignum.t)) Core.Hashtbl.Poly.t
 let hashtable_to_float (low, high) = 
   (Bignum.to_float low, Bignum.to_float high) 
 
+let hashtable_to_log (low, high) = 
+  (LogProbability.make low, LogProbability.make high)
+
+
+
+
+
 (** Perform a weighted model count of the BDD `bdd` with weight function `w` *)
-let wmc ~float_wmc mgr (bdd : bddptr) (w: weight) =
+let wmc ~wmc_type mgr (bdd : bddptr) (w: weight) =
   (* internal memoized recursive weighted model count *)
   let rec wmc_rec bdd w cache addop multop one zero =
     if bdd_is_true mgr bdd then one
@@ -26,6 +33,12 @@ let wmc ~float_wmc mgr (bdd : bddptr) (w: weight) =
         let new_weight = (addop (multop highw thnw) (multop loww elsw)) in
         Hashtbl.Poly.add_exn cache ~key:bdd ~data:new_weight;
         new_weight in
-  if float_wmc then Bignum.of_float_decimal
-          (wmc_rec bdd (Hashtbl.Poly.map w hashtable_to_float) (Hashtbl.Poly.create ()) (+.) ( *. ) 1. 0.) 
-    else wmc_rec bdd w (Hashtbl.Poly.create ()) Bignum.(+) Bignum.( * ) Bignum.one Bignum.zero
+  if wmc_type = 2 then (Bignum.of_float_decimal
+          (wmc_rec bdd (Hashtbl.Poly.map w hashtable_to_float) (Hashtbl.Poly.create ()) (+.) ( *. ) 1. 0.))
+    else if wmc_type = 1 then (wmc_rec bdd w (Hashtbl.Poly.create ()) Bignum.(+) Bignum.( * ) Bignum.one Bignum.zero) 
+    else (Bignum.of_float_decimal (LogProbability.conv (wmc_rec bdd 
+            (Hashtbl.Poly.map (Hashtbl.Poly.map w hashtable_to_float) hashtable_to_log)
+            (Hashtbl.Poly.create ()) (LogProbability.add) (LogProbability.mult) (LogProbability.make 1.) (LogProbability.make 0.))))
+      
+     
+
