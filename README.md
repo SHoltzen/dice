@@ -1,3 +1,5 @@
+[![CI - Build and Test](https://github.com/SHoltzen/dice/actions/workflows/ci.yml/badge.svg)](https://github.com/SHoltzen/dice/actions/workflows/ci.yml)
+
 `dice` is a probabilistic programming language focused on *fast exact inference*
 for *discrete* probabilistic programs. For more information for how `dice` works
 see the research article [here](https://arxiv.org/abs/2005.09089). To cite
