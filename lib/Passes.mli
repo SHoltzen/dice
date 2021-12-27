@@ -18,4 +18,4 @@ val from_external_prog: ?cfg:config -> bool -> ExternalGrammar.program -> (Exter
 
 val from_external_prog_optimize: ?cfg:config -> bool -> ExternalGrammar.program -> bool -> bool -> int option -> bool -> bool -> (ExternalGrammar.typ * CoreGrammar.program)
 
-val from_core_prog: CoreGrammar.program -> LogicalFormula.expr
+val from_core_prog: CoreGrammar.program -> LogicalFormula.program

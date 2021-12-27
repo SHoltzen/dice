@@ -10,6 +10,15 @@ type expr =
   | Neg of expr
 [@@deriving sexp_of]
 
+type weights = (String.t, (Bignum.t*Bignum.t)) Core.Hashtbl.Poly.t 
+[@@deriving sexp_of]
+
+type program = {
+  body: expr;
+  weights: weights;
+}
+[@@deriving sexp_of]
+
 type literal = 
   | Pos of String.t
   | Neg of String.t
@@ -24,4 +33,8 @@ type dddnf = literal List.t List.t
 let string_of_expr e =
   Sexp.to_string_hum (sexp_of_expr e)
 
-
+let string_of_prog p =
+  (* let e = p.body in
+  let r = Hashtbl.fold (fun x y -> Printf.printf "%s -> %s\n" x y) ht;;
+  string_of_expr e *)
+  Sexp.to_string_hum (sexp_of_program p)

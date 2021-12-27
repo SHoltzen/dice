@@ -83,7 +83,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     let distinct, total = ExternalGrammar.count_params parsed in
      res @ [StringRes("Number of Distinct Parameters", distinct); StringRes("Number of Parameters", total)] else res in
   let logical_formula = from_core_prog internal in
-  let res = if print_lf then res @ [StringRes("Logical formula", LogicalFormula.string_of_expr logical_formula)] else res in
+  let res = if print_lf then res @ [StringRes("Logical formula", LogicalFormula.string_of_prog logical_formula)] else res in
   if no_compile then res else match sample_amount with
   | None ->
     let compiled = Compiler.compile_program internal ~eager_eval in

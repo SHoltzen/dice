@@ -1431,7 +1431,7 @@ let from_external_prog_optimize ?(cfg: config = default_config) sbk (p: EG.progr
   let optbody = Optimization.do_optimize convbody !n local_hoisting global_hoisting max_flips branch_elimination determinism in
   (t, {functions = functions; body = optbody})
 
-let from_core_prog (p: CG.program) : LF.expr =
+let from_core_prog (p: CG.program) : LF.program =
   let e = p.body in
   let is_const (e: LF.expr) : bool =
     match e with
@@ -1446,6 +1446,7 @@ let from_core_prog (p: CG.program) : LF.expr =
     | Neg(True) | And(Neg(True), _) | And(_, Neg(True)) -> false
     | _ -> failwith "Expression is not a constant"
   in
+  let weights = Hashtbl.Poly.create () in
   let rec from_core_prog_h (env: env) (e: CG.expr) : LF.expr = 
     match e with
     | And(e1, e2) -> 
@@ -1503,6 +1504,7 @@ let from_core_prog (p: CG.program) : LF.expr =
     | Flip(f) ->
       let var_name = (Format.sprintf "f%d_%s" !flip_id (Bignum.to_string_hum f)) in
       flip_id := !flip_id + 1;
+      Hashtbl.Poly.add_exn weights ~key:var_name ~data:(Bignum.(one-f), f);
       Atom(var_name)
     | Observe(g) ->
       let c = from_core_prog_h env g in
@@ -1518,4 +1520,4 @@ let from_core_prog (p: CG.program) : LF.expr =
   in
   let env = Map.Poly.empty in
   let r = from_core_prog_h env e in
-  r
+  {body = r; weights = weights}

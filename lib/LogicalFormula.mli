@@ -9,6 +9,15 @@ type expr =
   | Neg of expr
 [@@deriving sexp_of]
 
+type weights = (String.t, (Bignum.t*Bignum.t)) Core.Hashtbl.Poly.t 
+[@@deriving sexp_of]
+
+type program = {
+  body: expr;
+  weights: weights;
+}
+[@@deriving sexp_of]
+
 type literal = 
   | Pos of String.t
   | Neg of String.t
@@ -21,3 +30,4 @@ type dddnf = literal List.t List.t
 [@@deriving sexp_of]
 
 val string_of_expr : expr -> String.t
+val string_of_prog : program -> String.t
