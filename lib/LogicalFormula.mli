@@ -1,5 +1,4 @@
-open Core
-open Bdd
+(** Defines the logical formula interface in dice grammar *)
 
 type expr =
   | And of expr * expr
@@ -21,7 +20,4 @@ type cnf = literal List.t List.t
 type dddnf = literal List.t List.t
 [@@deriving sexp_of]
 
-let string_of_expr e =
-  Sexp.to_string_hum (sexp_of_expr e)
-
-
+val string_of_expr : expr -> String.t

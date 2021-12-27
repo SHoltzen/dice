@@ -3,6 +3,7 @@ open Core
 open Util
 module EG = ExternalGrammar
 module CG = CoreGrammar
+module LF = LogicalFormula
 
 type config = { max_list_length: int }
 
@@ -16,8 +17,12 @@ let fresh () =
   n := !n + 1;
   (Format.sprintf "$%d" !n)
 
+let flip_id = ref 1
+
 let within_epsilon x y =
   (Float.compare (Float.abs (x -. y)) 0.0001) < 0
+
+type env = (String.t, LF.expr) Map.Poly.t (* map from variable identifiers to Logical Formula*)
 
 let map_eexpr f =
   let open EG in
@@ -1425,3 +1430,92 @@ let from_external_prog_optimize ?(cfg: config = default_config) sbk (p: EG.progr
   let (t, convbody) = from_external_expr mgr cfg false sbk tenv p.body in
   let optbody = Optimization.do_optimize convbody !n local_hoisting global_hoisting max_flips branch_elimination determinism in
   (t, {functions = functions; body = optbody})
+
+let from_core_prog (p: CG.program) : LF.expr =
+  let e = p.body in
+  let is_const (e: LF.expr) : bool =
+    match e with
+    | True | Neg(True) 
+    | And(Neg(True), _) | And(_, Neg(True))
+    | Or(True, _) | Or(_, True) -> true
+    | _ -> false
+  in
+  let is_true (e: LF.expr) : bool = 
+    match e with
+    | True | Or(True, _) | Or(_, True) -> true
+    | Neg(True) | And(Neg(True), _) | And(_, Neg(True)) -> false
+    | _ -> failwith "Expression is not a constant"
+  in
+  let rec from_core_prog_h (env: env) (e: CG.expr) : LF.expr = 
+    match e with
+    | And(e1, e2) -> 
+      let c1 = from_core_prog_h env e1 in
+      let c2 = from_core_prog_h env e2 in
+      And(c1, c2)
+    | Or(e1, e2) -> 
+      let c1 = from_core_prog_h env e1 in
+      let c2 = from_core_prog_h env e2 in
+      Or(c1, c2)
+    | Xor(e1, e2) -> 
+      let c1 = from_core_prog_h env e1 in
+      let c2 = from_core_prog_h env e2 in  
+      Or(And(c1, Neg(c2)), And(Neg(c1), c2))
+    | Eq(e1, e2) -> 
+      let c1 = from_core_prog_h env e1 in
+      let c2 = from_core_prog_h env e2 in
+      Or(And(c1, c2), And(Neg(c1), Neg(c2)))
+    | Not(e) ->
+      let c = from_core_prog_h env e in
+      Neg(c)
+    | True -> True
+    | False -> Neg(True)
+    | Ident(s) ->
+      (match Map.Poly.find env s with
+      | Some(r) -> r
+      | _ -> failwith (sprintf "Could not find variable '%s'" s))
+    | Tup(e1, e2) ->
+      let c1 = from_core_prog_h env e1 in
+      let c2 = from_core_prog_h env e2 in
+      Tup(c1, c2)
+    | Ite(g, thn, els) ->
+      let cg = from_core_prog_h env g in
+      if is_const cg then
+        let r = from_core_prog_h env (if is_true cg then thn else els) in
+        r
+      else
+        let cthn = from_core_prog_h env thn in
+        let cels = from_core_prog_h env els in
+        Or(And(cg, cthn), And(Neg(cg), cels))
+    | Fst(e) ->
+      let c = from_core_prog_h env e in
+      let r = match c with
+      | Tup(c1, _) -> c1
+      | _ -> failwith (Format.sprintf "Internal Failure: calling `fst` on non-tuple at %s" (CG.string_of_expr e))
+      in 
+      r
+    | Snd(e) ->
+      let c = from_core_prog_h env e in
+      let r = match c with
+      | Tup(_, c2) -> c2
+      | _ -> failwith (Format.sprintf "Internal Failure: calling `snd` on non-tuple at %s" (CG.string_of_expr e))
+      in 
+      r
+    | Flip(f) ->
+      let var_name = (Format.sprintf "f%d_%s" !flip_id (Bignum.to_string_hum f)) in
+      flip_id := !flip_id + 1;
+      Atom(var_name)
+    | Observe(g) ->
+      let c = from_core_prog_h env g in
+      c
+    | Let(x, e1, e2) ->
+      let c1 = from_core_prog_h env e1 in
+      let env' = Map.Poly.set env ~key:x ~data:c1 in
+      let c2 = from_core_prog_h env' e2 in
+      c2
+    | Sample(_) -> failwith "not implemented"
+    | FuncCall(_, _) -> failwith "not implemented"
+    | _ -> failwith "not implemented"
+  in
+  let env = Map.Poly.empty in
+  let r = from_core_prog_h env e in
+  r

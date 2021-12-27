@@ -58,7 +58,7 @@ let rec print_pretty e =
 let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~inline_functions ~sample_amount ~show_recursive_calls
     ~local_hoisting ~global_hoisting ~branch_elimination ~determinism ~sbk_encoding ~print_state_bdd
-    ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_function_bdd
+    ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_function_bdd
     ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc
     lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
@@ -82,6 +82,8 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
   let res = if show_params then
     let distinct, total = ExternalGrammar.count_params parsed in
      res @ [StringRes("Number of Distinct Parameters", distinct); StringRes("Number of Parameters", total)] else res in
+  let logical_formula = from_core_prog internal in
+  let res = if print_lf then res @ [StringRes("Logical formula", LogicalFormula.string_of_expr logical_formula)] else res in
   if no_compile then res else match sample_amount with
   | None ->
     let compiled = Compiler.compile_program internal ~eager_eval in
@@ -180,6 +182,7 @@ let command =
      and print_state_bdd = flag "-print-state-bdd" no_arg ~doc:" print final compiled state BDD (in graphviz format)"
      and print_function_bdd = flag "-print-function-bdd" no_arg ~doc:" print final compiled function state BDD (in graphviz format)"
      and print_unparsed = flag "-show-unparsed" no_arg ~doc:" print unparsed desugared dice program"
+     and print_lf = flag "-show-logical-formula" no_arg ~doc:" print logical formula of dice program"
      and skip_table = flag "-skip-table" no_arg ~doc:" skip printing the joint probability distribution"
      and show_recursive_calls = flag "-num-recursive-calls" no_arg ~doc:" show the number of recursive calls invoked during compilation"
      and eager_eval = flag "-eager-eval" no_arg ~doc:" eager let compilation"
@@ -199,7 +202,7 @@ let command =
        let r = (parse_and_print ~print_parsed ~print_internal ~sample_amount
                   ~print_size ~inline_functions ~skip_table ~local_hoisting ~global_hoisting
                   ~branch_elimination ~determinism ~sbk_encoding ~show_recursive_calls ~print_state_bdd
-                  ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_function_bdd
+                  ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_function_bdd
                   ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc
                   lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))

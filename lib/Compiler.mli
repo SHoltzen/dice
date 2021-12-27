@@ -29,7 +29,10 @@ type compiled_program = {
 
 (** Compile the input program to a [compiled_program] *)
 val compile_program: CoreGrammar.program -> eager_eval:bool -> compiled_program
-
+(* val compile_to_bdd : LogicalFormula.expr -> compiled_program
+val compile_to_cnf : LogicalFormula.expr -> LogicalFormula.cnf (* tseytin encoding *)
+val compile_cnf_to_ddnf : LogicalFormula.cnf -> LogicalFormula.dddnf (* calls sharpsat *)
+  *)
 val get_prob: CoreGrammar.program -> Bignum.t
 
 exception Syntax_error of string
