@@ -1,5 +1,4 @@
 open Core
-open Bdd
 
 type expr =
   | And of expr * expr
@@ -10,7 +9,7 @@ type expr =
   | Neg of expr
 [@@deriving sexp_of]
 
-type weights = (String.t, (Bignum.t*Bignum.t)) Core.Hashtbl.Poly.t 
+type weights = (String.t, Bignum.t) Core.Hashtbl.Poly.t 
 [@@deriving sexp_of]
 
 type program = {

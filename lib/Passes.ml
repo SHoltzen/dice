@@ -1504,7 +1504,7 @@ let from_core_prog (p: CG.program) : LF.program =
     | Flip(f) ->
       let var_name = (Format.sprintf "f%d_%s" !flip_id (Bignum.to_string_hum f)) in
       flip_id := !flip_id + 1;
-      Hashtbl.Poly.add_exn weights ~key:var_name ~data:(Bignum.(one-f), f);
+      Hashtbl.Poly.add_exn weights ~key:var_name ~data:f;
       Atom(var_name)
     | Observe(g) ->
       let c = from_core_prog_h env g in

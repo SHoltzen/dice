@@ -59,7 +59,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~inline_functions ~sample_amount ~show_recursive_calls
     ~local_hoisting ~global_hoisting ~branch_elimination ~determinism ~sbk_encoding ~print_state_bdd
     ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_function_bdd
-    ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc
+    ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc ~logical_formula
     lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
@@ -82,11 +82,12 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
   let res = if show_params then
     let distinct, total = ExternalGrammar.count_params parsed in
      res @ [StringRes("Number of Distinct Parameters", distinct); StringRes("Number of Parameters", total)] else res in
-  let logical_formula = from_core_prog internal in
-  let res = if print_lf then res @ [StringRes("Logical formula", LogicalFormula.string_of_prog logical_formula)] else res in
+  let log_form = from_core_prog internal in
+  let res = if print_lf then res @ [StringRes("Logical formula", LogicalFormula.string_of_prog log_form)] else res in
   if no_compile then res else match sample_amount with
   | None ->
-    let compiled = Compiler.compile_program internal ~eager_eval in
+    let compiled = if logical_formula then 
+      Compiler.compile_to_bdd log_form else Compiler.compile_program internal ~eager_eval in
     let zbdd = compiled.body.z in
     let res = if skip_table then res else res @
        (let z = Wmc.wmc ~float_wmc compiled.ctx.man zbdd compiled.ctx.weights in
@@ -193,6 +194,7 @@ let command =
      and no_compile = flag "-no-compile" no_arg ~doc: " parse the program only"
      and max_flips = flag "-max-flips" (optional int) ~doc: " limit the number of flips during flip-hoisting"
      and float_wmc = flag "-float-wmc" no_arg ~doc:" use float-based wmc"
+     and logical_formula = flag "-logical-formula" no_arg ~doc:" use logical formula interface"
      (* and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order" *)
      and json = flag "-json" no_arg ~doc:" print output as JSON"
      in fun () ->
@@ -203,7 +205,7 @@ let command =
                   ~print_size ~inline_functions ~skip_table ~local_hoisting ~global_hoisting
                   ~branch_elimination ~determinism ~sbk_encoding ~show_recursive_calls ~print_state_bdd
                   ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_function_bdd
-                  ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc
+                  ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc ~logical_formula
                   lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res

@@ -9,7 +9,7 @@ type expr =
   | Neg of expr
 [@@deriving sexp_of]
 
-type weights = (String.t, (Bignum.t*Bignum.t)) Core.Hashtbl.Poly.t 
+type weights = (String.t, Bignum.t) Core.Hashtbl.Poly.t 
 [@@deriving sexp_of]
 
 type program = {
