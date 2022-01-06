@@ -295,6 +295,58 @@ let compile_to_bdd (lf: LF.program) : compiled_program =
   in
   {ctx = ctx; body = compile_expr_bdd ctx lf.weights lf.body}
 
+let compile_to_cnf (p: LF.program) : LF.cnf =
+  let ctx = new_context false () in
+  let env = Hashtbl.Poly.create () in
+  let rec compile_expr_bdd (ctx: compile_context) (w: LF.weights) (e: LF.expr) : compiled_expr =
+    let r = match e with
+      | And(e1, e2) -> 
+        let c1 = compile_expr_bdd ctx w e1 in
+        let c2 = compile_expr_bdd ctx w e2 in
+        let v = Leaf(Bdd.bdd_and ctx.man (extract_leaf c1.state) (extract_leaf c2.state)) in
+        let z = Bdd.bdd_and ctx.man c1.z c2.z in
+        {state=v; z=z; flips=c1.flips @ c2.flips}
+      | Or(e1, e2) ->
+        let c1 = compile_expr_bdd ctx w e1 in
+        let c2 = compile_expr_bdd ctx w e2 in
+        let v = Leaf(Bdd.bdd_or ctx.man (extract_leaf c1.state) (extract_leaf c2.state)) in
+        let z = Bdd.bdd_and ctx.man c1.z c2.z in
+        {state=v; z=z; flips=c1.flips @ c2.flips}
+      | Atom(x) ->
+        let r = match Hashtbl.Poly.find env x with
+        | Some(r) -> {state=r; z=Bdd.bdd_true ctx.man; flips=[]}
+        | _ -> 
+          let f = try Hashtbl.Poly.find_exn w x 
+            with _ -> failwith (Format.sprintf "Could not found flip '%s'." x) in
+          let new_f = Bdd.bdd_newvar ctx.man true in
+          let var_lbl = Bdd.bdd_topvar ctx.man new_f in
+          let var_name = (Format.sprintf "f%d_%s" !flip_id (Bignum.to_string_hum f)) in
+          Hashtbl.add_exn ctx.name_map ~key:var_lbl ~data:var_name;
+          flip_id := !flip_id + 1;
+          Hashtbl.Poly.add_exn ctx.weights ~key:var_lbl ~data:(Bignum.(one-f), f);
+          let v = Leaf(new_f) in
+          Hashtbl.Poly.add_exn env ~key:x ~data:v;
+          {state=v; z=Bdd.bdd_true ctx.man; flips=[new_f]}
+        in
+        r
+      | True ->
+        {state=Leaf(Bdd.bdd_true ctx.man); z=Bdd.bdd_true ctx.man; flips=[]}
+      | Neg(e1) ->
+        let c = compile_expr_bdd ctx w e1 in
+        let v = Bdd.bdd_negate ctx.man (extract_leaf c.state) in
+        {state=Leaf(v); z=c.z; flips=c.flips}
+      | Tup(e1, e2) ->
+        let c1 = compile_expr_bdd ctx w e1 in
+        let c2 = compile_expr_bdd ctx w e2 in
+        {state=Node(c1.state, c2.state); z=Bdd.bdd_and ctx.man c1.z c2.z; flips=c1.flips @ c2.flips}
+    in
+    r
+  in
+  {ctx = ctx; body = compile_expr_bdd ctx lf.weights lf.body}
+
+let compile_cnf_to_ddnf (c: LF.cnf) : LF.dddnf = 
+
+
 let get_prob p =
   let c = compile_program ~eager_eval:false p in
   let z = Wmc.wmc ~float_wmc:false c.ctx.man c.body.z c.ctx.weights in
