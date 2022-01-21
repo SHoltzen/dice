@@ -303,6 +303,11 @@ let compile_to_cnf (p: LF.program) : LF.cnf =
     (Format.sprintf "x_%d" !subf)
   in
 
+  let fresh_tup () = 
+    subf := !subf + 1;
+    (Format.sprintf "tup_%d" !subf)
+  in
+
   let rec simplify (w: LF.weights) (e: LF.expr) : LF.cnf = 
   (* returns CNF form *)
     let expand (s1: LF.cnf) (s2: LF.cnf) : LF.cnf = 
@@ -375,7 +380,7 @@ let compile_to_cnf (p: LF.program) : LF.cnf =
       let e' : LF.expr = Or(e1', e2') in
       let x = fresh() in
       let x_expr : LF.expr = Atom(x) in
-      let e_subf : LF.expr  = And(And(Or(Neg(x_expr), e'), Or(Neg(e'), x_expr)), And(s1', s2')) in
+      let e_subf : LF.expr  = And(And(Or(Neg(x_expr), e'), Or(Neg(e'), x_expr)), Or(s1', s2')) in
       x, e_subf
     | Atom(_) | True -> "", e
     | Neg(e1) -> 
@@ -389,8 +394,33 @@ let compile_to_cnf (p: LF.program) : LF.cnf =
       let x_expr : LF.expr = Atom(x) in
       let e_subf : LF.expr  = And(And(Or(x_expr, e'), Or(Neg(e'), x_expr)), s1') in
       x, e_subf
-    | Tup(_, _) -> 
-      failwith "Not implemented"
+    | Tup(e1, e2) -> 
+      let x1, s1 = gen_subf w e1 in
+      let x2, s2 = gen_subf w e2 in
+      let (e1', s1') : (LF.expr * LF.expr) = match s1 with 
+      | Atom(_) | True -> e1, True
+      | _ -> Atom(x1), s1
+      in
+      let (e2', s2') : (LF.expr * LF.expr) = match s2 with 
+      | Atom(_) | True -> e2, True
+      | _ -> Atom(x2), s2
+      in
+      let tup_x1 = fresh_tup() in
+      let tup_x2 = fresh_tup() in
+      let e' : LF.expr = 
+        And(
+          And(Atom(tup_x1), Atom(tup_x2)),
+          And(
+            And(Or(Neg(Atom(tup_x1)), e1'), Or(Atom(tup_x1), Neg(e1'))),
+            And(Or(Neg(Atom(tup_x2)), e2'), Or(Atom(tup_x2), Neg(e2')))
+          )
+        )
+      in
+      
+      let x = fresh() in
+      let x_expr : LF.expr = Atom(x) in
+      let e_subf : LF.expr = And(And(Or(Neg(x_expr), e'), Or(Neg(e'), x_expr)), And(s1', s2')) in
+      x, e_subf
   in
 
   let x_phi, all_subfs = gen_subf p.weights p.body in
