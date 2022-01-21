@@ -1,7 +1,7 @@
 open Core
 open Wmc
 open VarState
-open CoreGrammar
+module CG = CoreGrammar
 open Bdd
 module LF = LogicalFormula
 
@@ -46,7 +46,7 @@ let new_context ~eager_eval () =
    eager_eval = eager_eval}
 
 (** generates a symbolic representation for a variable of the given type *)
-let rec gen_sym_type ctx (t:typ) : bddptr btree =
+let rec gen_sym_type ctx (t:CG.typ) : bddptr btree =
   match t with
   | TBool ->
     let bdd = bdd_newvar ctx true in Leaf(bdd)
@@ -59,7 +59,7 @@ let rec is_const mgr (st: bddptr btree) =
   | Leaf(v) -> Bdd.bdd_is_const mgr v
   | Node(l, r) -> (is_const mgr l) && (is_const mgr r)
 
-let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled_expr =
+let rec compile_expr (ctx: compile_context) (tenv: CG.tenv) (env: env) (e : CG.expr) : compiled_expr =
   let binop_helper f e1 e2 =
     let c1 = compile_expr ctx tenv env e1 in
     let c2 = compile_expr ctx tenv env e2 in
@@ -112,14 +112,14 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
     let c = compile_expr ctx tenv env e in
     let v' = (match c.state with
      | Node(l, _) -> l
-     | _ -> failwith (Format.sprintf "Internal Failure: calling `fst` on non-tuple at %s" (string_of_expr e))) in
+     | _ -> failwith (Format.sprintf "Internal Failure: calling `fst` on non-tuple at %s" (CG.string_of_expr e))) in
     {state=v'; z=c.z; flips=c.flips}
 
   | Snd(e) ->
     let c = compile_expr ctx tenv env e in
     let v' = (match c.state with
      | Node(_, r) -> r
-     | _ -> failwith (Format.sprintf "Internal Failure: calling `snd` on non-tuple at %s" (string_of_expr e))) in
+     | _ -> failwith (Format.sprintf "Internal Failure: calling `snd` on non-tuple at %s" (CG.string_of_expr e))) in
     {state=v'; z=c.z; flips=c.flips}
 
   | Flip(f) ->
@@ -137,7 +137,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
 
   | Let(x, e1, e2) ->
     let c1 = compile_expr ctx tenv env e1 in
-    let t = (type_of tenv e1) in
+    let t = (CG.type_of tenv e1) in
     let tenv' = Map.Poly.set tenv ~key:x ~data:t in
     if is_const ctx.man c1.state then (* this value is a heuristic *)
       let env' = Map.Poly.set env ~key:x ~data:c1.state in
@@ -215,7 +215,7 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
   in
  r
 
-let compile_func (ctx: compile_context) tenv (f: func) : compiled_func =
+let compile_func (ctx: compile_context) tenv (f: CG.func) : compiled_func =
   (* set up the context; need both a list and a map, so build both together *)
   let new_tenv = List.fold ~init:tenv f.args ~f:(fun acc (name, typ) ->
       Map.Poly.add_exn acc ~key:name ~data:typ
@@ -232,13 +232,13 @@ let compile_func (ctx: compile_context) tenv (f: func) : compiled_func =
   let body = compile_expr ctx new_tenv env f.body in
   {args = args; body = body}
 
-let compile_program (p:program) ~eager_eval : compiled_program =
+let compile_program (p:CG.program) ~eager_eval : compiled_program =
   (* first compile the functions in topological order *)
   let ctx = new_context ~eager_eval () in
   let tenv = ref Map.Poly.empty in
   List.iter p.functions ~f:(fun func ->
       let c = compile_func ctx !tenv func in
-      tenv := Map.Poly.add_exn !tenv ~key:func.name ~data:(type_of_fun !tenv func);
+      tenv := Map.Poly.add_exn !tenv ~key:func.name ~data:(CG.type_of_fun !tenv func);
       try Hashtbl.Poly.add_exn ctx.funcs ~key:func.name ~data:c
       with _ -> failwith (Format.sprintf "Function names must be unique: %s found twice" func.name)
     );
@@ -246,7 +246,7 @@ let compile_program (p:program) ~eager_eval : compiled_program =
   let env = Map.Poly.empty in
   {ctx = ctx; body = compile_expr ctx !tenv env p.body}
 
-let compile_to_bdd (lf: LF.program) : compiled_program = 
+let compile_to_bdd (p: LF.program) : compiled_program = 
   let ctx = new_context false () in
   let env = Hashtbl.Poly.create () in
   let rec compile_expr_bdd (ctx: compile_context) (w: LF.weights) (e: LF.expr) : compiled_expr =
@@ -293,58 +293,116 @@ let compile_to_bdd (lf: LF.program) : compiled_program =
     in
     r
   in
-  {ctx = ctx; body = compile_expr_bdd ctx lf.weights lf.body}
+  {ctx = ctx; body = compile_expr_bdd ctx p.weights p.body}
 
 let compile_to_cnf (p: LF.program) : LF.cnf =
-  let ctx = new_context false () in
   let env = Hashtbl.Poly.create () in
-  let rec compile_expr_bdd (ctx: compile_context) (w: LF.weights) (e: LF.expr) : compiled_expr =
-    let r = match e with
-      | And(e1, e2) -> 
-        let c1 = compile_expr_bdd ctx w e1 in
-        let c2 = compile_expr_bdd ctx w e2 in
-        let v = Leaf(Bdd.bdd_and ctx.man (extract_leaf c1.state) (extract_leaf c2.state)) in
-        let z = Bdd.bdd_and ctx.man c1.z c2.z in
-        {state=v; z=z; flips=c1.flips @ c2.flips}
-      | Or(e1, e2) ->
-        let c1 = compile_expr_bdd ctx w e1 in
-        let c2 = compile_expr_bdd ctx w e2 in
-        let v = Leaf(Bdd.bdd_or ctx.man (extract_leaf c1.state) (extract_leaf c2.state)) in
-        let z = Bdd.bdd_and ctx.man c1.z c2.z in
-        {state=v; z=z; flips=c1.flips @ c2.flips}
-      | Atom(x) ->
-        let r = match Hashtbl.Poly.find env x with
-        | Some(r) -> {state=r; z=Bdd.bdd_true ctx.man; flips=[]}
-        | _ -> 
-          let f = try Hashtbl.Poly.find_exn w x 
-            with _ -> failwith (Format.sprintf "Could not found flip '%s'." x) in
-          let new_f = Bdd.bdd_newvar ctx.man true in
-          let var_lbl = Bdd.bdd_topvar ctx.man new_f in
-          let var_name = (Format.sprintf "f%d_%s" !flip_id (Bignum.to_string_hum f)) in
-          Hashtbl.add_exn ctx.name_map ~key:var_lbl ~data:var_name;
-          flip_id := !flip_id + 1;
-          Hashtbl.Poly.add_exn ctx.weights ~key:var_lbl ~data:(Bignum.(one-f), f);
-          let v = Leaf(new_f) in
-          Hashtbl.Poly.add_exn env ~key:x ~data:v;
-          {state=v; z=Bdd.bdd_true ctx.man; flips=[new_f]}
-        in
-        r
-      | True ->
-        {state=Leaf(Bdd.bdd_true ctx.man); z=Bdd.bdd_true ctx.man; flips=[]}
-      | Neg(e1) ->
-        let c = compile_expr_bdd ctx w e1 in
-        let v = Bdd.bdd_negate ctx.man (extract_leaf c.state) in
-        {state=Leaf(v); z=c.z; flips=c.flips}
-      | Tup(e1, e2) ->
-        let c1 = compile_expr_bdd ctx w e1 in
-        let c2 = compile_expr_bdd ctx w e2 in
-        {state=Node(c1.state, c2.state); z=Bdd.bdd_and ctx.man c1.z c2.z; flips=c1.flips @ c2.flips}
-    in
-    r
+  let subf = ref 0 in
+  let fresh () =
+    subf := !subf + 1;
+    (Format.sprintf "x_%d" !subf)
   in
-  {ctx = ctx; body = compile_expr_bdd ctx lf.weights lf.body}
 
-let compile_cnf_to_ddnf (c: LF.cnf) : LF.dddnf = 
+  let rec simplify (w: LF.weights) (e: LF.expr) : LF.cnf = 
+  (* returns CNF form *)
+    let expand (s1: LF.cnf) (s2: LF.cnf) : LF.cnf = 
+      List.fold s1 ~init:[] ~f:(fun acc1 d1 ->
+        List.fold s2 ~init:acc1 ~f:(fun acc2 d2 ->
+          (d1@d2)::acc2))
+    in
+
+    let negate (s: LF.cnf) : LF.cnf =
+    (* Tseytin transform makes sure only two terms at most 
+    in a clause to negate *)
+      List.fold s ~init:[] ~f:(fun acc1 d ->
+        let d' = List.fold d ~init:[] ~f:(fun acc2 l ->
+          let l' : LF.literal = match l with
+          | Pos(x) -> Neg(x)
+          | Neg(x) -> Pos(x)
+          in
+          [l']::acc2
+        ) in
+        d'@acc1
+      )
+    in
+    match e with
+    | And(e1, e2) -> 
+      let s1 = simplify w e1 in
+      let s2 = simplify w e2 in
+      s1@s2
+    | Or(e1, e2) -> 
+      let s1 = simplify w e1 in
+      let s2 = simplify w e2 in
+      expand s1 s2
+    | Atom(x) -> [[Pos(x)]]
+    | True -> []
+    | Neg(e1) -> 
+      let s1 = simplify w e1 in
+      negate s1
+    | Tup(_, _) -> 
+      failwith "Not implemented"
+  in
+
+  let rec gen_subf (w: LF.weights) (e: LF.expr) : String.t * LF.expr =
+    match e with
+    | And(e1, e2) -> 
+      let x1, s1 = gen_subf w e1 in
+      let x2, s2 = gen_subf w e2 in
+      let (e1', s1') : (LF.expr * LF.expr) = match s1 with 
+      | Atom(_) | True -> e1, True
+      | _ -> Atom(x1), s1
+      in
+      let (e2', s2') : (LF.expr * LF.expr) = match s2 with 
+      | Atom(_) | True -> e2, True
+      | _ -> Atom(x2), s2
+      in
+      let e' : LF.expr = And(e1', e2') in
+      let x = fresh() in
+      let x_expr : LF.expr = Atom(x) in
+      let e_subf : LF.expr = And(And(Or(Neg(x_expr), e'), Or(Neg(e'), x_expr)), And(s1', s2')) in
+      x, e_subf
+    | Or(e1, e2) -> 
+      let x1, s1 = gen_subf w e1 in
+      let x2, s2 = gen_subf w e2 in
+      let (e1', s1') : (LF.expr * LF.expr) = match s1 with 
+      | Atom(_) | True -> e1, True
+      | _ -> Atom(x1), s1
+      in
+      let (e2', s2') : (LF.expr * LF.expr) = match s2 with 
+      | Atom(_) | True -> e2, True
+      | _ -> Atom(x2), s2
+      in
+      let e' : LF.expr = Or(e1', e2') in
+      let x = fresh() in
+      let x_expr : LF.expr = Atom(x) in
+      let e_subf : LF.expr  = And(And(Or(Neg(x_expr), e'), Or(Neg(e'), x_expr)), And(s1', s2')) in
+      x, e_subf
+    | Atom(_) | True -> "", e
+    | Neg(e1) -> 
+      let x1, s1 = gen_subf w e1 in
+      let (e1', s1') : (LF.expr * LF.expr) = match s1 with 
+      | Atom(_) | True -> e1, True
+      | _ -> Atom(x1), s1
+      in
+      let e' : LF.expr = Neg(e1') in
+      let x = fresh() in
+      let x_expr : LF.expr = Atom(x) in
+      let e_subf : LF.expr  = And(And(Or(x_expr, e'), Or(Neg(e'), x_expr)), s1') in
+      x, e_subf
+    | Tup(_, _) -> 
+      failwith "Not implemented"
+  in
+
+  let x_phi, all_subfs = gen_subf p.weights p.body in
+  
+  let x_phi_expr : LF.expr = Atom(x_phi) in
+  let t_phi : LF.expr = And(x_phi_expr, all_subfs) in
+  let t_phi_cnf = simplify p.weights t_phi in
+  t_phi_cnf
+
+  
+
+(* let compile_cnf_to_ddnf (c: LF.cnf) : LF.dddnf =  *)
 
 
 let get_prob p =

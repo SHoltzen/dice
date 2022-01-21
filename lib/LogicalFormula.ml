@@ -37,3 +37,9 @@ let string_of_prog p =
   let r = Hashtbl.fold (fun x y -> Printf.printf "%s -> %s\n" x y) ht;;
   string_of_expr e *)
   Sexp.to_string_hum (sexp_of_program p)
+
+let string_of_cnf e =
+  Sexp.to_string_hum (sexp_of_cnf e)
+
+let string_of_dddnf e =
+  Sexp.to_string_hum (sexp_of_dddnf e)

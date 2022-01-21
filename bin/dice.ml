@@ -58,8 +58,9 @@ let rec print_pretty e =
 let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~inline_functions ~sample_amount ~show_recursive_calls
     ~local_hoisting ~global_hoisting ~branch_elimination ~determinism ~sbk_encoding ~print_state_bdd
-    ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_function_bdd
+    ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_cnf ~print_function_bdd
     ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc ~logical_formula
+    ~cnf
     lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
@@ -86,49 +87,54 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
   let res = if print_lf then res @ [StringRes("Logical formula", LogicalFormula.string_of_prog log_form)] else res in
   if no_compile then res else match sample_amount with
   | None ->
-    let compiled = if logical_formula then 
-      Compiler.compile_to_bdd log_form else Compiler.compile_program internal ~eager_eval in
-    let zbdd = compiled.body.z in
-    let res = if skip_table then res else res @
-       (let z = Wmc.wmc ~float_wmc compiled.ctx.man zbdd compiled.ctx.weights in
-       let table = VarState.get_table cfg compiled.ctx.man compiled.body.state t in
-       let probs = List.map table ~f:(fun (label, bdd) ->
-           if Bignum.(z = zero) then (label, Bignum.zero) else
-             let prob = Bignum.((Wmc.wmc ~float_wmc compiled.ctx.man (Bdd.bdd_and compiled.ctx.man bdd zbdd) compiled.ctx.weights) / z) in
-             (label, prob)) in
-       let l = [["Value"; "Probability"]] @
-         List.map probs ~f:(fun (typ, prob) -> [print_pretty typ; Bignum.to_string_hum prob]) in
-       [TableRes("Joint Distribution", l)]
-      ) in
-    (* let res = if show_recursive_calls then res @ [StringRes("Number of recursive calls",
-     *                                                         Format.sprintf "%f" (Man.num_recursive_calls compiled.ctx.man))]
-     *   else res in *)
-    (* let res = if show_function_size then
-     *     let all_sizes = List.map (Hashtbl.to_alist compiled.ctx.funcs) ~f:(fun (key, data) ->
-     *         (\* let sz = VarState.state_size [data.body.state; VarState.Leaf(data.body.z)] in *\)
-     *         let sz = Bdd.size (VarState.extract_leaf data.body.state) in
-     *         StringRes(Format.sprintf "Size of function '%s'" key, string_of_int sz)
-     *       ) in
-     *     res @ all_sizes else res in
-     * let res = if print_function_bdd then
-     *     let all_bdds = List.map (Hashtbl.to_alist compiled.ctx.funcs) ~f:(fun (key, data) ->
-     *         let bdd = BddUtil.dump_dot_multiroot compiled.ctx.name_map data.body.state in
-     *         StringRes(Format.sprintf "BDD for function '%s'" key, bdd)
-     *       ) in
-     *     res @ all_bdds else res in *)
-    let res = if print_size then
-        res @ [StringRes("Final compiled BDD size",
-                         string_of_int (VarState.state_size compiled.ctx.man [compiled.body.state; VarState.Leaf(compiled.body.z)]))] 
-      else res in
-    let res = if print_state_bdd then
-        res @ [StringRes("State BDD (graphviz format)",
-                         BddUtil.dump_dot_multiroot compiled.ctx.man compiled.ctx.name_map compiled.body.state);
-               StringRes("State accepting BDD (graphviz format)",
-                        BddUtil.dump_dot_multiroot compiled.ctx.man compiled.ctx.name_map (VarState.Leaf(compiled.body.z)))
-              ]
-      else res in
-    Bdd.man_print_stats compiled.ctx.man;
-    res
+    if cnf then 
+      let cnf_form = Compiler.compile_to_cnf log_form in
+      let res = if print_cnf then res @ [StringRes("CNF", LogicalFormula.string_of_cnf cnf_form)] else res in
+      res
+    else
+      let compiled = if logical_formula then 
+        Compiler.compile_to_bdd log_form else Compiler.compile_program internal ~eager_eval in
+      let zbdd = compiled.body.z in
+      let res = if skip_table then res else res @
+        (let z = Wmc.wmc ~float_wmc compiled.ctx.man zbdd compiled.ctx.weights in
+        let table = VarState.get_table cfg compiled.ctx.man compiled.body.state t in
+        let probs = List.map table ~f:(fun (label, bdd) ->
+            if Bignum.(z = zero) then (label, Bignum.zero) else
+              let prob = Bignum.((Wmc.wmc ~float_wmc compiled.ctx.man (Bdd.bdd_and compiled.ctx.man bdd zbdd) compiled.ctx.weights) / z) in
+              (label, prob)) in
+        let l = [["Value"; "Probability"]] @
+          List.map probs ~f:(fun (typ, prob) -> [print_pretty typ; Bignum.to_string_hum prob]) in
+        [TableRes("Joint Distribution", l)]
+        ) in
+      (* let res = if show_recursive_calls then res @ [StringRes("Number of recursive calls",
+      *                                                         Format.sprintf "%f" (Man.num_recursive_calls compiled.ctx.man))]
+      *   else res in *)
+      (* let res = if show_function_size then
+      *     let all_sizes = List.map (Hashtbl.to_alist compiled.ctx.funcs) ~f:(fun (key, data) ->
+      *         (\* let sz = VarState.state_size [data.body.state; VarState.Leaf(data.body.z)] in *\)
+      *         let sz = Bdd.size (VarState.extract_leaf data.body.state) in
+      *         StringRes(Format.sprintf "Size of function '%s'" key, string_of_int sz)
+      *       ) in
+      *     res @ all_sizes else res in
+      * let res = if print_function_bdd then
+      *     let all_bdds = List.map (Hashtbl.to_alist compiled.ctx.funcs) ~f:(fun (key, data) ->
+      *         let bdd = BddUtil.dump_dot_multiroot compiled.ctx.name_map data.body.state in
+      *         StringRes(Format.sprintf "BDD for function '%s'" key, bdd)
+      *       ) in
+      *     res @ all_bdds else res in *)
+      let res = if print_size then
+          res @ [StringRes("Final compiled BDD size",
+                          string_of_int (VarState.state_size compiled.ctx.man [compiled.body.state; VarState.Leaf(compiled.body.z)]))] 
+        else res in
+      let res = if print_state_bdd then
+          res @ [StringRes("State BDD (graphviz format)",
+                          BddUtil.dump_dot_multiroot compiled.ctx.man compiled.ctx.name_map compiled.body.state);
+                StringRes("State accepting BDD (graphviz format)",
+                          BddUtil.dump_dot_multiroot compiled.ctx.man compiled.ctx.name_map (VarState.Leaf(compiled.body.z)))
+                ]
+        else res in
+      Bdd.man_print_stats compiled.ctx.man;
+      res
   (* | Some(n) ->
    *   let sz = ref 0 in
    *   let rec draw_sample (prob, oldz) n =
@@ -184,6 +190,7 @@ let command =
      and print_function_bdd = flag "-print-function-bdd" no_arg ~doc:" print final compiled function state BDD (in graphviz format)"
      and print_unparsed = flag "-show-unparsed" no_arg ~doc:" print unparsed desugared dice program"
      and print_lf = flag "-show-logical-formula" no_arg ~doc:" print logical formula of dice program"
+     and print_cnf = flag "-show-cnf" no_arg ~doc:" print CNF of dice program"
      and skip_table = flag "-skip-table" no_arg ~doc:" skip printing the joint probability distribution"
      and show_recursive_calls = flag "-num-recursive-calls" no_arg ~doc:" show the number of recursive calls invoked during compilation"
      and eager_eval = flag "-eager-eval" no_arg ~doc:" eager let compilation"
@@ -195,6 +202,7 @@ let command =
      and max_flips = flag "-max-flips" (optional int) ~doc: " limit the number of flips during flip-hoisting"
      and float_wmc = flag "-float-wmc" no_arg ~doc:" use float-based wmc"
      and logical_formula = flag "-logical-formula" no_arg ~doc:" use logical formula interface"
+     and cnf = flag "-cnf" no_arg ~doc:" compiles to CNF"
      (* and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order" *)
      and json = flag "-json" no_arg ~doc:" print output as JSON"
      in fun () ->
@@ -204,8 +212,9 @@ let command =
        let r = (parse_and_print ~print_parsed ~print_internal ~sample_amount
                   ~print_size ~inline_functions ~skip_table ~local_hoisting ~global_hoisting
                   ~branch_elimination ~determinism ~sbk_encoding ~show_recursive_calls ~print_state_bdd
-                  ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_function_bdd
+                  ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_cnf ~print_function_bdd
                   ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc ~logical_formula
+                  ~cnf
                   lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res
