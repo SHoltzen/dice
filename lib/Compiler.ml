@@ -319,7 +319,7 @@ let compile_to_cnf (p: LF.program) : LF.cnf =
     let negate (s: LF.cnf) : LF.cnf =
     (* Tseytin transform makes sure only two terms at most 
     in a clause to negate *)
-      List.fold s ~init:[] ~f:(fun acc1 d ->
+      (* List.fold s ~init:[] ~f:(fun acc1 d ->
         let d' = List.fold d ~init:[] ~f:(fun acc2 l ->
           let l' : LF.literal = match l with
           | Pos(x) -> Neg(x)
@@ -328,7 +328,25 @@ let compile_to_cnf (p: LF.program) : LF.cnf =
           [l']::acc2
         ) in
         d'@acc1
-      )
+      ) *)
+      let negate_literal (l: LF.literal) : LF.literal = 
+        match l with
+        | Pos(x) -> Neg(x)
+        | Neg(x) -> Pos(x)
+      in
+      match s with
+      | [[x1]] -> 
+        let x1' = negate_literal x1 in
+        [[x1']]
+      | [[x1]; [x2]] -> 
+        let x1' = negate_literal x1 in
+        let x2' = negate_literal x2 in
+        [[x1'; x2']]
+      | [[x1; x2]] -> 
+        let x1' = negate_literal x1 in
+        let x2' = negate_literal x2 in
+        [[x1']; [x2']]
+      | _ -> failwith "Negating more than two literals"
     in
     match e with
     | And(e1, e2) -> 
@@ -348,6 +366,18 @@ let compile_to_cnf (p: LF.program) : LF.cnf =
       failwith "Not implemented"
   in
 
+  let gen_expr_subf (s1: LF.expr) (s2: LF.expr) (e: LF.expr) : String.t * LF.expr = 
+    let x = fresh() in
+    let x_expr : LF.expr = Atom(x) in
+    let e_subf : LF.expr = And(Or(Neg(x_expr), e), Or(Neg(e), x_expr)) in
+    let e_subf' : LF.expr = match s1, s2 with
+    | True, True -> e_subf
+    | True, _ -> And(e_subf, s2)
+    | _, True -> And(e_subf, s1)
+    | _ -> And(e_subf, And(s1, s2)) in
+    x, e_subf'
+  in
+
   let rec gen_subf (w: LF.weights) (e: LF.expr) : String.t * LF.expr =
     match e with
     | And(e1, e2) -> 
@@ -362,10 +392,7 @@ let compile_to_cnf (p: LF.program) : LF.cnf =
       | _ -> Atom(x2), s2
       in
       let e' : LF.expr = And(e1', e2') in
-      let x = fresh() in
-      let x_expr : LF.expr = Atom(x) in
-      let e_subf : LF.expr = And(And(Or(Neg(x_expr), e'), Or(Neg(e'), x_expr)), And(s1', s2')) in
-      x, e_subf
+      gen_expr_subf s1' s2' e'
     | Or(e1, e2) -> 
       let x1, s1 = gen_subf w e1 in
       let x2, s2 = gen_subf w e2 in
@@ -378,10 +405,7 @@ let compile_to_cnf (p: LF.program) : LF.cnf =
       | _ -> Atom(x2), s2
       in
       let e' : LF.expr = Or(e1', e2') in
-      let x = fresh() in
-      let x_expr : LF.expr = Atom(x) in
-      let e_subf : LF.expr  = And(And(Or(Neg(x_expr), e'), Or(Neg(e'), x_expr)), Or(s1', s2')) in
-      x, e_subf
+      gen_expr_subf s1' s2' e'
     | Atom(_) | True -> "", e
     | Neg(e1) -> 
       let x1, s1 = gen_subf w e1 in
@@ -390,10 +414,7 @@ let compile_to_cnf (p: LF.program) : LF.cnf =
       | _ -> Atom(x1), s1
       in
       let e' : LF.expr = Neg(e1') in
-      let x = fresh() in
-      let x_expr : LF.expr = Atom(x) in
-      let e_subf : LF.expr  = And(And(Or(x_expr, e'), Or(Neg(e'), x_expr)), s1') in
-      x, e_subf
+      gen_expr_subf s1' True e'
     | Tup(e1, e2) -> 
       let x1, s1 = gen_subf w e1 in
       let x2, s2 = gen_subf w e2 in
@@ -407,19 +428,19 @@ let compile_to_cnf (p: LF.program) : LF.cnf =
       in
       let tup_x1 = fresh_tup() in
       let tup_x2 = fresh_tup() in
-      let e' : LF.expr = 
+      let x = fresh() in
+      let tup : LF.expr = And(Atom(tup_x1), Atom(tup_x2)) in 
+      let tup_subf : LF.expr = 
         And(
-          And(Atom(tup_x1), Atom(tup_x2)),
+          And(Or(Neg(Atom(x)), tup), Or(Atom(x), Neg(tup))),
           And(
             And(Or(Neg(Atom(tup_x1)), e1'), Or(Atom(tup_x1), Neg(e1'))),
             And(Or(Neg(Atom(tup_x2)), e2'), Or(Atom(tup_x2), Neg(e2')))
           )
         )
       in
-      
-      let x = fresh() in
-      let x_expr : LF.expr = Atom(x) in
-      let e_subf : LF.expr = And(And(Or(Neg(x_expr), e'), Or(Neg(e'), x_expr)), And(s1', s2')) in
+
+      let e_subf : LF.expr = And(tup_subf, And(s1', s2')) in
       x, e_subf
   in
 
@@ -427,6 +448,7 @@ let compile_to_cnf (p: LF.program) : LF.cnf =
   
   let x_phi_expr : LF.expr = Atom(x_phi) in
   let t_phi : LF.expr = And(x_phi_expr, all_subfs) in
+  (Format.printf "%s\n" (LF.string_of_expr t_phi));
   let t_phi_cnf = simplify p.weights t_phi in
   t_phi_cnf
 

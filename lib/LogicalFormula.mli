@@ -23,6 +23,11 @@ type literal =
   | Neg of String.t
 [@@deriving sexp_of]
 
+(* type cnf = {
+  cnf: literal List.t List.t;
+  query: String.t List.t;
+} *)
+
 type cnf = literal List.t List.t
 [@@deriving sexp_of]
 
