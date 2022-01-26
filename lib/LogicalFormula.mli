@@ -23,19 +23,16 @@ type literal =
   | Neg of String.t
 [@@deriving sexp_of]
 
-(* type cnf = {
-  cnf: literal List.t List.t;
-  query: String.t List.t;
-} *)
-
 type cnf = literal List.t List.t
 [@@deriving sexp_of]
 
-type dddnf = literal List.t List.t
+type wcnf = {
+  cnf: cnf;
+  weights: weights;
+}
 [@@deriving sexp_of]
 
 val string_of_expr : expr -> String.t
 val string_of_prog : program -> String.t
 
-val string_of_cnf : cnf -> String.t
-val string_of_dddnf : dddnf -> String.t
+val string_of_wcnf : wcnf -> String.t

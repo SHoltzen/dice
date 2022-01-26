@@ -295,20 +295,23 @@ let compile_to_bdd (p: LF.program) : compiled_program =
   in
   {ctx = ctx; body = compile_expr_bdd ctx p.weights p.body}
 
-let compile_to_cnf (p: LF.program) : LF.cnf =
-  let env = Hashtbl.Poly.create () in
+let compile_to_cnf (p: LF.program) : LF.wcnf =
   let subf = ref 0 in
   let fresh () =
     subf := !subf + 1;
-    (Format.sprintf "x_%d" !subf)
+    let x = Format.sprintf "x_%d" !subf in
+    Hashtbl.Poly.add_exn p.weights ~key:x ~data:(Bignum.one);
+    x
   in
 
   let fresh_tup () = 
     subf := !subf + 1;
-    (Format.sprintf "tup_%d" !subf)
+    let x = Format.sprintf "t_%d" !subf in
+    Hashtbl.Poly.add_exn p.weights ~key:x ~data:(Bignum.one);
+    x
   in
 
-  let rec simplify (w: LF.weights) (e: LF.expr) : LF.cnf = 
+  let rec simplify (e: LF.expr) : LF.cnf = 
   (* returns CNF form *)
     let expand (s1: LF.cnf) (s2: LF.cnf) : LF.cnf = 
       List.fold s1 ~init:[] ~f:(fun acc1 d1 ->
@@ -319,16 +322,6 @@ let compile_to_cnf (p: LF.program) : LF.cnf =
     let negate (s: LF.cnf) : LF.cnf =
     (* Tseytin transform makes sure only two terms at most 
     in a clause to negate *)
-      (* List.fold s ~init:[] ~f:(fun acc1 d ->
-        let d' = List.fold d ~init:[] ~f:(fun acc2 l ->
-          let l' : LF.literal = match l with
-          | Pos(x) -> Neg(x)
-          | Neg(x) -> Pos(x)
-          in
-          [l']::acc2
-        ) in
-        d'@acc1
-      ) *)
       let negate_literal (l: LF.literal) : LF.literal = 
         match l with
         | Pos(x) -> Neg(x)
@@ -350,17 +343,17 @@ let compile_to_cnf (p: LF.program) : LF.cnf =
     in
     match e with
     | And(e1, e2) -> 
-      let s1 = simplify w e1 in
-      let s2 = simplify w e2 in
+      let s1 = simplify e1 in
+      let s2 = simplify e2 in
       s1@s2
     | Or(e1, e2) -> 
-      let s1 = simplify w e1 in
-      let s2 = simplify w e2 in
+      let s1 = simplify e1 in
+      let s2 = simplify e2 in
       expand s1 s2
     | Atom(x) -> [[Pos(x)]]
     | True -> []
     | Neg(e1) -> 
-      let s1 = simplify w e1 in
+      let s1 = simplify e1 in
       negate s1
     | Tup(_, _) -> 
       failwith "Not implemented"
@@ -378,11 +371,11 @@ let compile_to_cnf (p: LF.program) : LF.cnf =
     x, e_subf'
   in
 
-  let rec gen_subf (w: LF.weights) (e: LF.expr) : String.t * LF.expr =
+  let rec gen_subf (e: LF.expr) : String.t * LF.expr =
     match e with
     | And(e1, e2) -> 
-      let x1, s1 = gen_subf w e1 in
-      let x2, s2 = gen_subf w e2 in
+      let x1, s1 = gen_subf e1 in
+      let x2, s2 = gen_subf e2 in
       let (e1', s1') : (LF.expr * LF.expr) = match s1 with 
       | Atom(_) | True -> e1, True
       | _ -> Atom(x1), s1
@@ -394,8 +387,8 @@ let compile_to_cnf (p: LF.program) : LF.cnf =
       let e' : LF.expr = And(e1', e2') in
       gen_expr_subf s1' s2' e'
     | Or(e1, e2) -> 
-      let x1, s1 = gen_subf w e1 in
-      let x2, s2 = gen_subf w e2 in
+      let x1, s1 = gen_subf e1 in
+      let x2, s2 = gen_subf e2 in
       let (e1', s1') : (LF.expr * LF.expr) = match s1 with 
       | Atom(_) | True -> e1, True
       | _ -> Atom(x1), s1
@@ -408,7 +401,7 @@ let compile_to_cnf (p: LF.program) : LF.cnf =
       gen_expr_subf s1' s2' e'
     | Atom(_) | True -> "", e
     | Neg(e1) -> 
-      let x1, s1 = gen_subf w e1 in
+      let x1, s1 = gen_subf e1 in
       let (e1', s1') : (LF.expr * LF.expr) = match s1 with 
       | Atom(_) | True -> e1, True
       | _ -> Atom(x1), s1
@@ -416,8 +409,8 @@ let compile_to_cnf (p: LF.program) : LF.cnf =
       let e' : LF.expr = Neg(e1') in
       gen_expr_subf s1' True e'
     | Tup(e1, e2) -> 
-      let x1, s1 = gen_subf w e1 in
-      let x2, s2 = gen_subf w e2 in
+      let x1, s1 = gen_subf e1 in
+      let x2, s2 = gen_subf e2 in
       let (e1', s1') : (LF.expr * LF.expr) = match s1 with 
       | Atom(_) | True -> e1, True
       | _ -> Atom(x1), s1
@@ -444,18 +437,61 @@ let compile_to_cnf (p: LF.program) : LF.cnf =
       x, e_subf
   in
 
-  let x_phi, all_subfs = gen_subf p.weights p.body in
+  let x_phi, all_subfs = gen_subf p.body in
   
   let x_phi_expr : LF.expr = Atom(x_phi) in
   let t_phi : LF.expr = And(x_phi_expr, all_subfs) in
-  (Format.printf "%s\n" (LF.string_of_expr t_phi));
-  let t_phi_cnf = simplify p.weights t_phi in
-  t_phi_cnf
+  let t_phi_cnf = simplify t_phi in
+  {cnf=t_phi_cnf; weights=p.weights}
 
-  
+let output_of_wcnf (wcnf: LF.wcnf) =
+  let weights = wcnf.weights in
+  let c = wcnf.cnf in
 
-(* let compile_cnf_to_ddnf (c: LF.cnf) : LF.dddnf =  *)
+  let env = Hashtbl.Poly.create () in
+  let n = ref 0 in
+  let fresh () =
+    n := !n + 1;
+    (Format.sprintf "%d" !n)
+  in
 
+  let res, n_clauses = List.fold c ~init:("",0) ~f:(fun (r,n) d ->
+    let clause = List.fold d ~init:"" ~f:(fun acc l ->
+      match l with
+      | Pos(var) -> 
+        (match Hashtbl.Poly.find env var with
+        | None -> 
+          let x = fresh() in
+          Hashtbl.Poly.add_exn env ~key:var ~data:x;
+          (Format.sprintf "%s%s " acc x)
+        | Some(x) ->
+          (Format.sprintf "%s%s " acc x))
+      | Neg(var) ->
+        (match Hashtbl.Poly.find env var with
+        | None -> 
+          let x = fresh() in
+          Hashtbl.Poly.add_exn env ~key:var ~data:x;
+          (Format.sprintf "%s-%s " acc x)
+        | Some(x) ->
+          (Format.sprintf "%s-%s " acc x)))
+    in
+
+    (Format.sprintf "%s\n%s0" r clause), (n+1))
+  in
+
+  let res, n_vars = Hashtbl.Poly.fold weights ~init:(res, 0) ~f:(fun ~key:var ~data:f (r,n) ->
+    let line = 
+      if Bignum.equal f Bignum.one then
+        ""
+      else
+        let x = Hashtbl.Poly.find_exn env var in
+        (Format.sprintf "\nc p weight %s %s 0" x (Bignum.to_string_accurate f))
+    in
+    (Format.sprintf "%s%s" r line), n+1)
+  in
+
+  let res = Format.sprintf "p cnf %d %d%s" n_vars n_clauses res in
+  res
 
 let get_prob p =
   let c = compile_program ~eager_eval:false p in

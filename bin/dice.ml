@@ -89,7 +89,8 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
   | None ->
     if cnf then 
       let cnf_form = Compiler.compile_to_cnf log_form in
-      let res = if print_cnf then res @ [StringRes("CNF", LogicalFormula.string_of_cnf cnf_form)] else res in
+      let res = if print_cnf then res @ [StringRes("CNF", LogicalFormula.string_of_wcnf cnf_form)] else res in
+      (Compiler.output_cnf cnf_form);
       res
     else
       let compiled = if logical_formula then 

@@ -26,7 +26,10 @@ type literal =
 type cnf = literal List.t List.t
 [@@deriving sexp_of]
 
-type dddnf = literal List.t List.t
+type wcnf = {
+  cnf: cnf;
+  weights: weights;
+}
 [@@deriving sexp_of]
 
 let string_of_expr e =
@@ -38,8 +41,5 @@ let string_of_prog p =
   string_of_expr e *)
   Sexp.to_string_hum (sexp_of_program p)
 
-let string_of_cnf e =
-  Sexp.to_string_hum (sexp_of_cnf e)
-
-let string_of_dddnf e =
-  Sexp.to_string_hum (sexp_of_dddnf e)
+let string_of_wcnf e =
+  Sexp.to_string_hum (sexp_of_wcnf e)
