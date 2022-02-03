@@ -303,14 +303,7 @@ let compile_to_cnf (p: LF.program) : LF.wcnf =
     Hashtbl.Poly.add_exn p.weights ~key:x ~data:(Bignum.one);
     x
   in
-
-  let fresh_tup () = 
-    subf := !subf + 1;
-    let x = Format.sprintf "t_%d" !subf in
-    Hashtbl.Poly.add_exn p.weights ~key:x ~data:(Bignum.one);
-    x
-  in
-
+  
   let rec simplify (e: LF.expr) : LF.cnf = 
   (* returns CNF form *)
     let expand (s1: LF.cnf) (s2: LF.cnf) : LF.cnf = 
@@ -419,18 +412,10 @@ let compile_to_cnf (p: LF.program) : LF.wcnf =
       | Atom(_) | True -> e2, True
       | _ -> Atom(x2), s2
       in
-      let tup_x1 = fresh_tup() in
-      let tup_x2 = fresh_tup() in
       let x = fresh() in
-      let tup : LF.expr = And(Atom(tup_x1), Atom(tup_x2)) in 
+      let tup : LF.expr = And(e1', e2') in 
       let tup_subf : LF.expr = 
-        And(
-          And(Or(Neg(Atom(x)), tup), Or(Atom(x), Neg(tup))),
-          And(
-            And(Or(Neg(Atom(tup_x1)), e1'), Or(Atom(tup_x1), Neg(e1'))),
-            And(Or(Neg(Atom(tup_x2)), e2'), Or(Atom(tup_x2), Neg(e2')))
-          )
-        )
+        And(Or(Neg(Atom(x)), tup), Or(Atom(x), Neg(tup)))
       in
 
       let e_subf : LF.expr = And(tup_subf, And(s1', s2')) in
@@ -444,7 +429,7 @@ let compile_to_cnf (p: LF.program) : LF.wcnf =
   let t_phi_cnf = simplify t_phi in
   {cnf=t_phi_cnf; weights=p.weights}
 
-let output_of_wcnf (wcnf: LF.wcnf) =
+let gen_output_cnf (wcnf: LF.wcnf) =
   let weights = wcnf.weights in
   let c = wcnf.cnf in
 
@@ -491,7 +476,39 @@ let output_of_wcnf (wcnf: LF.wcnf) =
   in
 
   let res = Format.sprintf "p cnf %d %d%s" n_vars n_clauses res in
-  res
+  res 
+
+let compute_cnf (sharpsat_dir: String.t) (wcnf: LF.wcnf) : Bignum.t = 
+  let cnf_content = gen_output_cnf wcnf in
+  let temp_name, temp_outchannel = Filename.open_temp_file "dice" ".cnf" in
+  let cwd = Unix.getcwd () in
+  let cmd = "./sharpSAT" in
+  let cmd = Format.sprintf "%s -WE -decot 1 -decow 100 -tmpdir . -cs 3500 -prec 20 %s" cmd temp_name in
+  Format.printf "%s\n" cmd;
+
+  (* write to temp file *)
+	protect ~f:(fun ()->fprintf temp_outchannel "%s" cnf_content) ~finally:(fun() ->Out_channel.close temp_outchannel);
+  
+  (* call sharpSAT *)
+  Unix.chdir sharpsat_dir;
+  let inp = Unix.open_process_in cmd in
+  let r = In_channel.input_lines inp in
+  In_channel.close inp;
+  Unix.chdir cwd;
+
+  (* get result *)
+  let p = match List.last r with
+  | None -> failwith "Could not run sharpSAT"
+  | Some(r) -> 
+    let lst_line = String.split r ~on:' ' in
+    let r = match List.last lst_line with
+      | None -> failwith "Could not parse sharpSAT results"
+      | Some(r) -> r
+    in 
+    r
+  in
+  Bignum.of_string p
+  
 
 let get_prob p =
   let c = compile_program ~eager_eval:false p in

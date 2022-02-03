@@ -31,7 +31,7 @@ type compiled_program = {
 val compile_program: CoreGrammar.program -> eager_eval:bool -> compiled_program
 val compile_to_bdd : LogicalFormula.program -> compiled_program
 val compile_to_cnf : LogicalFormula.program -> LogicalFormula.wcnf
-val output_of_wcnf : LogicalFormula.wcnf -> String.t
+val compute_cnf : String.t -> LogicalFormula.wcnf -> Bignum.t
  
 val get_prob: CoreGrammar.program -> Bignum.t
 

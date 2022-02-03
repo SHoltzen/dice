@@ -60,7 +60,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~local_hoisting ~global_hoisting ~branch_elimination ~determinism ~sbk_encoding ~print_state_bdd
     ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_cnf ~print_function_bdd
     ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc ~logical_formula
-    ~cnf
+    ~cnf ~sharpsat_dir
     lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
@@ -90,7 +90,9 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     if cnf then 
       let cnf_form = Compiler.compile_to_cnf log_form in
       let res = if print_cnf then res @ [StringRes("CNF", LogicalFormula.string_of_wcnf cnf_form)] else res in
-      (Compiler.output_cnf cnf_form);
+      let s_dir = match sharpsat_dir with None -> "../sharpsat-td/bin/" | Some(d) -> d in
+      let prob = Compiler.compute_cnf s_dir cnf_form in
+      let res = res @ [StringRes("CNF Probability", Bignum.to_string_hum prob)] in
       res
     else
       let compiled = if logical_formula then 
@@ -206,6 +208,7 @@ let command =
      and cnf = flag "-cnf" no_arg ~doc:" compiles to CNF"
      (* and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order" *)
      and json = flag "-json" no_arg ~doc:" print output as JSON"
+     and sharpsat_dir = flag "-sharpsat-dir" (optional string) ~doc:" path to sharpsat binary (default ../sharpsat-td/bin/)"
      in fun () ->
        let inx = In_channel.create fname in
        let lexbuf = Lexing.from_channel inx in
@@ -215,7 +218,7 @@ let command =
                   ~branch_elimination ~determinism ~sbk_encoding ~show_recursive_calls ~print_state_bdd
                   ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_cnf ~print_function_bdd
                   ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc ~logical_formula
-                  ~cnf
+                  ~cnf ~sharpsat_dir
                   lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res
