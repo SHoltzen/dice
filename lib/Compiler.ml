@@ -303,6 +303,13 @@ let compile_to_cnf (p: LF.program) : LF.wcnf =
     Hashtbl.Poly.add_exn p.weights ~key:x ~data:(Bignum.one);
     x
   in
+
+  let x_true () = 
+    subf := !subf + 1;
+    let x = Format.sprintf "t_%d" !subf in
+    Hashtbl.Poly.add_exn p.weights ~key:x ~data:(Bignum.one);
+    x
+  in
   
   let rec simplify (e: LF.expr) : LF.cnf = 
   (* returns CNF form *)
@@ -332,7 +339,10 @@ let compile_to_cnf (p: LF.program) : LF.wcnf =
         let x1' = negate_literal x1 in
         let x2' = negate_literal x2 in
         [[x1']; [x2']]
-      | _ -> failwith "Negating more than two literals"
+      (* | [] -> [] *)
+      | _ -> 
+        Format.printf "%s\n" (LF.string_of_cnf s);
+        failwith "Negating more than two literals"
     in
     match e with
     | And(e1, e2) -> 
@@ -344,7 +354,9 @@ let compile_to_cnf (p: LF.program) : LF.wcnf =
       let s2 = simplify e2 in
       expand s1 s2
     | Atom(x) -> [[Pos(x)]]
-    | True -> []
+    | True -> 
+      let x = x_true () in
+      [[Pos(x)]]
     | Neg(e1) -> 
       let s1 = simplify e1 in
       negate s1
@@ -483,7 +495,7 @@ let compute_cnf (sharpsat_dir: String.t) (wcnf: LF.wcnf) : Bignum.t =
   let temp_name, temp_outchannel = Filename.open_temp_file "dice" ".cnf" in
   let cwd = Unix.getcwd () in
   let cmd = "./sharpSAT" in
-  let cmd = Format.sprintf "%s -WE -decot 1 -decow 100 -tmpdir . -cs 3500 -prec 20 %s" cmd temp_name in
+  let cmd = Format.sprintf "%s -WD -decot 1 -decow 100 -tmpdir . -cs 3500 %s" cmd temp_name in
   Format.printf "%s\n" cmd;
 
   (* write to temp file *)

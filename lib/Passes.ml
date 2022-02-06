@@ -1464,7 +1464,8 @@ let from_core_prog (p: CG.program) : LF.program =
     | Eq(e1, e2) -> 
       let c1 = from_core_prog_h env e1 in
       let c2 = from_core_prog_h env e2 in
-      Or(And(c1, c2), And(Neg(c1), Neg(c2)))
+      And(Or(Neg(c1), c2), Or(c1, Neg(c2)))
+      (* Or(And(c1, c2), And(Neg(c1), Neg(c2))) *)
     | Not(e) ->
       let c = from_core_prog_h env e in
       Neg(c)
@@ -1518,6 +1519,39 @@ let from_core_prog (p: CG.program) : LF.program =
     | FuncCall(_, _) -> failwith "not implemented"
     | _ -> failwith "not implemented"
   in
+
+  let rec remove_redundancy (e: LF.expr) : LF.expr =
+    match e with 
+    | And(e1, e2) -> 
+      let e1' = remove_redundancy e1 in
+      let e2' = remove_redundancy e2 in
+      (match e1', e2' with
+      | Neg(True), _ | _, Neg(True) -> Neg(True)
+      | True, _ -> e2' 
+      | _, True -> e1'
+      | _ -> And(e1', e2'))
+    | Or(e1, e2) -> 
+      let e1' = remove_redundancy e1 in
+      let e2' = remove_redundancy e2 in
+      (match e1', e2' with
+      | True, _ | _, True -> True
+      | Neg(True), _ -> e2'
+      | _, Neg(True) -> e1'
+      | _ -> Or(e1', e2'))
+    | Atom(_) ->  e
+    | True -> True
+    | Neg(e1) -> 
+      let e1' = remove_redundancy e1 in
+      (match e1' with
+      | Neg(e2) -> e2
+      | _ -> Neg(e1'))
+    | Tup(e1, e2) -> 
+      let e1' = remove_redundancy e1 in
+      let e2' = remove_redundancy e2 in
+      Tup(e1', e2')
+  in
+
   let env = Map.Poly.empty in
   let r = from_core_prog_h env e in
+  let r = remove_redundancy r in
   {body = r; weights = weights}

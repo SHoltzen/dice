@@ -35,4 +35,5 @@ type wcnf = {
 val string_of_expr : expr -> String.t
 val string_of_prog : program -> String.t
 
+val string_of_cnf : cnf -> String.t
 val string_of_wcnf : wcnf -> String.t

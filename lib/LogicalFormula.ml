@@ -41,5 +41,8 @@ let string_of_prog p =
   string_of_expr e *)
   Sexp.to_string_hum (sexp_of_program p)
 
+let string_of_cnf e =
+  Sexp.to_string_hum (sexp_of_cnf e)
+
 let string_of_wcnf e =
   Sexp.to_string_hum (sexp_of_wcnf e)
