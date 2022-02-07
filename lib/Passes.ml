@@ -1446,6 +1446,34 @@ let from_core_prog (p: CG.program) : LF.program =
     | Neg(True) | And(Neg(True), _) | And(_, Neg(True)) -> false
     | _ -> failwith "Expression is not a constant"
   in
+  let rec extract_tup (e: LF.expr) : LF.expr = 
+    match e with
+    | And(e1, e2) -> 
+      let e1' = extract_tup e1 in
+      let e2' = extract_tup e2 in
+      (match e1', e2' with
+      | Tup(e1_1, e1_2), Tup(e2_1, e2_2) ->
+        (* not sure about this case *)
+        Tup(And(e1_1, e2_1), And(e1_2, e2_2))
+      | Tup(e1_1, e1_2), _ ->
+        Tup(And(e1_1, e2'), And(e1_2, e2'))
+      | _, Tup(e2_1, e2_2) ->
+        Tup(And(e1', e2_1), And(e1', e2_2))
+      | _ -> And(e1', e2'))
+    | Or(e1, e2) -> 
+      let e1' = extract_tup e1 in
+      let e2' = extract_tup e2 in
+      (match e1', e2' with
+      | Tup(e1_1, e1_2), Tup(e2_1, e2_2) ->
+        (* not sure about this case *)
+        Tup(Or(e1_1, e2_1), Or(e1_2, e2_2))
+      | Tup(e1_1, e1_2), _ ->
+        Tup(Or(e1_1, e2'), Or(e1_2, e2'))
+      | _, Tup(e2_1, e2_2) ->
+        Tup(Or(e1', e2_1), Or(e1', e2_2))
+      | _ -> Or(e1', e2'))
+    | Atom(_) | True | Neg(_) | Tup(_) -> e
+  in
   let weights = Hashtbl.Poly.create () in
   let rec from_core_prog_h (env: env) (e: CG.expr) : LF.expr = 
     match e with
@@ -1490,14 +1518,14 @@ let from_core_prog (p: CG.program) : LF.program =
         Or(And(cg, cthn), And(Neg(cg), cels))
     | Fst(e) ->
       let c = from_core_prog_h env e in
-      let r = match c with
+      let r = match extract_tup c with
       | Tup(c1, _) -> c1
-      | _ -> failwith (Format.sprintf "Internal Failure: calling `fst` on non-tuple at %s" (CG.string_of_expr e))
+      | _ -> failwith (Format.sprintf "Internal Failure: calling `fst` on non-tuple at %s" (LF.string_of_expr c))
       in 
       r
     | Snd(e) ->
       let c = from_core_prog_h env e in
-      let r = match c with
+      let r = match extract_tup c with
       | Tup(_, c2) -> c2
       | _ -> failwith (Format.sprintf "Internal Failure: calling `snd` on non-tuple at %s" (CG.string_of_expr e))
       in 
