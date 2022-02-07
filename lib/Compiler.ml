@@ -481,7 +481,10 @@ let gen_output_cnf (wcnf: LF.wcnf) =
       if Bignum.equal f Bignum.one then
         ""
       else
-        let x = Hashtbl.Poly.find_exn env var in
+        let x = match Hashtbl.Poly.find env var with
+        | None -> failwith (Format.sprintf "Can't find var%s" var)
+        | Some(x) -> x
+        in
         (Format.sprintf "\nc p weight %s %s 0" x (Bignum.to_string_accurate f))
     in
     (Format.sprintf "%s%s" r line), n+1)
@@ -490,7 +493,7 @@ let gen_output_cnf (wcnf: LF.wcnf) =
   let res = Format.sprintf "p cnf %d %d%s" n_vars n_clauses res in
   res 
 
-let compute_cnf (sharpsat_dir: String.t) (wcnf: LF.wcnf) : Bignum.t = 
+let compute_cnf (sharpsat_dir: String.t) (wcnf: LF.wcnf) : Bignum.t * string = 
   let cnf_content = gen_output_cnf wcnf in
   let temp_name, temp_outchannel = Filename.open_temp_file "dice" ".cnf" in
   let cwd = Unix.getcwd () in
@@ -519,7 +522,20 @@ let compute_cnf (sharpsat_dir: String.t) (wcnf: LF.wcnf) : Bignum.t =
     in 
     r
   in
-  Bignum.of_string p
+
+  (* get decisions *)
+  let d = List.fold r ~init:"0" ~f:(fun acc line ->
+    let lst_line = String.split line ~on:' ' in
+    match lst_line with
+    | ["c"; "o"; "decisions"; _] ->
+      (match List.last lst_line with
+      | None -> failwith "Could not parse sharpSAT results"
+      | Some(r) -> String.strip r) 
+    | _ -> acc
+  )
+  in
+
+  (Bignum.of_string p), d
   
 
 let get_prob p =
