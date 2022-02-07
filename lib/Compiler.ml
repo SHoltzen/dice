@@ -481,11 +481,10 @@ let gen_output_cnf (wcnf: LF.wcnf) =
       if Bignum.equal f Bignum.one then
         ""
       else
-        let x = match Hashtbl.Poly.find env var with
-        | None -> failwith (Format.sprintf "Can't find var%s" var)
-        | Some(x) -> x
-        in
-        (Format.sprintf "\nc p weight %s %s 0" x (Bignum.to_string_accurate f))
+         match Hashtbl.Poly.find env var with
+        | None -> ""
+        | Some(x) -> 
+          (Format.sprintf "\nc p weight %s %s 0" x (Bignum.to_string_accurate f))
     in
     (Format.sprintf "%s%s" r line), n+1)
   in
