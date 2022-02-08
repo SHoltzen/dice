@@ -476,19 +476,32 @@ let gen_output_cnf (wcnf: LF.wcnf) =
     (Format.sprintf "%s\n%s0" r clause), (n+1))
   in
 
-  let res, n_vars = Hashtbl.Poly.fold weights ~init:(res, 0) ~f:(fun ~key:var ~data:f (r,n) ->
+  let res, n_vars = Hashtbl.Poly.fold env ~init:(res, 0) ~f:(fun ~key:var ~data:x (r,n) ->
+    let line = 
+      match Hashtbl.Poly.find weights var with
+      | None -> failwith (Format.sprintf "Cannot find var %s" var)
+      | Some(f) -> 
+        if Bignum.equal f Bignum.one then
+          ""
+        else
+          (Format.sprintf "\nc p weight %s %s 0" x (Bignum.to_string_accurate f))
+    in
+    (Format.sprintf "%s%s" r line), n+1)
+  in
+
+  (* let res, n_vars = Hashtbl.Poly.fold weights ~init:(res, 0) ~f:(fun ~key:var ~data:f (r,n) ->
     let line = 
       if Bignum.equal f Bignum.one then
         ""
       else
         let x = match Hashtbl.Poly.find env var with
-        | None -> failwith (Format.sprintf "Can't find var%s" var)
-        | Some(x) -> x
+        | None -> ""
+        | Some(x) -> (Format.sprintf "\nc p weight %s %s 0" x (Bignum.to_string_accurate f))
         in
-        (Format.sprintf "\nc p weight %s %s 0" x (Bignum.to_string_accurate f))
+        x
     in
     (Format.sprintf "%s%s" r line), n+1)
-  in
+  in *)
 
   let res = Format.sprintf "p cnf %d %d%s" n_vars n_clauses res in
   res 
