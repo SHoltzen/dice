@@ -489,20 +489,6 @@ let gen_output_cnf (wcnf: LF.wcnf) =
     (Format.sprintf "%s%s" r line), n+1)
   in
 
-  (* let res, n_vars = Hashtbl.Poly.fold weights ~init:(res, 0) ~f:(fun ~key:var ~data:f (r,n) ->
-    let line = 
-      if Bignum.equal f Bignum.one then
-        ""
-      else
-        let x = match Hashtbl.Poly.find env var with
-        | None -> ""
-        | Some(x) -> (Format.sprintf "\nc p weight %s %s 0" x (Bignum.to_string_accurate f))
-        in
-        x
-    in
-    (Format.sprintf "%s%s" r line), n+1)
-  in *)
-
   let res = Format.sprintf "p cnf %d %d%s" n_vars n_clauses res in
   res 
 
