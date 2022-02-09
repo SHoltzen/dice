@@ -300,14 +300,12 @@ let compile_to_cnf (p: LF.program) : LF.wcnf =
   let fresh () =
     subf := !subf + 1;
     let x = Format.sprintf "x_%d" !subf in
-    Hashtbl.Poly.add_exn p.weights ~key:x ~data:(Bignum.one);
     x
   in
 
   let x_true () = 
     subf := !subf + 1;
     let x = Format.sprintf "t_%d" !subf in
-    Hashtbl.Poly.add_exn p.weights ~key:x ~data:(Bignum.one);
     x
   in
   
@@ -479,12 +477,8 @@ let gen_output_cnf (wcnf: LF.wcnf) =
   let res, n_vars = Hashtbl.Poly.fold env ~init:(res, 0) ~f:(fun ~key:var ~data:x (r,n) ->
     let line = 
       match Hashtbl.Poly.find weights var with
-      | None -> failwith (Format.sprintf "Cannot find var %s" var)
-      | Some(f) -> 
-        if Bignum.equal f Bignum.one then
-          ""
-        else
-          (Format.sprintf "\nc p weight %s %s 0" x (Bignum.to_string_accurate f))
+      | None -> ""
+      | Some(f) -> (Format.sprintf "\nc p weight %s %s 0" x (Bignum.to_string_accurate f))
     in
     (Format.sprintf "%s%s" r line), n+1)
   in
