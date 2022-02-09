@@ -26,11 +26,17 @@ type literal =
 type cnf = literal List.t List.t
 [@@deriving sexp_of]
 
+type label = 
+  [> `False 
+  | `Int of int 
+  | `True 
+  | `Tup of label * label 
+  | `List of label list]
+
 type wcnf = {
-  cnf: cnf;
+  table: (label * cnf) list;
   weights: weights;
 }
-[@@deriving sexp_of]
 
 let string_of_expr e =
   Sexp.to_string_hum (sexp_of_expr e)
@@ -44,5 +50,9 @@ let string_of_prog p =
 let string_of_cnf e =
   Sexp.to_string_hum (sexp_of_cnf e)
 
-let string_of_wcnf e =
-  Sexp.to_string_hum (sexp_of_wcnf e)
+let string_of_wcnf wcnf =
+  let tbl = List.fold wcnf.table ~init:"" ~f:(fun acc (_, c) -> 
+    Format.springf "%s\n\n%s" acc (string_of_cnf c))
+  in
+  let w = Sexp.to_string_hum (sexp_of_weights wcnf.weights) in
+  Format.sprintf "%s\n%s" tbl w

@@ -91,12 +91,28 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
   | None ->
     if cnf then 
       let log_form = from_core_prog internal in
-      let cnf_form = Compiler.compile_to_cnf log_form in
-      let res = if print_cnf then res @ [StringRes("CNF", LogicalFormula.string_of_wcnf cnf_form)] else res in
+      let wcnf = Compiler.compile_to_cnf log_form t in
+      let res = if print_cnf then res @ [StringRes("CNF", LogicalFormula.string_of_wcnf wcnf)] else res in
       let s_dir = match sharpsat_dir with None -> "../sharpsat-td/bin/" | Some(d) -> d in
-      let prob, decisions = Compiler.compute_cnf s_dir cnf_form in
-      let res = res @ [StringRes("CNF Probability", Bignum.to_string_hum prob)] in
-      let res = if print_cnf_decisions then res @ [StringRes("CNF Decisions", decisions)] else res in
+      let probs = List.map wcnf.table ~f:(fun (label, cnf_expr) -> 
+        let prob, decisions = Compiler.compute_cnf s_dir cnf_expr wcnf.weights in
+        if print_cnf_decisions then
+          if Bignum.(prob = zero) then (label, Bignum.zero, decisions) else
+            (label, prob, decisions)
+        else
+          if Bignum.(prob = zero) then (label, Bignum.zero) else
+            (label, prob))
+      in
+      let res = if skip_table then res else res @
+        (let table = if print_cnf_decisions then
+            [["Value"; "Probability"; "Decisions"]] @ List.map probs ~f:(fun (label, prob, dec) ->
+              [print_pretty label; Bignum.to_string_hum prob; dec])
+          else
+            [["Value"; "Probability"]] @ List.map probs ~f:(fun (label, prob) ->
+              [print_pretty label; Bignum.to_string_hum prob])
+        in
+        [TableRes("CNF Joint Distribution", table)])
+      in
       res
     else
       let compiled = if logical_formula then 

@@ -30,7 +30,7 @@ type compiled_program = {
 (** Compile the input program to a [compiled_program] *)
 val compile_program: CoreGrammar.program -> eager_eval:bool -> compiled_program
 val compile_to_bdd : LogicalFormula.program -> compiled_program
-val compile_to_cnf : LogicalFormula.program -> LogicalFormula.wcnf
+val compile_to_cnf : LogicalFormula.program -> ExternalGrammar.typ -> LogicalFormula.wcnf
 val compute_cnf : String.t -> LogicalFormula.wcnf -> Bignum.t * string
  
 val get_prob: CoreGrammar.program -> Bignum.t

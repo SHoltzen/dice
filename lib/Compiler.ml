@@ -295,7 +295,7 @@ let compile_to_bdd (p: LF.program) : compiled_program =
   in
   {ctx = ctx; body = compile_expr_bdd ctx p.weights p.body}
 
-let compile_to_cnf (p: LF.program) : LF.wcnf =
+let compile_to_cnf (p: LF.program) t : LF.wcnf =
   let subf = ref 0 in
   let fresh () =
     subf := !subf + 1;
@@ -374,75 +374,120 @@ let compile_to_cnf (p: LF.program) : LF.wcnf =
     x, e_subf'
   in
 
-  let rec gen_subf (e: LF.expr) : String.t * LF.expr =
+  (* Generate LF expressions for each row of the table (String.t * LF.expr) list *)
+  let rec gen_table (e:LF.expr) t = 
+    let open ExternalGrammar in
     match e with
-    | And(e1, e2) -> 
-      let x1, s1 = gen_subf e1 in
-      let x2, s2 = gen_subf e2 in
-      let (e1', s1') : (LF.expr * LF.expr) = match s1 with 
-      | Atom(_) | True -> e1, True
-      | _ -> Atom(x1), s1
-      in
-      let (e2', s2') : (LF.expr * LF.expr) = match s2 with 
-      | Atom(_) | True -> e2, True
-      | _ -> Atom(x2), s2
-      in
-      let e' : LF.expr = And(e1', e2') in
-      gen_expr_subf s1' s2' e'
-    | Or(e1, e2) -> 
-      let x1, s1 = gen_subf e1 in
-      let x2, s2 = gen_subf e2 in
-      let (e1', s1') : (LF.expr * LF.expr) = match s1 with 
-      | Atom(_) | True -> e1, True
-      | _ -> Atom(x1), s1
-      in
-      let (e2', s2') : (LF.expr * LF.expr) = match s2 with 
-      | Atom(_) | True -> e2, True
-      | _ -> Atom(x2), s2
-      in
-      let e' : LF.expr = Or(e1', e2') in
-      gen_expr_subf s1' s2' e'
-    | Atom(_) | True -> "", e
-    | Neg(e1) -> 
-      let x1, s1 = gen_subf e1 in
-      let (e1', s1') : (LF.expr * LF.expr) = match s1 with 
-      | Atom(_) | True -> e1, True
-      | _ -> Atom(x1), s1
-      in
-      let e' : LF.expr = Neg(e1') in
-      gen_expr_subf s1' True e'
+    | And(_) | Or(_)| Atom(_) | True | Neg(_) -> 
+      (match t with
+      | TBool -> [(`True, e); (`False, Neg(e))]
+      | TInt(1) -> [(`Int(0), Neg(e)); (`Int(1), e)]
+      | _ -> failwith "Unreachable")
     | Tup(e1, e2) -> 
-      let x1, s1 = gen_subf e1 in
-      let x2, s2 = gen_subf e2 in
-      let (e1', s1') : (LF.expr * LF.expr) = match s1 with 
-      | Atom(_) | True -> e1, True
-      | _ -> Atom(x1), s1
-      in
-      let (e2', s2') : (LF.expr * LF.expr) = match s2 with 
-      | Atom(_) | True -> e2, True
-      | _ -> Atom(x2), s2
-      in
-      let x = fresh() in
-      let tup : LF.expr = And(e1', e2') in 
-      let tup_subf : LF.expr = 
-        And(Or(Neg(Atom(x)), tup), Or(Atom(x), Neg(tup)))
-      in
-
-      let e_subf : LF.expr = And(tup_subf, And(s1', s2')) in
-      x, e_subf
+      (match t with 
+      | TInt(sz) -> 
+        (match e1 with 
+        | And(_) | Or(_)| Atom(_) | True | Neg(_) -> 
+          let sub1 = gen_table (TInt(sz-1)) e2 in
+          let curbitvalue = 1 lsl (sz - 1) in
+          let lower = List.map sub1 ~f:(fun (t, sube) ->
+              match t with
+                `Int(tval) -> `Int(tval), And(Neg(e1), sube)
+              | _ -> failwith "Unreachable"
+            ) in
+          let upper = List.map sub1 ~f:(fun (t, sube) ->
+              match t with
+                `Int(tval) -> `Int(tval + curbitvalue), And(e1), sube
+              | _ -> failwith "Unreachable"
+            ) in
+          lower @ upper
+        | _ -> failwith "Unreachable")
+      | TTuple(t1, t2) -> 
+        let lst = gen_table t1 l and rst = gen_table t2 r in
+        List.map lst ~f:(fun (lt, le) ->
+            List.map rst ~f:(fun (rt, re) ->
+                (`Tup(lt, rt), And(le, re))
+              )
+        ) |> List.concat
+      | TList(_) -> failwith "Not implemented"
+      | _ -> failwith "Unreachable")
   in
 
-  let x_phi, all_subfs = gen_subf p.body in
+  let gen_cnf (e: LF.expr) : LF.cnf =
+    let rec gen_subf (e: LF.expr) : String.t * LF.expr =
+      match e with
+      | And(e1, e2) -> 
+        let x1, s1 = gen_subf e1 in
+        let x2, s2 = gen_subf e2 in
+        let (e1', s1') : (LF.expr * LF.expr) = match s1 with 
+        | Atom(_) | True -> e1, True
+        | _ -> Atom(x1), s1
+        in
+        let (e2', s2') : (LF.expr * LF.expr) = match s2 with 
+        | Atom(_) | True -> e2, True
+        | _ -> Atom(x2), s2
+        in
+        let e' : LF.expr = And(e1', e2') in
+        gen_expr_subf s1' s2' e'
+      | Or(e1, e2) -> 
+        let x1, s1 = gen_subf e1 in
+        let x2, s2 = gen_subf e2 in
+        let (e1', s1') : (LF.expr * LF.expr) = match s1 with 
+        | Atom(_) | True -> e1, True
+        | _ -> Atom(x1), s1
+        in
+        let (e2', s2') : (LF.expr * LF.expr) = match s2 with 
+        | Atom(_) | True -> e2, True
+        | _ -> Atom(x2), s2
+        in
+        let e' : LF.expr = Or(e1', e2') in
+        gen_expr_subf s1' s2' e'
+      | Atom(_) | True -> "", e
+      | Neg(e1) -> 
+        let x1, s1 = gen_subf e1 in
+        let (e1', s1') : (LF.expr * LF.expr) = match s1 with 
+        | Atom(_) | True -> e1, True
+        | _ -> Atom(x1), s1
+        in
+        let e' : LF.expr = Neg(e1') in
+        gen_expr_subf s1' True e'
+      | Tup(e1, e2) -> 
+        let x1, s1 = gen_subf e1 in
+        let x2, s2 = gen_subf e2 in
+        let (e1', s1') : (LF.expr * LF.expr) = match s1 with 
+        | Atom(_) | True -> e1, True
+        | _ -> Atom(x1), s1
+        in
+        let (e2', s2') : (LF.expr * LF.expr) = match s2 with 
+        | Atom(_) | True -> e2, True
+        | _ -> Atom(x2), s2
+        in
+        let x = fresh() in
+        let tup : LF.expr = And(e1', e2') in 
+        let tup_subf : LF.expr = 
+          And(Or(Neg(Atom(x)), tup), Or(Atom(x), Neg(tup)))
+        in
   
-  let x_phi_expr : LF.expr = Atom(x_phi) in
-  let t_phi : LF.expr = And(x_phi_expr, all_subfs) in
-  let t_phi_cnf = simplify t_phi in
-  {cnf=t_phi_cnf; weights=p.weights}
+        let e_subf : LF.expr = And(tup_subf, And(s1', s2')) in
+        x, e_subf
+    in
+  
+    let x_phi, all_subfs = gen_subf e in
+    
+    let x_phi_expr : LF.expr = Atom(x_phi) in
+    let t_phi : LF.expr = And(x_phi_expr, all_subfs) in
+    let t_phi_cnf = simplify t_phi in
+    t_phi_cnf
+  in
 
-let gen_output_cnf (wcnf: LF.wcnf) =
-  let weights = wcnf.weights in
-  let c = wcnf.cnf in
+  let tbl_lfs = gen_table p.body t in
+  let tbl_cnfs = List.map tbl_lfs ~f:(fun (label, e) ->
+    (label, gen_cnf e)) 
+  in
 
+  {table=tbl_cnfs; weights=p.weights}
+
+let gen_output_cnf (c: LF.cnf) (w: LF.weights) =
   let env = Hashtbl.Poly.create () in
   let n = ref 0 in
   let fresh () =
@@ -486,8 +531,8 @@ let gen_output_cnf (wcnf: LF.wcnf) =
   let res = Format.sprintf "p cnf %d %d%s" n_vars n_clauses res in
   res 
 
-let compute_cnf (sharpsat_dir: String.t) (wcnf: LF.wcnf) : Bignum.t * string = 
-  let cnf_content = gen_output_cnf wcnf in
+let compute_cnf (sharpsat_dir: String.t) (c: LF.cnf) (w: LF.weights) : Bignum.t * string = 
+  let cnf_content = gen_output_cnf c w in
   let temp_name, temp_outchannel = Filename.open_temp_file "dice" ".cnf" in
   let cwd = Unix.getcwd () in
   let cmd = "./sharpSAT" in

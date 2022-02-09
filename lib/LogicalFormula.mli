@@ -26,11 +26,17 @@ type literal =
 type cnf = literal List.t List.t
 [@@deriving sexp_of]
 
+type label = 
+  [> `False 
+  | `Int of int 
+  | `True 
+  | `Tup of label * label 
+  | `List of label list]
+
 type wcnf = {
-  cnf: cnf;
+  table: (label * cnf) list;
   weights: weights;
 }
-[@@deriving sexp_of]
 
 val string_of_expr : expr -> String.t
 val string_of_prog : program -> String.t
