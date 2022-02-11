@@ -27,14 +27,14 @@ type cnf = literal List.t List.t
 [@@deriving sexp_of]
 
 type label = 
-  [> `False 
+  [ `False 
   | `Int of int 
   | `True 
   | `Tup of label * label 
-  | `List of label list]
+  | `List of label List.t]
 
 type wcnf = {
-  table: (label * cnf) list;
+  table: (label * cnf) List.t;
   weights: weights;
 }
 
@@ -43,3 +43,5 @@ val string_of_prog : program -> String.t
 
 val string_of_cnf : cnf -> String.t
 val string_of_wcnf : wcnf -> String.t
+
+val extract_tup : expr -> expr

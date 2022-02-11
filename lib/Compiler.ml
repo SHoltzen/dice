@@ -377,10 +377,55 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
   (* Generate LF expressions for each row of the table (String.t * LF.expr) list *)
   let rec gen_table (e:LF.expr) t = 
     let open ExternalGrammar in
-    match e with
+    match t with
+    | TBool -> 
+      (match e with
+      | And(_) | Or(_)| Atom(_) | True | Neg(_) ->
+        [(`True, e); (`False, Neg(e))]
+      | _ -> failwith "Unreachable")
+    | TInt(1) ->
+      (match e with
+      | And(_) | Or(_)| Atom(_) | True | Neg(_) ->
+        [(`Int(0), Neg(e)); (`Int(1), e)]
+      | _ -> failwith "Unreachable")
+    | TInt(sz) ->
+      let e1, e2 = match LF.extract_tup e with
+      | Tup(e1, e2) -> e1, e2
+      | _ -> failwith "Unreachable"
+      in 
+      let sub1 = gen_table e2 (TInt(sz-1)) in
+      let curbitvalue = 1 lsl (sz - 1) in
+      let lower = List.map sub1 ~f:(fun (t, sube) ->
+          let x : LF.expr = And(Neg(e1), sube) in
+          match t with
+            `Int(tval) -> `Int(tval), x
+          | _ -> failwith "Unreachable"
+        ) in
+      let upper = List.map sub1 ~f:(fun (t, sube) ->
+          let x : LF.expr = And(e1, sube) in
+          match t with
+            `Int(tval) -> `Int(tval + curbitvalue), x
+          | _ -> failwith "Unreachable"
+        ) in
+      lower @ upper
+    | TTuple(t1, t2) ->
+      (match e with
+      | Tup(e1, e2) -> 
+        let lst = gen_table e1 t1 and rst = gen_table e2 t2 in
+        List.map lst ~f:(fun (lt, le) ->
+            List.map rst ~f:(fun (rt, re) ->
+                let x : LF.expr = And(le, re) in
+                (`Tup(lt, rt), x)
+              )
+        ) |> List.concat
+      | _ -> failwith "Unreachable")
+    | TList(_) -> failwith "Not implemented"
+    | _ -> failwith "Unreachable"
+
+    (* match e with
     | And(_) | Or(_)| Atom(_) | True | Neg(_) -> 
       (match t with
-      | TBool -> [(`True, e); (`False, Neg(e))]
+      | TBool -> 
       | TInt(1) -> [(`Int(0), Neg(e)); (`Int(1), e)]
       | _ -> failwith "Unreachable")
     | Tup(e1, e2) -> 
@@ -388,29 +433,32 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
       | TInt(sz) -> 
         (match e1 with 
         | And(_) | Or(_)| Atom(_) | True | Neg(_) -> 
-          let sub1 = gen_table (TInt(sz-1)) e2 in
+          let sub1 = gen_table e2 (TInt(sz-1)) in
           let curbitvalue = 1 lsl (sz - 1) in
           let lower = List.map sub1 ~f:(fun (t, sube) ->
+              let x : LF.expr = And(Neg(e1), sube) in
               match t with
-                `Int(tval) -> `Int(tval), And(Neg(e1), sube)
+                `Int(tval) -> `Int(tval), x
               | _ -> failwith "Unreachable"
             ) in
           let upper = List.map sub1 ~f:(fun (t, sube) ->
+              let x : LF.expr = And(e1, sube) in
               match t with
-                `Int(tval) -> `Int(tval + curbitvalue), And(e1), sube
+                `Int(tval) -> `Int(tval + curbitvalue), x
               | _ -> failwith "Unreachable"
             ) in
           lower @ upper
         | _ -> failwith "Unreachable")
       | TTuple(t1, t2) -> 
-        let lst = gen_table t1 l and rst = gen_table t2 r in
+        let lst = gen_table e1 t1 and rst = gen_table e2 t2 in
         List.map lst ~f:(fun (lt, le) ->
             List.map rst ~f:(fun (rt, re) ->
-                (`Tup(lt, rt), And(le, re))
+                let x : LF.expr = And(le, re) in
+                (`Tup(lt, rt), x)
               )
         ) |> List.concat
       | TList(_) -> failwith "Not implemented"
-      | _ -> failwith "Unreachable")
+      | _ -> failwith "Unreachable") *)
   in
 
   let gen_cnf (e: LF.expr) : LF.cnf =
@@ -521,7 +569,7 @@ let gen_output_cnf (c: LF.cnf) (w: LF.weights) =
 
   let res, n_vars = Hashtbl.Poly.fold env ~init:(res, 0) ~f:(fun ~key:var ~data:x (r,n) ->
     let line = 
-      match Hashtbl.Poly.find weights var with
+      match Hashtbl.Poly.find w var with
       | None -> ""
       | Some(f) -> (Format.sprintf "\nc p weight %s %s 0" x (Bignum.to_string_accurate f))
     in
@@ -531,13 +579,16 @@ let gen_output_cnf (c: LF.cnf) (w: LF.weights) =
   let res = Format.sprintf "p cnf %d %d%s" n_vars n_clauses res in
   res 
 
-let compute_cnf (sharpsat_dir: String.t) (c: LF.cnf) (w: LF.weights) : Bignum.t * string = 
+let compute_cnf ?debug (sharpsat_dir: String.t) (c: LF.cnf) (w: LF.weights) : Bignum.t * string = 
   let cnf_content = gen_output_cnf c w in
   let temp_name, temp_outchannel = Filename.open_temp_file "dice" ".cnf" in
   let cwd = Unix.getcwd () in
   let cmd = "./sharpSAT" in
   let cmd = Format.sprintf "%s -WD -decot 1 -decow 100 -tmpdir . -cs 3500 %s" cmd temp_name in
-  Format.printf "%s\n" cmd;
+  (match debug with
+   | Some(true)->
+    Format.printf "Call: %s\n" cmd;
+   | _ -> ());
 
   (* write to temp file *)
 	protect ~f:(fun ()->fprintf temp_outchannel "%s" cnf_content) ~finally:(fun() ->Out_channel.close temp_outchannel);

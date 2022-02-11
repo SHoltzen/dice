@@ -27,14 +27,14 @@ type cnf = literal List.t List.t
 [@@deriving sexp_of]
 
 type label = 
-  [> `False 
+  [ `False 
   | `Int of int 
   | `True 
   | `Tup of label * label 
-  | `List of label list]
+  | `List of label List.t]
 
 type wcnf = {
-  table: (label * cnf) list;
+  table: (label * cnf) List.t;
   weights: weights;
 }
 
@@ -52,7 +52,35 @@ let string_of_cnf e =
 
 let string_of_wcnf wcnf =
   let tbl = List.fold wcnf.table ~init:"" ~f:(fun acc (_, c) -> 
-    Format.springf "%s\n\n%s" acc (string_of_cnf c))
+    Format.sprintf "%s\n\n%s" acc (string_of_cnf c))
   in
   let w = Sexp.to_string_hum (sexp_of_weights wcnf.weights) in
   Format.sprintf "%s\n%s" tbl w
+
+let rec extract_tup (e: expr) : expr = 
+  match e with
+  | And(e1, e2) -> 
+    let e1' = extract_tup e1 in
+    let e2' = extract_tup e2 in
+    (match e1', e2' with
+    | Tup(e1_1, e1_2), Tup(e2_1, e2_2) ->
+      (* not sure about this case *)
+      Tup(And(e1_1, e2_1), And(e1_2, e2_2))
+    | Tup(e1_1, e1_2), _ ->
+      Tup(And(e1_1, e2'), And(e1_2, e2'))
+    | _, Tup(e2_1, e2_2) ->
+      Tup(And(e1', e2_1), And(e1', e2_2))
+    | _ -> And(e1', e2'))
+  | Or(e1, e2) -> 
+    let e1' = extract_tup e1 in
+    let e2' = extract_tup e2 in
+    (match e1', e2' with
+    | Tup(e1_1, e1_2), Tup(e2_1, e2_2) ->
+      (* not sure about this case *)
+      Tup(Or(e1_1, e2_1), Or(e1_2, e2_2))
+    | Tup(e1_1, e1_2), _ ->
+      Tup(Or(e1_1, e2'), Or(e1_2, e2'))
+    | _, Tup(e2_1, e2_2) ->
+      Tup(Or(e1', e2_1), Or(e1', e2_2))
+    | _ -> Or(e1', e2'))
+  | Atom(_) | True | Neg(_) | Tup(_) -> e

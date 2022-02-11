@@ -14,8 +14,30 @@ let print_res r =
   match r with
   | TableRes(name, rows) ->
     Format.printf "================[ %s ]================\n" name;
-    List.iter rows ~f:(fun row ->
-        List.iter row ~f:(fun i -> Format.printf "%s\t" i);
+    let cols = List.transpose_exn rows in
+    let tabs = List.map cols ~f:(fun col ->
+      let lengths = List.map col ~f:String.length in
+      let max_length = match List.max_elt lengths ~compare:Int.compare with
+      | None -> 0.
+      | Some(x) -> Float.of_int x in
+      let max_spaces = (Float.iround_up_exn (max_length/. 4.)) * 4 in
+      let spaces = List.map lengths ~f:(fun x -> max_spaces - x) in
+      let min_spaces = match List.min_elt spaces ~compare:Int.compare with
+      | None -> 0 
+      | Some(x) -> x in
+      let min_tab = if min_spaces = 0 then 1 else 0 in
+      let tabs = List.map spaces ~f:(fun space ->
+        let space_f = Float.of_int space in
+        let less_tab = if space = max_spaces - 1 then 1 else 0 in
+        let n = (Float.iround_up_exn (space_f/. 4.)) + min_tab - less_tab in
+        String.of_char_list (List.init n ~f:(fun _ -> '\t'))
+      )
+      in tabs) 
+      |> List.transpose_exn 
+    in
+
+    List.iter (List.zip_exn rows tabs) ~f:(fun (row, tab) ->
+        List.iter (List.zip_exn row tab) ~f:(fun (i, t) -> Format.printf "%s%s" i t);
         Format.printf "\n";
       );
     Format.printf "\n"
@@ -94,21 +116,18 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
       let wcnf = Compiler.compile_to_cnf log_form t in
       let res = if print_cnf then res @ [StringRes("CNF", LogicalFormula.string_of_wcnf wcnf)] else res in
       let s_dir = match sharpsat_dir with None -> "../sharpsat-td/bin/" | Some(d) -> d in
+      
       let probs = List.map wcnf.table ~f:(fun (label, cnf_expr) -> 
         let prob, decisions = Compiler.compute_cnf s_dir cnf_expr wcnf.weights in
-        if print_cnf_decisions then
-          if Bignum.(prob = zero) then (label, Bignum.zero, decisions) else
-            (label, prob, decisions)
-        else
-          if Bignum.(prob = zero) then (label, Bignum.zero) else
-            (label, prob))
+        if Bignum.(prob = zero) then (label, Bignum.zero, decisions) else
+          (label, prob, decisions))
       in
       let res = if skip_table then res else res @
         (let table = if print_cnf_decisions then
             [["Value"; "Probability"; "Decisions"]] @ List.map probs ~f:(fun (label, prob, dec) ->
               [print_pretty label; Bignum.to_string_hum prob; dec])
           else
-            [["Value"; "Probability"]] @ List.map probs ~f:(fun (label, prob) ->
+            [["Value"; "Probability"]] @ List.map probs ~f:(fun (label, prob, _) ->
               [print_pretty label; Bignum.to_string_hum prob])
         in
         [TableRes("CNF Joint Distribution", table)])
