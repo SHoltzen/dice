@@ -1555,3 +1555,13 @@ let from_core_prog (p: CG.program) : LF.program =
   let r = from_core_prog_h env e in
   let r = remove_redundancy r in
   {body = r; weights = weights}
+
+let select_marginals ?(partial = 0) (random: bool) (p: CG.program) : CG.program =
+  if random then
+    (* take random marginal *)
+
+  else
+    if partial = 0 then
+      (* take half *)
+    else
+      (* take partial marginals *)
