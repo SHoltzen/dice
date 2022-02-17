@@ -20,4 +20,4 @@ val from_external_prog_optimize: ?cfg:config -> bool -> ExternalGrammar.program 
 
 val from_core_prog: CoreGrammar.program -> LogicalFormula.program
 
-val select_marginals: ?partial:int -> bool -> CoreGrammar.program -> CoreGrammar.program
+val select_marginals: ?partial:int -> bool -> ExternalGrammar.program -> ExternalGrammar.program
