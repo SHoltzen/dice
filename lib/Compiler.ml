@@ -421,110 +421,71 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
       | _ -> failwith "Unreachable")
     | TList(_) -> failwith "Not implemented"
     | _ -> failwith "Unreachable"
-
-    (* match e with
-    | And(_) | Or(_)| Atom(_) | True | Neg(_) -> 
-      (match t with
-      | TBool -> 
-      | TInt(1) -> [(`Int(0), Neg(e)); (`Int(1), e)]
-      | _ -> failwith "Unreachable")
-    | Tup(e1, e2) -> 
-      (match t with 
-      | TInt(sz) -> 
-        (match e1 with 
-        | And(_) | Or(_)| Atom(_) | True | Neg(_) -> 
-          let sub1 = gen_table e2 (TInt(sz-1)) in
-          let curbitvalue = 1 lsl (sz - 1) in
-          let lower = List.map sub1 ~f:(fun (t, sube) ->
-              let x : LF.expr = And(Neg(e1), sube) in
-              match t with
-                `Int(tval) -> `Int(tval), x
-              | _ -> failwith "Unreachable"
-            ) in
-          let upper = List.map sub1 ~f:(fun (t, sube) ->
-              let x : LF.expr = And(e1, sube) in
-              match t with
-                `Int(tval) -> `Int(tval + curbitvalue), x
-              | _ -> failwith "Unreachable"
-            ) in
-          lower @ upper
-        | _ -> failwith "Unreachable")
-      | TTuple(t1, t2) -> 
-        let lst = gen_table e1 t1 and rst = gen_table e2 t2 in
-        List.map lst ~f:(fun (lt, le) ->
-            List.map rst ~f:(fun (rt, re) ->
-                let x : LF.expr = And(le, re) in
-                (`Tup(lt, rt), x)
-              )
-        ) |> List.concat
-      | TList(_) -> failwith "Not implemented"
-      | _ -> failwith "Unreachable") *)
   in
 
   let gen_cnf (e: LF.expr) : LF.cnf =
-    let rec gen_subf (e: LF.expr) : String.t * LF.expr =
+    let open LogicalFormula in
+    let rec gen_subf (e: LF.expr) : String.t * LF.cnf =
       match e with
       | And(e1, e2) -> 
         let x1, s1 = gen_subf e1 in
         let x2, s2 = gen_subf e2 in
-        let (e1', s1') : (LF.expr * LF.expr) = match s1 with 
-        | Atom(_) | True -> e1, True
-        | _ -> Atom(x1), s1
+        let x = fresh() in
+
+        (* !t1 | (x1 & x2) => (!t1 | x1) & (!t1 | x2)
+           t1 | !(x1 & x2) => (t1 | !x1 | !x2)  *)
+        let subf_1 = match x1 with 
+        | "" -> []
+        | _ -> [Neg(x); Pos(x1)]
         in
-        let (e2', s2') : (LF.expr * LF.expr) = match s2 with 
-        | Atom(_) | True -> e2, True
-        | _ -> Atom(x2), s2
+        let subf_2 = match x2 with
+        | "" -> []
+        | _ -> [Neg(x); Pos(x2)]
         in
-        let e' : LF.expr = And(e1', e2') in
-        gen_expr_subf s1' s2' e'
+        let subf_3 = [Pos(x); Neg(x1); Neg(x2)] in
+        
+        let subf = subf_1::subf_2::subf_3::[] in
+        x, (subf@s1@s2)
       | Or(e1, e2) -> 
         let x1, s1 = gen_subf e1 in
         let x2, s2 = gen_subf e2 in
-        let (e1', s1') : (LF.expr * LF.expr) = match s1 with 
-        | Atom(_) | True -> e1, True
-        | _ -> Atom(x1), s1
+        let x = fresh() in
+
+        (* !t1 | (x1 | x2) => (!t1 | x1 | x2)
+           t1 | !(x1 | x2) => (t1 | !x1) & (t1 | !x2) *)
+        let subf_1 = match x1, x2 with 
+        | "", _ | _, "" -> []
+        | _, _ -> [Neg(x); Pos(x1); Pos(x2)]
         in
-        let (e2', s2') : (LF.expr * LF.expr) = match s2 with 
-        | Atom(_) | True -> e2, True
-        | _ -> Atom(x2), s2
-        in
-        let e' : LF.expr = Or(e1', e2') in
-        gen_expr_subf s1' s2' e'
-      | Atom(_) | True -> "", e
+        let subf_2 = [Pos(x); Neg(x1)] in
+        let subf_3 = [Pos(x); Neg(x2)] in
+        
+        let subf = subf_1::subf_2::subf_3::[] in
+        x, (subf@s1@s2)
+      | Atom(x) -> x, []
+      | True -> "", []
       | Neg(e1) -> 
         let x1, s1 = gen_subf e1 in
-        let (e1', s1') : (LF.expr * LF.expr) = match s1 with 
-        | Atom(_) | True -> e1, True
-        | _ -> Atom(x1), s1
-        in
-        let e' : LF.expr = Neg(e1') in
-        gen_expr_subf s1' True e'
-      | Tup(e1, e2) -> 
-        let x1, s1 = gen_subf e1 in
-        let x2, s2 = gen_subf e2 in
-        let (e1', s1') : (LF.expr * LF.expr) = match s1 with 
-        | Atom(_) | True -> e1, True
-        | _ -> Atom(x1), s1
-        in
-        let (e2', s2') : (LF.expr * LF.expr) = match s2 with 
-        | Atom(_) | True -> e2, True
-        | _ -> Atom(x2), s2
-        in
         let x = fresh() in
-        let tup : LF.expr = And(e1', e2') in 
-        let tup_subf : LF.expr = 
-          And(Or(Neg(Atom(x)), tup), Or(Atom(x), Neg(tup)))
-        in
-  
-        let e_subf : LF.expr = And(tup_subf, And(s1', s2')) in
-        x, e_subf
+
+        (* !t1 | !x1
+           t1 | x1 *)
+        let subf_1 = [Neg(x); Neg(x1)] in
+        let subf_2 = match x1 with
+        | "" -> []
+        | _ -> [Pos(x); Pos(x1)] in
+        
+        let subf = subf_1::subf_2::[] in
+        x, (subf@s1)
+      | Tup(e1, e2) -> 
+        let tup = And(e1, e2) in 
+        let x1, s1 = gen_subf tup in
+        x1, s1      
     in
   
     let x_phi, all_subfs = gen_subf e in
-    
-    let x_phi_expr : LF.expr = Atom(x_phi) in
-    let t_phi : LF.expr = And(x_phi_expr, all_subfs) in
-    let t_phi_cnf = simplify t_phi in
+
+    let t_phi_cnf = [Pos(x_phi)]::all_subfs in
     t_phi_cnf
   in
 
@@ -584,7 +545,7 @@ let compute_cnf ?debug (sharpsat_dir: String.t) (c: LF.cnf) (w: LF.weights) : Bi
   let temp_name, temp_outchannel = Filename.open_temp_file "dice" ".cnf" in
   let cwd = Unix.getcwd () in
   let cmd = "./sharpSAT" in
-  let cmd = Format.sprintf "%s -WD -decot 1 -decow 100 -tmpdir . -cs 3500 %s" cmd temp_name in
+  let cmd = Format.sprintf "%s -WD -decot 60 -decow 100 -tmpdir . -cs 3500 %s" cmd temp_name in
   (match debug with
    | Some(true)->
     Format.printf "Call: %s\n" cmd;
@@ -612,6 +573,10 @@ let compute_cnf ?debug (sharpsat_dir: String.t) (c: LF.cnf) (w: LF.weights) : Bi
     r
   in
 
+  let p = try Bignum.of_string p with
+    _ -> failwith "sharpSAT did not solve within an hour"
+  in
+
   (* get decisions *)
   let d = List.fold r ~init:"0" ~f:(fun acc line ->
     let lst_line = String.split line ~on:' ' in
@@ -624,7 +589,7 @@ let compute_cnf ?debug (sharpsat_dir: String.t) (c: LF.cnf) (w: LF.weights) : Bi
   )
   in
 
-  (Bignum.of_string p), d
+  p, d
   
 
 let get_prob p =
