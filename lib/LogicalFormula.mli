@@ -45,3 +45,5 @@ val string_of_cnf : cnf -> String.t
 val string_of_wcnf : wcnf -> String.t
 
 val extract_tup : expr -> expr
+
+val size_of_lf : program -> int

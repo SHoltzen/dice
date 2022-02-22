@@ -82,7 +82,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~local_hoisting ~global_hoisting ~branch_elimination ~determinism ~sbk_encoding ~print_state_bdd
     ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_cnf ~print_function_bdd
     ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc ~logical_formula
-    ~cnf ~sharpsat_dir ~print_cnf_decisions ~verbose ~partial_marginals ~random_marginal
+    ~cnf ~sharpsat_dir ~print_cnf_decisions ~verbose ~partial_marginals ~random_marginal ~show_lf_size
     lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
@@ -108,9 +108,13 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
   let res = if show_params then
     let distinct, total = ExternalGrammar.count_params parsed in
      res @ [StringRes("Number of Distinct Parameters", distinct); StringRes("Number of Parameters", total)] else res in
-  let res = if print_lf then 
+  let res = if print_lf || show_lf_size then 
     let log_form = from_core_prog internal in
-    res @ [StringRes("Logical formula", LogicalFormula.string_of_prog log_form)] 
+    let res = if print_lf then
+      res @ [StringRes("Logical formula", LogicalFormula.string_of_prog log_form)] else res in
+    let res = if show_lf_size then
+      res @ [StringRes("Logical formula size", string_of_int (LogicalFormula.size_of_lf log_form))] else res in
+    res
     else res in
   if no_compile then res else match sample_amount with
   | None ->
@@ -256,6 +260,7 @@ let command =
      and verbose = flag "-verbose" no_arg ~doc:" print additional debugging output"
      and partial_marginals = flag "-partial-marginals" (optional int) ~doc:" computes a random subset of the marginals of size n"
      and random_marginal = flag "-random-marginal" no_arg ~doc:" computes the results of a random marginal. Takes precedence over partial marginals"
+     and show_lf_size = flag "-show-lf-size" no_arg ~doc:" show the number of nodes in the logical formula"
      in fun () ->
        let inx = In_channel.create fname in
        let lexbuf = Lexing.from_channel inx in
@@ -265,7 +270,7 @@ let command =
                   ~branch_elimination ~determinism ~sbk_encoding ~show_recursive_calls ~print_state_bdd
                   ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_cnf ~print_function_bdd
                   ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc ~logical_formula
-                  ~cnf ~sharpsat_dir ~print_cnf_decisions ~verbose ~partial_marginals ~random_marginal
+                  ~cnf ~sharpsat_dir ~print_cnf_decisions ~verbose ~partial_marginals ~random_marginal ~show_lf_size
                   lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res

@@ -84,3 +84,15 @@ let rec extract_tup (e: expr) : expr =
       Tup(Or(e1', e2_1), Or(e1', e2_2))
     | _ -> Or(e1', e2'))
   | Atom(_) | True | Neg(_) | Tup(_) -> e
+
+let size_of_lf (p: program) : int =
+  let rec size (e: expr) (acc: int) : int =
+    match e with
+    | And(e1, e2) | Or(e1, e2) | Tup(e1, e2) -> 
+      let s1 = size e1 acc in
+      size e2 (s1+1)
+    | Neg(e1) ->
+      size e1 (acc+1)
+    | Atom(_) | True -> acc+1
+  in
+  size p.body 0
