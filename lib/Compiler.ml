@@ -540,7 +540,7 @@ let gen_output_cnf (c: LF.cnf) (w: LF.weights) =
   let res = Format.sprintf "p cnf %d %d%s" n_vars n_clauses res in
   res 
 
-let compute_cnf ?debug (sharpsat_dir: String.t) (c: LF.cnf) (w: LF.weights) : Bignum.t * string = 
+let compute_cnf ?debug (sharpsat_dir: String.t) (c: LF.cnf) (w: LF.weights) : Bignum.t * Bignum.t = 
   let cnf_content = gen_output_cnf c w in
   let temp_name, temp_outchannel = Filename.open_temp_file "dice" ".cnf" in
   let cwd = Unix.getcwd () in
@@ -587,6 +587,10 @@ let compute_cnf ?debug (sharpsat_dir: String.t) (c: LF.cnf) (w: LF.weights) : Bi
       | Some(r) -> String.strip r) 
     | _ -> acc
   )
+  in
+
+  let d = try Bignum.of_string d with
+    _ -> failwith "sharpSAT did not solve within an hour"
   in
 
   p, d

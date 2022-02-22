@@ -129,10 +129,15 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
         if Bignum.(prob = zero) then (label, Bignum.zero, decisions) else
           (label, prob, decisions))
       in
+      let res = if print_cnf_decisions then 
+        let avg = List.fold probs ~init:Bignum.zero ~f:(fun acc (_, _, dec) -> Bignum.(acc + dec)) in
+        let x = Bignum.of_int(List.length probs) in
+        let avg = Bignum.(avg / x) in
+        res @ [StringRes("Average CNF decisions", Bignum.to_string_hum avg)] else res in
       let res = if skip_table then res else res @
         (let table = if print_cnf_decisions then
             [["Value"; "Probability"; "Decisions"]] @ List.map probs ~f:(fun (label, prob, dec) ->
-              [print_pretty label; Bignum.to_string_hum prob; dec])
+              [print_pretty label; Bignum.to_string_hum prob; Bignum.to_string_hum dec])
           else
             [["Value"; "Probability"]] @ List.map probs ~f:(fun (label, prob, _) ->
               [print_pretty label; Bignum.to_string_hum prob])
