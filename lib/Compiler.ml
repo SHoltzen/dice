@@ -296,97 +296,111 @@ let compile_to_bdd (p: LF.program) : compiled_program =
   {ctx = ctx; body = compile_expr_bdd ctx p.weights p.body}
 
 let compile_to_cnf (p: LF.program) t : LF.wcnf =
-  let subf = ref 0 in
+  let subfx = ref 0 in
   let fresh () =
-    subf := !subf + 1;
-    let x = Format.sprintf "x_%d" !subf in
+    subfx := !subfx + 1;
+    let x = Format.sprintf "x_%d" !subfx in
     x
-  in
-
-  let x_true () = 
-    subf := !subf + 1;
-    let x = Format.sprintf "t_%d" !subf in
-    x
-  in
-  
-  let rec simplify (e: LF.expr) : LF.cnf = 
-  (* returns CNF form *)
-    let expand (s1: LF.cnf) (s2: LF.cnf) : LF.cnf = 
-      List.fold s1 ~init:[] ~f:(fun acc1 d1 ->
-        List.fold s2 ~init:acc1 ~f:(fun acc2 d2 ->
-          (d1@d2)::acc2))
-    in
-
-    let negate (s: LF.cnf) : LF.cnf =
-    (* Tseytin transform makes sure only two terms at most 
-    in a clause to negate *)
-      let negate_literal (l: LF.literal) : LF.literal = 
-        match l with
-        | Pos(x) -> Neg(x)
-        | Neg(x) -> Pos(x)
-      in
-      match s with
-      | [[x1]] -> 
-        let x1' = negate_literal x1 in
-        [[x1']]
-      | [[x1]; [x2]] -> 
-        let x1' = negate_literal x1 in
-        let x2' = negate_literal x2 in
-        [[x1'; x2']]
-      | [[x1; x2]] -> 
-        let x1' = negate_literal x1 in
-        let x2' = negate_literal x2 in
-        [[x1']; [x2']]
-      (* | [] -> [] *)
-      | _ -> 
-        Format.printf "%s\n" (LF.string_of_cnf s);
-        failwith "Negating more than two literals"
-    in
-    match e with
-    | And(e1, e2) -> 
-      let s1 = simplify e1 in
-      let s2 = simplify e2 in
-      s1@s2
-    | Or(e1, e2) -> 
-      let s1 = simplify e1 in
-      let s2 = simplify e2 in
-      expand s1 s2
-    | Atom(x) -> [[Pos(x)]]
-    | True -> 
-      let x = x_true () in
-      [[Pos(x)]]
-    | Neg(e1) -> 
-      let s1 = simplify e1 in
-      negate s1
-    | Tup(_, _) -> 
-      failwith "Not implemented"
-  in
-
-  let gen_expr_subf (s1: LF.expr) (s2: LF.expr) (e: LF.expr) : String.t * LF.expr = 
-    let x = fresh() in
-    let x_expr : LF.expr = Atom(x) in
-    let e_subf : LF.expr = And(Or(Neg(x_expr), e), Or(Neg(e), x_expr)) in
-    let e_subf' : LF.expr = match s1, s2 with
-    | True, True -> e_subf
-    | True, _ -> And(e_subf, s2)
-    | _, True -> And(e_subf, s1)
-    | _ -> And(e_subf, And(s1, s2)) in
-    x, e_subf'
   in
 
   (* Generate LF expressions for each row of the table (String.t * LF.expr) list *)
+  let gen_neg (x1: String.t) (s1: LF.cnf) =
+    let open LogicalFormula in
+    let x = fresh() in
+
+    (* !t1 | !x1
+        t1 | x1 *)
+    let subf_1 = [Neg(x); Neg(x1)] in
+    let subf_2 = match x1 with
+    | "" -> []
+    | _ -> [Pos(x); Pos(x1)] in
+    
+    let subf = subf_1::subf_2::[] in
+    x, (subf@s1)
+  in
+
+  let gen_and (x1: String.t) (s1: LF.cnf) (x2: String.t) (s2: LF.cnf) =
+    let open LogicalFormula in
+    let x = fresh() in
+
+    (* !t1 | (x1 & x2) => (!t1 | x1) & (!t1 | x2)
+      t1 | !(x1 & x2) => (t1 | !x1 | !x2)  *)
+    let subf_1 = match x1 with 
+    | "" -> []
+    | _ -> [Neg(x); Pos(x1)]
+    in
+    let subf_2 = match x2 with
+    | "" -> []
+    | _ -> [Neg(x); Pos(x2)]
+    in
+    let subf_3 = [Pos(x); Neg(x1); Neg(x2)] in
+    
+    let subf = subf_1::subf_2::subf_3::[] in
+    x, (subf@s1@s2)
+  in
+
+  let rec gen_subf (e: LF.expr) : String.t * LF.cnf =
+    let open LogicalFormula in
+    match e with
+    | And(e1, e2) -> 
+      let x1, s1 = gen_subf e1 in
+      let x2, s2 = gen_subf e2 in
+      gen_and x1 s1 x2 s2
+    | Or(e1, e2) -> 
+      let x1, s1 = gen_subf e1 in
+      let x2, s2 = gen_subf e2 in
+      let x = fresh() in
+
+      (* !t1 | (x1 | x2) => (!t1 | x1 | x2)
+         t1 | !(x1 | x2) => (t1 | !x1) & (t1 | !x2) *)
+      let subf_1 = match x1, x2 with 
+      | "", _ | _, "" -> []
+      | _, _ -> [Neg(x); Pos(x1); Pos(x2)]
+      in
+      let subf_2 = [Pos(x); Neg(x1)] in
+      let subf_3 = [Pos(x); Neg(x2)] in
+      
+      let subf = subf_1::subf_2::subf_3::[] in
+      x, (subf@s1@s2)
+    | Atom(x) -> x, []
+    | True -> "", []
+    | Neg(e1) -> 
+      let x1, s1 = gen_subf e1 in
+      gen_neg x1 s1
+    | Tup(e1, e2) -> 
+      let tup = And(e1, e2) in 
+      let x1, s1 = gen_subf tup in
+      x1, s1      
+  in
+
+  let gen_cnf (x: String.t) (e: LF.cnf) : LF.cnf =
+    let open LogicalFormula in
+
+    let t_phi_cnf = [Pos(x)]::e in
+    t_phi_cnf
+  in
+
   let rec gen_table (e:LF.expr) t = 
     let open ExternalGrammar in
+    let open LogicalFormula in
     match t with
     | TBool -> 
       (match e with
       | And(_) | Or(_)| Atom(_) | True | Neg(_) ->
-        [(`True, e); (`False, Neg(e))]
+        let x, s = gen_subf e in
+        let x_neg, s_neg = gen_neg x s in
+        let pos_cnf = gen_cnf x s in
+        let neg_cnf = gen_cnf x_neg s_neg in
+        [(`True, x, pos_cnf); (`False, x_neg, neg_cnf)]
       | _ -> failwith "Unreachable")
     | TInt(1) ->
       (match e with
       | And(_) | Or(_)| Atom(_) | True | Neg(_) ->
-        [(`Int(0), Neg(e)); (`Int(1), e)]
+        let x, s = gen_subf e in
+        let x_neg, s_neg = gen_neg x s in
+        let pos_cnf = gen_cnf x s in
+        let neg_cnf = gen_cnf x_neg s_neg in
+        [(`Int(0), x_neg, neg_cnf); (`Int(1), x, pos_cnf)]
       | _ -> failwith "Unreachable")
     | TInt(sz) ->
       let e1, e2 = match LF.extract_tup e with
@@ -395,16 +409,22 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
       in 
       let sub1 = gen_table e2 (TInt(sz-1)) in
       let curbitvalue = 1 lsl (sz - 1) in
-      let lower = List.map sub1 ~f:(fun (t, sube) ->
-          let x : LF.expr = And(Neg(e1), sube) in
+      let x1, e1_cnf = gen_subf e1 in
+      let lower = List.map sub1 ~f:(fun (t, subx, subcnf) ->
+          let x1_neg, s1 = gen_neg x1 e1_cnf in
+          let and_x, s = gen_and x1_neg s1 subx subcnf in
+          let and_cnf = gen_cnf and_x s in
+
           match t with
-            `Int(tval) -> `Int(tval), x
+            `Int(tval) -> `Int(tval), and_x, and_cnf
           | _ -> failwith "Unreachable"
         ) in
-      let upper = List.map sub1 ~f:(fun (t, sube) ->
-          let x : LF.expr = And(e1, sube) in
+      let upper = List.map sub1 ~f:(fun (t, subx, subcnf) ->
+          let and_x, s = gen_and x1 e1_cnf subx subcnf in
+          let and_cnf = gen_cnf and_x s in
+          
           match t with
-            `Int(tval) -> `Int(tval + curbitvalue), x
+            `Int(tval) -> `Int(tval + curbitvalue), and_x, and_cnf
           | _ -> failwith "Unreachable"
         ) in
       lower @ upper
@@ -412,10 +432,12 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
       (match e with
       | Tup(e1, e2) -> 
         let lst = gen_table e1 t1 and rst = gen_table e2 t2 in
-        List.map lst ~f:(fun (lt, le) ->
-            List.map rst ~f:(fun (rt, re) ->
-                let x : LF.expr = And(le, re) in
-                (`Tup(lt, rt), x)
+        List.map lst ~f:(fun (lt, lx, le) ->
+            List.map rst ~f:(fun (rt, rx, re) ->
+                let and_x, s = gen_and lx le rx re in
+                let and_cnf = gen_cnf and_x s in
+
+                (`Tup(lt, rt), and_x, and_cnf)
               )
         ) |> List.concat
       | _ -> failwith "Unreachable")
@@ -423,75 +445,8 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
     | _ -> failwith "Unreachable"
   in
 
-  let gen_cnf (e: LF.expr) : LF.cnf =
-    let open LogicalFormula in
-    let rec gen_subf (e: LF.expr) : String.t * LF.cnf =
-      match e with
-      | And(e1, e2) -> 
-        let x1, s1 = gen_subf e1 in
-        let x2, s2 = gen_subf e2 in
-        let x = fresh() in
-
-        (* !t1 | (x1 & x2) => (!t1 | x1) & (!t1 | x2)
-           t1 | !(x1 & x2) => (t1 | !x1 | !x2)  *)
-        let subf_1 = match x1 with 
-        | "" -> []
-        | _ -> [Neg(x); Pos(x1)]
-        in
-        let subf_2 = match x2 with
-        | "" -> []
-        | _ -> [Neg(x); Pos(x2)]
-        in
-        let subf_3 = [Pos(x); Neg(x1); Neg(x2)] in
-        
-        let subf = subf_1::subf_2::subf_3::[] in
-        x, (subf@s1@s2)
-      | Or(e1, e2) -> 
-        let x1, s1 = gen_subf e1 in
-        let x2, s2 = gen_subf e2 in
-        let x = fresh() in
-
-        (* !t1 | (x1 | x2) => (!t1 | x1 | x2)
-           t1 | !(x1 | x2) => (t1 | !x1) & (t1 | !x2) *)
-        let subf_1 = match x1, x2 with 
-        | "", _ | _, "" -> []
-        | _, _ -> [Neg(x); Pos(x1); Pos(x2)]
-        in
-        let subf_2 = [Pos(x); Neg(x1)] in
-        let subf_3 = [Pos(x); Neg(x2)] in
-        
-        let subf = subf_1::subf_2::subf_3::[] in
-        x, (subf@s1@s2)
-      | Atom(x) -> x, []
-      | True -> "", []
-      | Neg(e1) -> 
-        let x1, s1 = gen_subf e1 in
-        let x = fresh() in
-
-        (* !t1 | !x1
-           t1 | x1 *)
-        let subf_1 = [Neg(x); Neg(x1)] in
-        let subf_2 = match x1 with
-        | "" -> []
-        | _ -> [Pos(x); Pos(x1)] in
-        
-        let subf = subf_1::subf_2::[] in
-        x, (subf@s1)
-      | Tup(e1, e2) -> 
-        let tup = And(e1, e2) in 
-        let x1, s1 = gen_subf tup in
-        x1, s1      
-    in
-  
-    let x_phi, all_subfs = gen_subf e in
-
-    let t_phi_cnf = [Pos(x_phi)]::all_subfs in
-    t_phi_cnf
-  in
-
-  let tbl_lfs = gen_table p.body t in
-  let tbl_cnfs = List.map tbl_lfs ~f:(fun (label, e) ->
-    (label, gen_cnf e)) 
+  let tbl_cnfs = List.map (gen_table p.body t) ~f:(fun (label, _, c) ->
+    (label, c))
   in
 
   {table=tbl_cnfs; weights=p.weights}
@@ -545,7 +500,7 @@ let compute_cnf ?debug (sharpsat_dir: String.t) (c: LF.cnf) (w: LF.weights) : Bi
   let temp_name, temp_outchannel = Filename.open_temp_file "dice" ".cnf" in
   let cwd = Unix.getcwd () in
   let cmd = "./sharpSAT" in
-  let cmd = Format.sprintf "%s -WD -decot 60 -decow 100 -tmpdir . -cs 3500 %s" cmd temp_name in
+  let cmd = Format.sprintf "%s -WD -decot 5 -decow 100 -tmpdir . -cs 3500 %s" cmd temp_name in
   (match debug with
    | Some(true)->
     Format.printf "Call: %s\n" cmd;
