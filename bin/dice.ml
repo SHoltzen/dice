@@ -82,7 +82,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~local_hoisting ~global_hoisting ~branch_elimination ~determinism ~sbk_encoding ~print_state_bdd
     ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_cnf ~print_function_bdd
     ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc ~logical_formula
-    ~cnf ~sharpsat_dir ~print_cnf_decisions ~verbose ~partial_marginals ~random_marginal ~show_lf_size
+    ~cnf ~sharpsat_dir ~print_cnf_decisions ~verbose ~partial_marginals ~random_marginal ~show_lf_size ~show_cnf_time
     lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
@@ -119,16 +119,29 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
   if no_compile then res else match sample_amount with
   | None ->
     if cnf then 
+      let cnf_t1 = Time.now() in
       let log_form = from_core_prog internal in
       let wcnf = Compiler.compile_to_cnf log_form t in
+      let cnf_t2 = Time.now() in
+
       let res = if print_cnf then res @ [StringRes("CNF", LogicalFormula.string_of_wcnf wcnf)] else res in
       let s_dir = match sharpsat_dir with None -> "../sharpsat-td/bin/" | Some(d) -> d in
       
+      let sharpsat_t1 = Time.now() in
       let probs = List.map wcnf.table ~f:(fun (label, cnf_expr) -> 
         let prob, decisions = Compiler.compute_cnf ~debug:verbose s_dir cnf_expr wcnf.weights in
         if Bignum.(prob = zero) then (label, Bignum.zero, decisions) else
           (label, prob, decisions))
       in
+      let sharpsat_t2 = Time.now() in
+      
+      let res = if show_cnf_time then
+        let cnf_time = Time.diff cnf_t2 cnf_t1 in
+        let sharpsat_time = Time.diff sharpsat_t2 sharpsat_t1 in
+        res @ [StringRes("CNF Time Elapsed", Time.Span.to_string cnf_time);
+               StringRes("SharpSAT-td Time Elapsed", Time.Span.to_string sharpsat_time)] else res
+      in
+
       let res = if print_cnf_decisions then 
         let avg = List.fold probs ~init:Bignum.zero ~f:(fun acc (_, _, dec) -> Bignum.(acc + dec)) in
         let x = Bignum.of_int(List.length probs) in
@@ -266,6 +279,7 @@ let command =
      and partial_marginals = flag "-partial-marginals" (optional int) ~doc:" computes a random subset of the marginals of size n"
      and random_marginal = flag "-random-marginal" no_arg ~doc:" computes the results of a random marginal. Takes precedence over partial marginals"
      and show_lf_size = flag "-show-lf-size" no_arg ~doc:" show the number of nodes in the logical formula"
+     and show_cnf_time = flag "-show-cnf-time" no_arg ~doc:" show the time it takes to generate CNF and to run SharpSAT-td"
      in fun () ->
        let inx = In_channel.create fname in
        let lexbuf = Lexing.from_channel inx in
@@ -276,6 +290,7 @@ let command =
                   ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_cnf ~print_function_bdd
                   ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc ~logical_formula
                   ~cnf ~sharpsat_dir ~print_cnf_decisions ~verbose ~partial_marginals ~random_marginal ~show_lf_size
+                  ~show_cnf_time
                   lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res
