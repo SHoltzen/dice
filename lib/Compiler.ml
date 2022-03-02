@@ -500,7 +500,7 @@ let compute_cnf ?debug (sharpsat_dir: String.t) (c: LF.cnf) (w: LF.weights) : Bi
   let temp_name, temp_outchannel = Filename.open_temp_file "dice" ".cnf" in
   let cwd = Unix.getcwd () in
   let cmd = "./sharpSAT" in
-  let cmd = Format.sprintf "%s -WD -decot 5 -decow 100 -tmpdir . -cs 3500 %s" cmd temp_name in
+  let cmd = Format.sprintf "%s -WD -decot 60 -decow 100 -tmpdir . -cs 3500 %s" cmd temp_name in
   (match debug with
    | Some(true)->
     Format.printf "Call: %s\n" cmd;
