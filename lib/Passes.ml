@@ -1432,72 +1432,82 @@ let from_external_prog_optimize ?(cfg: config = default_config) sbk (p: EG.progr
   (t, {functions = functions; body = optbody})
 
 let from_core_prog (p: CG.program) : LF.program =
+  let open LogicalFormula in
   let e = p.body in
-  let is_const (e: LF.expr) : bool =
-    match e with
-    | True | Neg(True) 
-    | And(Neg(True), _) | And(_, Neg(True))
-    | Or(True, _) | Or(_, True) -> true
+  let ref_true = ref True in
+  let ref_false = ref (Not(ref_true)) in
+
+  let is_const (e: LF.expr ref) : bool =
+    match !e with
+    | True -> true
+    | Not(e1) -> phys_equal e1 ref_true
+    | Or(e1, e2) -> (phys_equal e1 ref_true) || (phys_equal e2 ref_true)
+    | And(e1, e2) -> (phys_equal e1 ref_false) || (phys_equal e2 ref_false)
     | _ -> false
   in
-  let is_true (e: LF.expr) : bool = 
-    match e with
-    | True | Or(True, _) | Or(_, True) -> true
-    | Neg(True) | And(Neg(True), _) | And(_, Neg(True)) -> false
+  let is_true (e: LF.expr ref) : bool = 
+    match !e with
+    | True -> true
+    | Or(e1, e2) -> (phys_equal e1 ref_true) || (phys_equal e2 ref_true)
+    | Not(e1) -> not (phys_equal e1 ref_true)
+    | And(e1, e2) -> (phys_equal e1 ref_false) || (phys_equal e2 ref_false)
     | _ -> failwith "Expression is not a constant"
   in
   let weights = Hashtbl.Poly.create () in
-  let rec from_core_prog_h (env: env) (e: CG.expr) : LF.expr = 
+  let env = Hashtbl.Poly.create () in
+
+  let rec from_core_prog_h (e: CG.expr) : LF.expr ref = 
     match e with
     | And(e1, e2) -> 
-      let c1 = from_core_prog_h env e1 in
-      let c2 = from_core_prog_h env e2 in
-      And(c1, c2)
+      let c1 = from_core_prog_h e1 in
+      let c2 = from_core_prog_h e2 in
+      ref (And(c1, c2))
     | Or(e1, e2) -> 
-      let c1 = from_core_prog_h env e1 in
-      let c2 = from_core_prog_h env e2 in
-      Or(c1, c2)
+      let c1 = from_core_prog_h e1 in
+      let c2 = from_core_prog_h e2 in
+      ref (Or(c1, c2))
     | Xor(e1, e2) -> 
-      let c1 = from_core_prog_h env e1 in
-      let c2 = from_core_prog_h env e2 in  
-      Or(And(c1, Neg(c2)), And(Neg(c1), c2))
+      let c1 = from_core_prog_h e1 in
+      let c2 = from_core_prog_h e2 in
+      
+      ref (Or(ref (And(c1, ref (Not(c2)))), ref (And(ref (Not(c1)), c2))))
     | Eq(e1, e2) -> 
-      let c1 = from_core_prog_h env e1 in
-      let c2 = from_core_prog_h env e2 in
-      And(Or(Neg(c1), c2), Or(c1, Neg(c2)))
-      (* Or(And(c1, c2), And(Neg(c1), Neg(c2))) *)
+      let c1 = from_core_prog_h e1 in
+      let c2 = from_core_prog_h e2 in
+      ref (And(ref (Or(ref (Not(c1)), c2)), ref (Or(c1, ref (Not(c2))))))
+      (* Or(And(c1, c2), And(Not(c1), Not(c2))) *)
     | Not(e) ->
-      let c = from_core_prog_h env e in
-      Neg(c)
-    | True -> True
-    | False -> Neg(True)
+      let c = from_core_prog_h e in
+      ref (Not(c))
+    | True -> ref_true
+    | False -> ref_false
     | Ident(s) ->
-      (match Map.Poly.find env s with
+      (match Hashtbl.Poly.find env s with
       | Some(r) -> r
       | _ -> failwith (sprintf "Could not find variable '%s'" s))
     | Tup(e1, e2) ->
-      let c1 = from_core_prog_h env e1 in
-      let c2 = from_core_prog_h env e2 in
-      Tup(c1, c2)
+      let c1 = from_core_prog_h e1 in
+      let c2 = from_core_prog_h e2 in
+      ref (Tup(c1, c2))
     | Ite(g, thn, els) ->
-      let cg = from_core_prog_h env g in
+      let cg = from_core_prog_h g in
       if is_const cg then
-        let r = from_core_prog_h env (if is_true cg then thn else els) in
+        let r = from_core_prog_h (if is_true cg then thn else els) in
         r
       else
-        let cthn = from_core_prog_h env thn in
-        let cels = from_core_prog_h env els in
-        Or(And(cg, cthn), And(Neg(cg), cels))
+        let cthn = from_core_prog_h thn in
+        let cels = from_core_prog_h els in
+        ref (Or(ref (And(cg, cthn)), ref (And(ref (Not(cg)), cels))))
     | Fst(e) ->
-      let c = from_core_prog_h env e in
-      let r = match LF.extract_tup c with
+      let c = from_core_prog_h e in
+      let r = match !(LF.extract_tup c) with
       | Tup(c1, _) -> c1
       | _ -> failwith (Format.sprintf "Internal Failure: calling `fst` on non-tuple at %s" (LF.string_of_expr c))
       in 
       r
     | Snd(e) ->
-      let c = from_core_prog_h env e in
-      let r = match LF.extract_tup c with
+      let c = from_core_prog_h e in
+      let r = match !(LF.extract_tup c) with
       | Tup(_, c2) -> c2
       | _ -> failwith (Format.sprintf "Internal Failure: calling `snd` on non-tuple at %s" (CG.string_of_expr e))
       in 
@@ -1506,53 +1516,68 @@ let from_core_prog (p: CG.program) : LF.program =
       let var_name = (Format.sprintf "f%d_%s" !flip_id (Bignum.to_string_hum f)) in
       flip_id := !flip_id + 1;
       (if Bignum.equal f Bignum.one then () else Hashtbl.Poly.add_exn weights ~key:var_name ~data:f);
-      Atom(var_name)
+      ref (Atom(var_name))
     | Observe(g) ->
-      let c = from_core_prog_h env g in
+      let c = from_core_prog_h g in
       c
     | Let(x, e1, e2) ->
-      let c1 = from_core_prog_h env e1 in
-      let env' = Map.Poly.set env ~key:x ~data:c1 in
-      let c2 = from_core_prog_h env' e2 in
+      let c1 = from_core_prog_h e1 in
+      let c2 = Hashtbl.Poly.find_and_call env x ~if_found:(fun data ->
+        (Hashtbl.Poly.set env ~key:x ~data:c1);
+        let c2 = from_core_prog_h e2 in
+        (Hashtbl.Poly.set env ~key:x ~data:data);
+        c2
+        ) ~if_not_found:(fun x ->
+          (Hashtbl.Poly.set env ~key:x ~data:c1);
+          let c2 = from_core_prog_h e2 in
+          (Hashtbl.Poly.remove env x);
+          c2
+        )
+      in
       c2
     | Sample(_) -> failwith "not implemented"
     | FuncCall(_, _) -> failwith "not implemented"
     | _ -> failwith "not implemented"
   in
 
-  let rec remove_redundancy (e: LF.expr) : LF.expr =
-    match e with 
+  let rec remove_redundancy (e: LF.expr ref) : LF.expr ref =
+    match !e with 
     | And(e1, e2) -> 
       let e1' = remove_redundancy e1 in
       let e2' = remove_redundancy e2 in
-      (match e1', e2' with
-      | Neg(True), _ | _, Neg(True) -> Neg(True)
-      | True, _ -> e2' 
-      | _, True -> e1'
-      | _ -> And(e1', e2'))
+      if phys_equal e1' ref_true then
+        e2'
+      else if phys_equal e2' ref_true then
+          e1'
+      else if phys_equal e1' ref_false || phys_equal e2' ref_false then
+          ref_false
+      else
+        ref (And(e1', e2'))
     | Or(e1, e2) -> 
       let e1' = remove_redundancy e1 in
       let e2' = remove_redundancy e2 in
-      (match e1', e2' with
-      | True, _ | _, True -> True
-      | Neg(True), _ -> e2'
-      | _, Neg(True) -> e1'
-      | _ -> Or(e1', e2'))
-    | Atom(_) ->  e
-    | True -> True
-    | Neg(e1) -> 
+      if phys_equal e1' ref_true || phys_equal e2' ref_true then
+        ref_true
+      else if phys_equal e1' ref_false then
+        e2'
+      else if phys_equal e2' ref_false then
+        e1'
+      else
+        ref (Or(e1', e2'))
+    | Atom(_) -> e
+    | True -> ref_true
+    | Not(e1) -> 
       let e1' = remove_redundancy e1 in
-      (match e1' with
-      | Neg(e2) -> e2
-      | _ -> Neg(e1'))
+      (match !e1' with
+      | Not(e2) -> e2
+      | _ -> ref (Not(e1')))
     | Tup(e1, e2) -> 
       let e1' = remove_redundancy e1 in
       let e2' = remove_redundancy e2 in
-      Tup(e1', e2')
+      ref (Tup(e1', e2'))
   in
 
-  let env = Map.Poly.empty in
-  let r = from_core_prog_h env e in
+  let r = from_core_prog_h e in
   let r = remove_redundancy r in
   {body = r; weights = weights}
 

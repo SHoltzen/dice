@@ -82,7 +82,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~local_hoisting ~global_hoisting ~branch_elimination ~determinism ~sbk_encoding ~print_state_bdd
     ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_cnf ~print_function_bdd
     ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc ~logical_formula
-    ~cnf ~sharpsat_dir ~print_cnf_decisions ~verbose ~partial_marginals ~random_marginal ~show_lf_size ~show_cnf_time
+    ~cnf ~sharpsat_dir ~print_cnf_decisions ~verbose ~partial_marginals ~random_marginal ~show_lf_size ~show_time
     lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
@@ -119,8 +119,10 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
   if no_compile then res else match sample_amount with
   | None ->
     if cnf then 
-      let cnf_t1 = Time.now() in
+      let lf_t1 = Time.now() in
       let log_form = from_core_prog internal in
+
+      let cnf_t1 = Time.now() in
       let wcnf = Compiler.compile_to_cnf log_form t in
       let cnf_t2 = Time.now() in
 
@@ -135,10 +137,12 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
       in
       let sharpsat_t2 = Time.now() in
       
-      let res = if show_cnf_time then
+      let res = if show_time then
+        let lf_time = Time.diff cnf_t1 lf_t1 in
         let cnf_time = Time.diff cnf_t2 cnf_t1 in
         let sharpsat_time = Time.diff sharpsat_t2 sharpsat_t1 in
-        res @ [StringRes("CNF Time Elapsed", Time.Span.to_string cnf_time);
+        res @ [StringRes("LF Time Elapsed", Time.Span.to_string lf_time);
+               StringRes("CNF Time Elapsed", Time.Span.to_string cnf_time);
                StringRes("SharpSAT-td Time Elapsed", Time.Span.to_string sharpsat_time)] else res
       in
 
@@ -159,9 +163,15 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
       in
       res
     else
-      let compiled = if logical_formula then 
+      let compiled, res = if logical_formula then 
+        let lf_t1 = Time.now() in
         let log_form = from_core_prog internal in
-        Compiler.compile_to_bdd log_form else Compiler.compile_program internal ~eager_eval in
+        let lf_t2 = Time.now() in
+        let lf_time = Time.diff lf_t2 lf_t1 in
+        let res = if show_time then 
+          res @ [StringRes("LF Time Elapsed", Time.Span.to_string lf_time)] else res
+        in
+        Compiler.compile_to_bdd log_form, res else Compiler.compile_program internal ~eager_eval, res in
       let zbdd = compiled.body.z in
       let res = if skip_table then res else res @
         (let z = Wmc.wmc ~float_wmc compiled.ctx.man zbdd compiled.ctx.weights in
@@ -279,7 +289,7 @@ let command =
      and partial_marginals = flag "-partial-marginals" (optional int) ~doc:" computes a random subset of the marginals of size n"
      and random_marginal = flag "-random-marginal" no_arg ~doc:" computes the results of a random marginal. Takes precedence over partial marginals"
      and show_lf_size = flag "-show-lf-size" no_arg ~doc:" show the number of nodes in the logical formula"
-     and show_cnf_time = flag "-show-cnf-time" no_arg ~doc:" show the time it takes to generate CNF and to run SharpSAT-td"
+     and show_time = flag "-show-time" no_arg ~doc:" show the time it takes to generate CNF and to run SharpSAT-td"
      in fun () ->
        let inx = In_channel.create fname in
        let lexbuf = Lexing.from_channel inx in
@@ -290,7 +300,7 @@ let command =
                   ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_cnf ~print_function_bdd
                   ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc ~logical_formula
                   ~cnf ~sharpsat_dir ~print_cnf_decisions ~verbose ~partial_marginals ~random_marginal ~show_lf_size
-                  ~show_cnf_time
+                  ~show_time
                   lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res

@@ -1,19 +1,19 @@
 (** Defines the logical formula interface in dice grammar *)
 
 type expr =
-  | And of expr * expr
-  | Or of expr * expr
+  | And of expr ref * expr ref
+  | Or of expr ref * expr ref
   | Atom of String.t
   | True
-  | Tup of expr * expr
-  | Neg of expr
+  | Tup of expr ref * expr ref
+  | Not of expr ref
 [@@deriving sexp_of]
 
 type weights = (String.t, Bignum.t) Core.Hashtbl.Poly.t 
 [@@deriving sexp_of]
 
 type program = {
-  body: expr;
+  body: expr ref;
   weights: weights;
 }
 [@@deriving sexp_of]
@@ -38,12 +38,12 @@ type wcnf = {
   weights: weights;
 }
 
-val string_of_expr : expr -> String.t
+val string_of_expr : expr ref -> String.t
 val string_of_prog : program -> String.t
 
 val string_of_cnf : cnf -> String.t
 val string_of_wcnf : wcnf -> String.t
 
-val extract_tup : expr -> expr
+val extract_tup : expr ref -> expr ref
 
 val size_of_lf : program -> int

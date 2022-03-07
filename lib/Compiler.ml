@@ -249,8 +249,8 @@ let compile_program (p:CG.program) ~eager_eval : compiled_program =
 let compile_to_bdd (p: LF.program) : compiled_program = 
   let ctx = new_context false () in
   let env = Hashtbl.Poly.create () in
-  let rec compile_expr_bdd (ctx: compile_context) (w: LF.weights) (e: LF.expr) : compiled_expr =
-    let r = match e with
+  let rec compile_expr_bdd (ctx: compile_context) (w: LF.weights) (e: LF.expr ref) : compiled_expr =
+    let r = match !e with
       | And(e1, e2) -> 
         let c1 = compile_expr_bdd ctx w e1 in
         let c2 = compile_expr_bdd ctx w e2 in
@@ -282,7 +282,7 @@ let compile_to_bdd (p: LF.program) : compiled_program =
         r
       | True ->
         {state=Leaf(Bdd.bdd_true ctx.man); z=Bdd.bdd_true ctx.man; flips=[]}
-      | Neg(e1) ->
+      | Not(e1) ->
         let c = compile_expr_bdd ctx w e1 in
         let v = Bdd.bdd_negate ctx.man (extract_leaf c.state) in
         {state=Leaf(v); z=c.z; flips=c.flips}
@@ -339,9 +339,9 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
     x, (subf@s1@s2)
   in
 
-  let rec gen_subf (e: LF.expr) : String.t * LF.cnf =
+  let rec gen_subf (e: LF.expr ref) : String.t * LF.cnf =
     let open LogicalFormula in
-    match e with
+    match !e with
     | And(e1, e2) -> 
       let x1, s1 = gen_subf e1 in
       let x2, s2 = gen_subf e2 in
@@ -364,11 +364,11 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
       x, (subf@s1@s2)
     | Atom(x) -> x, []
     | True -> "", []
-    | Neg(e1) -> 
+    | Not(e1) -> 
       let x1, s1 = gen_subf e1 in
       gen_neg x1 s1
     | Tup(e1, e2) -> 
-      let tup = And(e1, e2) in 
+      let tup = ref (And(e1, e2)) in 
       let x1, s1 = gen_subf tup in
       x1, s1      
   in
@@ -380,13 +380,13 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
     t_phi_cnf
   in
 
-  let rec gen_table (e:LF.expr) t = 
+  let rec gen_table (e:LF.expr ref) t = 
     let open ExternalGrammar in
     let open LogicalFormula in
     match t with
     | TBool -> 
-      (match e with
-      | And(_) | Or(_)| Atom(_) | True | Neg(_) ->
+      (match !e with
+      | And(_) | Or(_)| Atom(_) | True | Not(_) ->
         let x, s = gen_subf e in
         let x_neg, s_neg = gen_neg x s in
         let pos_cnf = gen_cnf x s in
@@ -394,8 +394,8 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
         [(`True, x, pos_cnf); (`False, x_neg, neg_cnf)]
       | _ -> failwith "Unreachable")
     | TInt(1) ->
-      (match e with
-      | And(_) | Or(_)| Atom(_) | True | Neg(_) ->
+      (match !e with
+      | And(_) | Or(_)| Atom(_) | True | Not(_) ->
         let x, s = gen_subf e in
         let x_neg, s_neg = gen_neg x s in
         let pos_cnf = gen_cnf x s in
@@ -403,7 +403,7 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
         [(`Int(0), x_neg, neg_cnf); (`Int(1), x, pos_cnf)]
       | _ -> failwith "Unreachable")
     | TInt(sz) ->
-      let e1, e2 = match LF.extract_tup e with
+      let e1, e2 = match !(LF.extract_tup e) with
       | Tup(e1, e2) -> e1, e2
       | _ -> failwith "Unreachable"
       in 
@@ -429,7 +429,7 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
         ) in
       lower @ upper
     | TTuple(t1, t2) ->
-      (match e with
+      (match !e with
       | Tup(e1, e2) -> 
         let lst = gen_table e1 t1 and rst = gen_table e2 t2 in
         List.map lst ~f:(fun (lt, lx, le) ->
