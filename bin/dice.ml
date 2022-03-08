@@ -167,11 +167,16 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
         let lf_t1 = Time.now() in
         let log_form = from_core_prog internal in
         let lf_t2 = Time.now() in
-        let lf_time = Time.diff lf_t2 lf_t1 in
+        let bdd_form = Compiler.compile_to_bdd log_form in
+        let bdd_t2 = Time.now() in
+
         let res = if show_time then 
-          res @ [StringRes("LF Time Elapsed", Time.Span.to_string lf_time)] else res
+          let lf_time = Time.diff lf_t2 lf_t1 in
+          let bdd_time = Time.diff bdd_t2 lf_t2 in
+          res @ [StringRes("LF Time Elapsed", Time.Span.to_string lf_time);
+                 StringRes("LF to BDD Time Elapsed", Time.Span.to_string bdd_time)] else res
         in
-        Compiler.compile_to_bdd log_form, res else Compiler.compile_program internal ~eager_eval, res in
+        bdd_form, res else Compiler.compile_program internal ~eager_eval, res in
       let zbdd = compiled.body.z in
       let res = if skip_table then res else res @
         (let z = Wmc.wmc ~float_wmc compiled.ctx.man zbdd compiled.ctx.weights in
