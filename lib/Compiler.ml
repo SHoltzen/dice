@@ -249,17 +249,26 @@ let compile_program (p:CG.program) ~eager_eval : compiled_program =
 let compile_to_bdd (p: LF.program) : compiled_program = 
   let ctx = new_context false () in
   let env = Hashtbl.Poly.create () in
-  let rec compile_expr_bdd (ctx: compile_context) (w: LF.weights) (e: LF.expr ref) : compiled_expr =
+  let w = p.weights in
+  let b = p.binary in
+  let e = LF.extract_tup p.body b in
+  (* let u = p.unary in *)
+  let rec compile_expr_bdd (ctx: compile_context) (e: LF.expr ref) : compiled_expr =
+    
     let r = match !e with
       | And(e1, e2) -> 
-        let c1 = compile_expr_bdd ctx w e1 in
-        let c2 = compile_expr_bdd ctx w e2 in
+        (* let _ = match Hashtbl.Poly.find b (e1, e2, And_ind) with
+          | None ->
+          | Some(n) -> v
+        in *)
+        let c1 = compile_expr_bdd ctx e1 in
+        let c2 = compile_expr_bdd ctx e2 in
         let v = Leaf(Bdd.bdd_and ctx.man (extract_leaf c1.state) (extract_leaf c2.state)) in
         let z = Bdd.bdd_and ctx.man c1.z c2.z in
         {state=v; z=z; flips=c1.flips @ c2.flips}
       | Or(e1, e2) ->
-        let c1 = compile_expr_bdd ctx w e1 in
-        let c2 = compile_expr_bdd ctx w e2 in
+        let c1 = compile_expr_bdd ctx e1 in
+        let c2 = compile_expr_bdd ctx e2 in
         let v = Leaf(Bdd.bdd_or ctx.man (extract_leaf c1.state) (extract_leaf c2.state)) in
         let z = Bdd.bdd_and ctx.man c1.z c2.z in
         {state=v; z=z; flips=c1.flips @ c2.flips}
@@ -283,17 +292,17 @@ let compile_to_bdd (p: LF.program) : compiled_program =
       | True ->
         {state=Leaf(Bdd.bdd_true ctx.man); z=Bdd.bdd_true ctx.man; flips=[]}
       | Not(e1) ->
-        let c = compile_expr_bdd ctx w e1 in
+        let c = compile_expr_bdd ctx e1 in
         let v = Bdd.bdd_negate ctx.man (extract_leaf c.state) in
         {state=Leaf(v); z=c.z; flips=c.flips}
       | Tup(e1, e2) ->
-        let c1 = compile_expr_bdd ctx w e1 in
-        let c2 = compile_expr_bdd ctx w e2 in
+        let c1 = compile_expr_bdd ctx e1 in
+        let c2 = compile_expr_bdd ctx e2 in
         {state=Node(c1.state, c2.state); z=Bdd.bdd_and ctx.man c1.z c2.z; flips=c1.flips @ c2.flips}
     in
     r
   in
-  {ctx = ctx; body = compile_expr_bdd ctx p.weights p.body}
+  {ctx = ctx; body = compile_expr_bdd ctx e}
 
 let compile_to_cnf (p: LF.program) t : LF.wcnf =
   let subfx = ref 0 in
@@ -302,6 +311,8 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
     let x = Format.sprintf "x_%d" !subfx in
     x
   in
+
+  let cnf_nodes = Hashtbl.Poly.create () in
 
   (* Generate LF expressions for each row of the table (String.t * LF.expr) list *)
   let gen_neg (x1: String.t) (s1: LF.cnf) =
@@ -403,7 +414,7 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
         [(`Int(0), x_neg, neg_cnf); (`Int(1), x, pos_cnf)]
       | _ -> failwith "Unreachable")
     | TInt(sz) ->
-      let e1, e2 = match !(LF.extract_tup e) with
+      let e1, e2 = match !(LF.extract_tup e p.binary) with
       | Tup(e1, e2) -> e1, e2
       | _ -> failwith "Unreachable"
       in 

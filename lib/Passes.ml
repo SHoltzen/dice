@@ -1456,29 +1456,60 @@ let from_core_prog (p: CG.program) : LF.program =
   let weights = Hashtbl.Poly.create () in
   let env = Hashtbl.Poly.create () in
 
+  let binary = Hashtbl.Poly.create () in
+  let unary = Hashtbl.Poly.create () in
+
+  let binary_ref = ref binary in
+  let unary_ref = ref unary in
+
   let rec from_core_prog_h (e: CG.expr) : LF.expr ref = 
     match e with
     | And(e1, e2) -> 
       let c1 = from_core_prog_h e1 in
       let c2 = from_core_prog_h e2 in
-      ref (And(c1, c2))
+      let ref_node = Hashtbl.Poly.find_or_add binary (c1, c2, And_ind) 
+        ~default:(fun () -> ref (And(c1, c2))) in
+      ref_node
     | Or(e1, e2) -> 
       let c1 = from_core_prog_h e1 in
       let c2 = from_core_prog_h e2 in
-      ref (Or(c1, c2))
+      let ref_node = Hashtbl.Poly.find_or_add binary (c1, c2, Or_ind) 
+        ~default:(fun () -> ref (Or(c1, c2))) in
+      ref_node
     | Xor(e1, e2) -> 
       let c1 = from_core_prog_h e1 in
       let c2 = from_core_prog_h e2 in
-      
-      ref (Or(ref (And(c1, ref (Not(c2)))), ref (And(ref (Not(c1)), c2))))
+      let ref_not_c1 = Hashtbl.Poly.find_or_add unary c1
+        ~default:(fun () -> ref (Not(c1))) in
+      let ref_not_c2 = Hashtbl.Poly.find_or_add unary c2
+        ~default:(fun () -> ref (Not(c2))) in
+      let ref_and1 = Hashtbl.Poly.find_or_add binary (c1, ref_not_c2, And_ind)
+        ~default:(fun () -> ref (And(c1, ref_not_c2))) in
+      let ref_and2 = Hashtbl.Poly.find_or_add binary (ref_not_c1, c2, And_ind)
+        ~default:(fun () -> ref (And(ref_not_c1, c2))) in
+      let ref_or = Hashtbl.Poly.find_or_add binary (ref_and1, ref_and2, Or_ind)
+        ~default:(fun () -> ref (Or(ref_and1, ref_and2))) in
+      ref_or
     | Eq(e1, e2) -> 
       let c1 = from_core_prog_h e1 in
       let c2 = from_core_prog_h e2 in
-      ref (And(ref (Or(ref (Not(c1)), c2)), ref (Or(c1, ref (Not(c2))))))
+      let ref_not_c1 = Hashtbl.Poly.find_or_add unary c1
+        ~default:(fun () -> ref (Not(c1))) in
+      let ref_not_c2 = Hashtbl.Poly.find_or_add unary c2
+        ~default:(fun () -> ref (Not(c2))) in
+      let ref_or1 = Hashtbl.Poly.find_or_add binary (ref_not_c1, c2, Or_ind)
+        ~default:(fun () -> ref (Or(ref_not_c1, c2))) in
+      let ref_or2 = Hashtbl.Poly.find_or_add binary (c1, ref_not_c2, Or_ind)
+        ~default:(fun () -> ref (Or(c1, ref_not_c2))) in
+      let ref_and = Hashtbl.Poly.find_or_add binary (ref_or1, ref_or2, And_ind)
+        ~default:(fun () -> ref (And(ref_or1, ref_or2))) in
+      ref_and
       (* Or(And(c1, c2), And(Not(c1), Not(c2))) *)
     | Not(e) ->
       let c = from_core_prog_h e in
-      ref (Not(c))
+      let ref_not_c = Hashtbl.Poly.find_or_add unary c
+        ~default:(fun () -> ref (Not(c))) in
+      ref_not_c
     | True -> ref_true
     | False -> ref_false
     | Ident(s) ->
@@ -1488,7 +1519,9 @@ let from_core_prog (p: CG.program) : LF.program =
     | Tup(e1, e2) ->
       let c1 = from_core_prog_h e1 in
       let c2 = from_core_prog_h e2 in
-      ref (Tup(c1, c2))
+      let ref_node = Hashtbl.Poly.find_or_add binary (c1, c2, Tup_ind)
+        ~default:(fun () -> ref (Tup(c1, c2))) in
+      ref_node
     | Ite(g, thn, els) ->
       let cg = from_core_prog_h g in
       if is_const cg then
@@ -1497,17 +1530,25 @@ let from_core_prog (p: CG.program) : LF.program =
       else
         let cthn = from_core_prog_h thn in
         let cels = from_core_prog_h els in
-        ref (Or(ref (And(cg, cthn)), ref (And(ref (Not(cg)), cels))))
+        let ref_not_cg = Hashtbl.Poly.find_or_add unary cg
+          ~default:(fun () -> ref (Not(cg))) in
+        let ref_and1 = Hashtbl.Poly.find_or_add binary (cg, cthn, And_ind)
+          ~default:(fun () -> ref (And(cg, cthn))) in
+        let ref_and2 = Hashtbl.Poly.find_or_add binary (ref_not_cg, cels, And_ind)
+          ~default:(fun () -> ref (And(ref_not_cg, cels))) in
+        let ref_or = Hashtbl.Poly.find_or_add binary (ref_and1, ref_and2, Or_ind)
+          ~default:(fun () -> ref (Or(ref_and1, ref_and2))) in
+        ref_or
     | Fst(e) ->
       let c = from_core_prog_h e in
-      let r = match !(LF.extract_tup c) with
+      let r = match !(LF.extract_tup c (ref binary)) with
       | Tup(c1, _) -> c1
       | _ -> failwith (Format.sprintf "Internal Failure: calling `fst` on non-tuple at %s" (LF.string_of_expr c))
       in 
       r
     | Snd(e) ->
       let c = from_core_prog_h e in
-      let r = match !(LF.extract_tup c) with
+      let r = match !(LF.extract_tup c (ref binary)) with
       | Tup(_, c2) -> c2
       | _ -> failwith (Format.sprintf "Internal Failure: calling `snd` on non-tuple at %s" (CG.string_of_expr e))
       in 
@@ -1552,7 +1593,9 @@ let from_core_prog (p: CG.program) : LF.program =
       else if phys_equal e1' ref_false || phys_equal e2' ref_false then
           ref_false
       else
-        ref (And(e1', e2'))
+        let ref_node = Hashtbl.Poly.find_or_add binary (e1', e2', And_ind)
+          ~default:(fun () -> ref (And(e1', e2'))) in
+        ref_node
     | Or(e1, e2) -> 
       let e1' = remove_redundancy e1 in
       let e2' = remove_redundancy e2 in
@@ -1563,23 +1606,30 @@ let from_core_prog (p: CG.program) : LF.program =
       else if phys_equal e2' ref_false then
         e1'
       else
-        ref (Or(e1', e2'))
+        let ref_node = Hashtbl.Poly.find_or_add binary (e1', e2', Or_ind)
+          ~default:(fun () -> ref (Or(e1', e2'))) in
+        ref_node
     | Atom(_) -> e
     | True -> ref_true
     | Not(e1) -> 
       let e1' = remove_redundancy e1 in
       (match !e1' with
       | Not(e2) -> e2
-      | _ -> ref (Not(e1')))
+      | _ -> 
+        let ref_not = Hashtbl.Poly.find_or_add unary e1'
+          ~default:(fun () -> ref (Not(e1'))) in
+        ref_not)
     | Tup(e1, e2) -> 
       let e1' = remove_redundancy e1 in
       let e2' = remove_redundancy e2 in
-      ref (Tup(e1', e2'))
+      let ref_node = Hashtbl.Poly.find_or_add binary (e1', e2', Tup_ind)
+        ~default:(fun () -> ref (Tup(e1', e2'))) in
+      ref_node
   in
 
   let r = from_core_prog_h e in
   let r = remove_redundancy r in
-  {body = r; weights = weights}
+  {body = r; weights = weights; binary = binary_ref; unary = unary_ref;}
 
 (* Assumes the Bayesian Network format *)
 let select_marginals ?(partial = 0) (random: bool) (p: EG.program) : EG.program =

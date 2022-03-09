@@ -12,9 +12,23 @@ type expr =
 type weights = (String.t, Bignum.t) Core.Hashtbl.Poly.t 
 [@@deriving sexp_of]
 
+type ind = 
+  | And_ind
+  | Or_ind
+  | Tup_ind
+[@@deriving sexp_of]
+
+type binary = ((expr ref * expr ref * ind), expr ref) Core.Hashtbl.Poly.t
+[@@deriving sexp_of]
+
+type unary = (expr ref, expr ref) Core.Hashtbl.Poly.t
+[@@deriving sexp_of]
+
 type program = {
   body: expr ref;
   weights: weights;
+  binary: binary ref;
+  unary: unary ref;
 }
 [@@deriving sexp_of]
 
@@ -57,33 +71,79 @@ let string_of_wcnf wcnf =
   let w = Sexp.to_string_hum (sexp_of_weights wcnf.weights) in
   Format.sprintf "%s\n%s" tbl w
 
-let rec extract_tup (e: expr ref) : expr ref = 
-  match !e with
-  | And(e1, e2) -> 
-    let e1' = extract_tup e1 in
-    let e2' = extract_tup e2 in
-    (match !e1', !e2' with
-    | Tup(e1_1, e1_2), Tup(e2_1, e2_2) ->
-      (* not sure about this case *)
-      ref (Tup(ref (And(e1_1, e2_1)), ref (And(e1_2, e2_2))))
-    | Tup(e1_1, e1_2), _ ->
-      ref (Tup(ref (And(e1_1, e2')), ref (And(e1_2, e2'))))
-    | _, Tup(e2_1, e2_2) ->
-      ref (Tup(ref (And(e1', e2_1)), ref (And(e1', e2_2))))
-    | _ -> ref (And(e1', e2')))
-  | Or(e1, e2) -> 
-    let e1' = extract_tup e1 in
-    let e2' = extract_tup e2 in
-    (match !e1', !e2' with
-    | Tup(e1_1, e1_2), Tup(e2_1, e2_2) ->
-      (* not sure about this case *)
-      ref (Tup(ref (Or(e1_1, e2_1)), ref (Or(e1_2, e2_2))))
-    | Tup(e1_1, e1_2), _ ->
-      ref (Tup(ref (Or(e1_1, e2')), ref (Or(e1_2, e2'))))
-    | _, Tup(e2_1, e2_2) ->
-      ref (Tup(ref (Or(e1', e2_1)), ref (Or(e1', e2_2))))
-    | _ -> ref (Or(e1', e2')))
-  | Atom(_) | True | Not(_) | Tup(_) -> e
+let extract_tup (e: expr ref) (b: binary ref) : expr ref = 
+  
+  let rec extract_tup_e (e: expr ref) : expr ref = 
+    match !e with
+    | And(e1, e2) -> 
+      let e1' = extract_tup_e e1 in
+      let e2' = extract_tup_e e2 in
+      (match !e1', !e2' with
+      | Tup(e1_1, e1_2), Tup(e2_1, e2_2) ->
+        (* not sure about this case *)
+        let ref_and1 = Hashtbl.Poly.find_or_add !b (e1_1, e2_1, And_ind)
+          ~default:(fun () -> ref (And(e1_1, e2_1))) in
+        let ref_and2 = Hashtbl.Poly.find_or_add !b (e1_2, e2_2, And_ind)
+          ~default:(fun () -> ref (And(e1_2, e2_2))) in
+        let ref_tup = Hashtbl.Poly.find_or_add !b (ref_and1, ref_and2, Tup_ind)
+          ~default:(fun () -> ref (Tup(ref_and1, ref_and2))) in
+        ref_tup
+      | Tup(e1_1, e1_2), _ ->
+        let ref_and1 = Hashtbl.Poly.find_or_add !b (e1_1, e2', And_ind)
+          ~default:(fun () -> ref (And(e1_1, e2'))) in
+        let ref_and2 = Hashtbl.Poly.find_or_add !b (e1_2, e2', And_ind)
+          ~default:(fun () -> ref (And(e1_2, e2'))) in
+        let ref_tup = Hashtbl.Poly.find_or_add !b (ref_and1, ref_and2, Tup_ind)
+          ~default:(fun () -> ref (Tup(ref_and1, ref_and2))) in
+        ref_tup
+      | _, Tup(e2_1, e2_2) ->
+        let ref_and1 = Hashtbl.Poly.find_or_add !b (e1', e2_1, And_ind)
+          ~default:(fun () -> ref (And(e1', e2_1))) in
+        let ref_and2 = Hashtbl.Poly.find_or_add !b (e1', e2_2, And_ind)
+          ~default:(fun () -> ref (And(e1', e2_2))) in
+        let ref_tup = Hashtbl.Poly.find_or_add !b (ref_and1, ref_and2, Tup_ind)
+          ~default:(fun () -> ref (Tup(ref_and1, ref_and2))) in
+        ref_tup
+      | _ -> 
+        let ref_and = Hashtbl.Poly.find_or_add !b (e1', e2', And_ind)
+          ~default:(fun () -> ref (And(e1', e2'))) in
+        ref_and)
+    | Or(e1, e2) -> 
+      let e1' = extract_tup_e e1 in
+      let e2' = extract_tup_e e2 in
+      (match !e1', !e2' with
+      | Tup(e1_1, e1_2), Tup(e2_1, e2_2) ->
+        (* not sure about this case *)
+        let ref_or1 = Hashtbl.Poly.find_or_add !b (e1_1, e2_1, Or_ind)
+          ~default:(fun () -> ref (Or(e1_1, e2_1))) in
+        let ref_or2 = Hashtbl.Poly.find_or_add !b (e1_2, e2_2, Or_ind)
+          ~default:(fun () -> ref (Or(e1_2, e2_2))) in
+        let ref_tup = Hashtbl.Poly.find_or_add !b (ref_or1, ref_or2, Tup_ind)
+          ~default:(fun () -> ref (Tup(ref_or1, ref_or2))) in
+        ref_tup
+      | Tup(e1_1, e1_2), _ ->
+        let ref_or1 = Hashtbl.Poly.find_or_add !b (e1_1, e2', Or_ind)
+          ~default:(fun () -> ref (Or(e1_1, e2'))) in
+        let ref_or2 = Hashtbl.Poly.find_or_add !b (e1_2, e2', Or_ind)
+          ~default:(fun () -> ref (Or(e1_2, e2'))) in
+        let ref_tup = Hashtbl.Poly.find_or_add !b (ref_or1, ref_or2, Tup_ind)
+          ~default:(fun () -> ref (Tup(ref_or1, ref_or2))) in
+        ref_tup
+      | _, Tup(e2_1, e2_2) ->
+        let ref_or1 = Hashtbl.Poly.find_or_add !b (e1', e2_1, Or_ind)
+          ~default:(fun () -> ref (Or(e1', e2_1))) in
+        let ref_or2 = Hashtbl.Poly.find_or_add !b (e1', e2_2, Or_ind)
+          ~default:(fun () -> ref (Or(e1', e2_2))) in
+        let ref_tup = Hashtbl.Poly.find_or_add !b (ref_or1, ref_or2, Tup_ind)
+          ~default:(fun () -> ref (Tup(ref_or1, ref_or2))) in
+        ref_tup
+      | _ -> 
+        let ref_or = Hashtbl.Poly.find_or_add !b (e1', e2', Or_ind)
+          ~default:(fun () -> ref (Or(e1', e2'))) in
+        ref_or)
+    | Atom(_) | True | Not(_) | Tup(_) -> e
+  in
+  extract_tup_e e
 
 let size_of_lf (p: program) : int =
   let rec size (e: expr ref) (acc: int) : int =
