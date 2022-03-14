@@ -406,29 +406,23 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
     | TBool -> 
       (match !e with
       | And(_) | Or(_)| Atom(_) | True | Not(_) ->
-        (* let x, s = gen_subf e in
+        let x, s = gen_subf e in
         let x_neg, s_neg = gen_neg x s in
         let pos_cnf = gen_cnf x s in
         let neg_cnf = gen_cnf x_neg s_neg in
-        [(`True, x, pos_cnf); (`False, x_neg, neg_cnf)] *)
-        let x, s = gen_subf e in
-        let pos_cnf = gen_cnf x s in
-        [(`True, x, pos_cnf)]
+        [(`True, x, pos_cnf); (`False, x_neg, neg_cnf)]
       | _ -> failwith "Unreachable")
     | TInt(1) ->
       (match !e with
       | And(_) | Or(_)| Atom(_) | True | Not(_) ->
-        (* let x, s = gen_subf e in
+        let x, s = gen_subf e in
         let x_neg, s_neg = gen_neg x s in
         let pos_cnf = gen_cnf x s in
         let neg_cnf = gen_cnf x_neg s_neg in
-        [(`Int(0), x_neg, neg_cnf); (`Int(1), x, pos_cnf)] *)
-        let x, s = gen_subf e in
-        let pos_cnf = gen_cnf x s in
-        [(`Int(1), x, pos_cnf)]
+        [(`Int(0), x_neg, neg_cnf); (`Int(1), x, pos_cnf)]
       | _ -> failwith "Unreachable")
     | TInt(sz) ->
-      (* let e1, e2 = match !(LF.extract_tup e p.binary) with
+      let e1, e2 = match !(LF.extract_tup e p.binary) with
       | Tup(e1, e2) -> e1, e2
       | _ -> failwith "Unreachable"
       in 
@@ -452,18 +446,7 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
             `Int(tval) -> `Int(tval + curbitvalue), and_x, and_cnf
           | _ -> failwith "Unreachable"
         ) in
-      lower @ upper *)
-      (* let e1, e2 = match !(LF.extract_tup e p.binary) with
-      | Tup(e1, e2) -> e1, e2
-      | _ -> failwith "Unreachable"
-      in 
-      let x, s = gen_subf e in
-      let x_neg, s_neg = gen_neg x s in
-      let pos_cnf = gen_cnf x s in
-      let neg_cnf = gen_cnf x_neg s_neg in *)
-      let x, s = gen_subf e in
-      let pos_cnf = gen_cnf x s in
-      [(`Int(sz), x, pos_cnf)]
+      lower @ upper
     | TTuple(t1, t2) ->
       (match !e with
       | Tup(e1, e2) -> 
@@ -493,55 +476,78 @@ let compute_cnf ?debug (sharpsat_dir: String.t) (wcnf: LF.wcnf) : (LF.label * Bi
 
   let gen_output_cnf (c: LF.cnf) =
     let env = Hashtbl.Poly.create () in
+    let temp_name, temp_outchannel = Filename.open_temp_file "dice" ".cnf" in
+
     let n = ref 0 in
     let fresh () =
       n := !n + 1;
       (Format.sprintf "%d" !n)
     in
+
+    let cnf_string = Stdlib.Buffer.create 1000000 in
   
-    let res, n_clauses = List.fold c ~init:("",0) ~f:(fun (r,n) d ->
+    let n_clauses = List.fold c ~init:0 ~f:(fun n d ->
       match d with
-      | [] -> r, n
+      | [] -> n
       | _ ->
-        let clause = Hashtbl.Poly.find_or_add cnf_subf d ~default:(fun () ->
-          List.fold d ~init:"" ~f:(fun acc l ->
-            match l with
-            | Pos(var) -> 
-              (match Hashtbl.Poly.find env var with
+        Stdlib.Buffer.add_char cnf_string '\n';
+        List.iter d ~f:(fun l ->
+          match l with
+          | Pos(var) -> 
+            let x = 
+              match Hashtbl.Poly.find env var with
               | None -> 
                 let x = fresh() in
                 Hashtbl.Poly.add_exn env ~key:var ~data:x;
-                (Format.sprintf "%s%s " acc x)
-              | Some(x) ->
-                (Format.sprintf "%s%s " acc x))
-            | Neg(var) ->
-              (match Hashtbl.Poly.find env var with
+                x
+              | Some(x) -> x 
+            in
+            Stdlib.Buffer.add_string cnf_string x;
+            Stdlib.Buffer.add_char cnf_string ' ';
+          | Neg(var) ->
+            let x = 
+              match Hashtbl.Poly.find env var with
               | None -> 
                 let x = fresh() in
                 Hashtbl.Poly.add_exn env ~key:var ~data:x;
-                (Format.sprintf "%s-%s " acc x)
-              | Some(x) ->
-                (Format.sprintf "%s-%s " acc x)))
-        ) in
+                x
+              | Some(x) -> x
+            in
+            Stdlib.Buffer.add_char cnf_string '-';
+            Stdlib.Buffer.add_string cnf_string x;
+            Stdlib.Buffer.add_char cnf_string ' ';);
         
-        (Format.sprintf "%s\n%s0" r clause), (n+1))
+        Stdlib.Buffer.add_char cnf_string '0';
+        (n+1))
     in
   
-    let res, n_vars = Hashtbl.Poly.fold env ~init:(res, 0) ~f:(fun ~key:var ~data:x (r,n) ->
-      let line = 
-        match Hashtbl.Poly.find wcnf.weights var with
-        | None -> ""
-        | Some(f) -> (Format.sprintf "\nc p weight %s %s 0" x (Bignum.to_string_accurate f))
-      in
-      (Format.sprintf "%s%s" r line), n+1)
+    let n_vars = Hashtbl.Poly.fold env ~init:0 ~f:(fun ~key:var ~data:x n ->
+      (match Hashtbl.Poly.find wcnf.weights var with
+      | None -> ()
+      | Some(f) -> 
+        Stdlib.Buffer.add_string cnf_string "\nc p weight ";
+        Stdlib.Buffer.add_string cnf_string x;
+        Stdlib.Buffer.add_char cnf_string ' ';
+        Stdlib.Buffer.add_string cnf_string (Bignum.to_string_accurate f);
+        Stdlib.Buffer.add_string cnf_string " 0";);
+      n+1)
     in
   
-    let res = Format.sprintf "p cnf %d %d%s" n_vars n_clauses res in
-    res 
+    let n_clauses_string = Format.sprintf "%d " n_clauses in
+    let n_vars_string = Format.sprintf "%d " n_vars in
+
+    let cnf_output = Stdlib.Buffer.create 1000000 in
+    Stdlib.Buffer.add_string cnf_output "p cnf ";
+    Stdlib.Buffer.add_string cnf_output n_vars_string;
+    Stdlib.Buffer.add_string cnf_output n_clauses_string;
+    Stdlib.Buffer.add_buffer cnf_output cnf_string;
+
+    (* write to temp file *)
+    protect ~f:(fun () -> Stdlib.Buffer.output_buffer temp_outchannel cnf_output) ~finally:(fun() ->Out_channel.close temp_outchannel);
+    temp_name
   in
 
-  let call_sharpsat (cnf_content: String.t) : Bignum.t * Bignum.t = 
-    let temp_name, temp_outchannel = Filename.open_temp_file "dice" ".cnf" in
+  let call_sharpsat (temp_name: String.t) : Bignum.t * Bignum.t = 
     let cwd = Unix.getcwd () in
     let cmd = "./sharpSAT" in
     let cmd = Format.sprintf "%s -WD -decot 1 -decow 100 -tmpdir . -cs 3500 %s" cmd temp_name in
@@ -551,9 +557,6 @@ let compute_cnf ?debug (sharpsat_dir: String.t) (wcnf: LF.wcnf) : (LF.label * Bi
     | _ -> ());
 
     Format.printf "Call: %s\n" cmd;
-
-    (* write to temp file *)
-    protect ~f:(fun ()->fprintf temp_outchannel "%s" cnf_content) ~finally:(fun() ->Out_channel.close temp_outchannel);
     
     (* call sharpSAT *)
     Unix.chdir sharpsat_dir;
@@ -599,11 +602,11 @@ let compute_cnf ?debug (sharpsat_dir: String.t) (wcnf: LF.wcnf) : (LF.label * Bi
 
   List.map wcnf.table ~f:(fun (label, cnf_expr) -> 
     let cnf_t1 = Time.now() in
-    let cnf_content = gen_output_cnf cnf_expr in
+    let temp_name = gen_output_cnf cnf_expr in
     let cnf_t2 = Time.now() in
     let cnf_time = Time.diff cnf_t2 cnf_t1 in
     Format.printf "%s\n" (Time.Span.to_string cnf_time);
-    let prob, decisions = call_sharpsat cnf_content in
+    let prob, decisions = call_sharpsat temp_name in
     if Bignum.(prob = zero) then (label, Bignum.zero, decisions) else
       (label, prob, decisions))
 
