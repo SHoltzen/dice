@@ -1436,21 +1436,35 @@ let from_core_prog (p: CG.program) : LF.program =
   let e = p.body in
   let ref_true = ref True in
   let ref_false = ref (Not(ref_true)) in
+  
+  let is_true_ref (e: LF.expr ref) : bool =
+    match !e with
+    | True -> true
+    | _ -> false
+  in
+  let is_false_ref (e: LF.expr ref) : bool =
+    match !e with
+    | Not(e1) ->
+      (match !e1 with 
+      | True -> true
+      | _ -> false)
+    | _ -> false
+  in
 
   let is_const (e: LF.expr ref) : bool =
     match !e with
     | True -> true
-    | Not(e1) -> phys_equal e1 ref_true
-    | Or(e1, e2) -> (phys_equal e1 ref_true) || (phys_equal e2 ref_true)
-    | And(e1, e2) -> (phys_equal e1 ref_false) || (phys_equal e2 ref_false)
+    | Not(e1) -> is_true_ref e1
+    | Or(e1, e2) -> is_true_ref e1 || is_true_ref e2
+    | And(e1, e2) -> is_false_ref e1 || is_false_ref e2
     | _ -> false
   in
   let is_true (e: LF.expr ref) : bool = 
     match !e with
     | True -> true
-    | Or(e1, e2) -> (phys_equal e1 ref_true) || (phys_equal e2 ref_true)
-    | Not(e1) -> not (phys_equal e1 ref_true)
-    | And(e1, e2) -> (phys_equal e1 ref_false) || (phys_equal e2 ref_false)
+    | Or(e1, e2) -> is_true_ref e1 || is_true_ref e2
+    | Not(e1) -> not (is_true_ref e1)
+    | And(e1, e2) -> is_true_ref e1 && is_true_ref e2
     | _ -> failwith "Expression is not a constant"
   in
   let weights = Hashtbl.Poly.create () in
@@ -1586,11 +1600,11 @@ let from_core_prog (p: CG.program) : LF.program =
     | And(e1, e2) -> 
       let e1' = remove_redundancy e1 in
       let e2' = remove_redundancy e2 in
-      if phys_equal e1' ref_true then
+      if is_true_ref e1' then
         e2'
-      else if phys_equal e2' ref_true then
+      else if is_true_ref e2' then
           e1'
-      else if phys_equal e1' ref_false || phys_equal e2' ref_false then
+      else if is_false_ref e1' || is_false_ref e2' then
           ref_false
       else
         let ref_node = Hashtbl.Poly.find_or_add binary (e1', e2', And_ind)

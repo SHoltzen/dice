@@ -130,11 +130,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
       let s_dir = match sharpsat_dir with None -> "../sharpsat-td/bin/" | Some(d) -> d in
       
       let sharpsat_t1 = Time.now() in
-      let probs = List.map wcnf.table ~f:(fun (label, cnf_expr) -> 
-        let prob, decisions = Compiler.compute_cnf ~debug:verbose s_dir cnf_expr wcnf.weights in
-        if Bignum.(prob = zero) then (label, Bignum.zero, decisions) else
-          (label, prob, decisions))
-      in
+      let probs = Compiler.compute_cnf ~debug:verbose s_dir wcnf in
       let sharpsat_t2 = Time.now() in
       
       let res = if show_time then

@@ -352,36 +352,44 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
 
   let rec gen_subf (e: LF.expr ref) : String.t * LF.cnf =
     let open LogicalFormula in
-    match !e with
-    | And(e1, e2) -> 
-      let x1, s1 = gen_subf e1 in
-      let x2, s2 = gen_subf e2 in
-      gen_and x1 s1 x2 s2
-    | Or(e1, e2) -> 
-      let x1, s1 = gen_subf e1 in
-      let x2, s2 = gen_subf e2 in
-      let x = fresh() in
+    
+    let def_func = match !e with
+      | And(e1, e2) -> 
+        (fun () -> 
+          let x1, s1 = gen_subf e1 in
+          let x2, s2 = gen_subf e2 in
+          gen_and x1 s1 x2 s2)
+      | Or(e1, e2) -> 
+        (fun () -> 
+          let x1, s1 = gen_subf e1 in
+          let x2, s2 = gen_subf e2 in
+          let x = fresh() in
 
-      (* !t1 | (x1 | x2) => (!t1 | x1 | x2)
-         t1 | !(x1 | x2) => (t1 | !x1) & (t1 | !x2) *)
-      let subf_1 = match x1, x2 with 
-      | "", _ | _, "" -> []
-      | _, _ -> [Neg(x); Pos(x1); Pos(x2)]
-      in
-      let subf_2 = [Pos(x); Neg(x1)] in
-      let subf_3 = [Pos(x); Neg(x2)] in
-      
-      let subf = subf_1::subf_2::subf_3::[] in
-      x, (subf@s1@s2)
-    | Atom(x) -> x, []
-    | True -> "", []
-    | Not(e1) -> 
-      let x1, s1 = gen_subf e1 in
-      gen_neg x1 s1
-    | Tup(e1, e2) -> 
-      let tup = ref (And(e1, e2)) in 
-      let x1, s1 = gen_subf tup in
-      x1, s1      
+          (* !t1 | (x1 | x2) => (!t1 | x1 | x2)
+            t1 | !(x1 | x2) => (t1 | !x1) & (t1 | !x2) *)
+          let subf_1 = match x1, x2 with 
+          | "", _ | _, "" -> []
+          | _, _ -> [Neg(x); Pos(x1); Pos(x2)]
+          in
+          let subf_2 = [Pos(x); Neg(x1)] in
+          let subf_3 = [Pos(x); Neg(x2)] in
+          
+          let subf = subf_1::subf_2::subf_3::[] in
+          x, (subf@s1@s2))
+      | Atom(x) -> (fun () -> x, [])
+      | True -> (fun () -> "", [])
+      | Not(e1) -> 
+        (fun () -> 
+          let x1, s1 = gen_subf e1 in
+          gen_neg x1 s1)
+      | Tup(e1, e2) -> 
+        (fun () -> 
+          let tup = ref (And(e1, e2)) in 
+          let x1, s1 = gen_subf tup in
+          x1, s1)
+    in
+    let x, subf = Hashtbl.Poly.find_or_add cnf_nodes e ~default:def_func in
+    x, subf
   in
 
   let gen_cnf (x: String.t) (e: LF.cnf) : LF.cnf =
@@ -393,28 +401,34 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
 
   let rec gen_table (e:LF.expr ref) t = 
     let open ExternalGrammar in
-    let open LogicalFormula in
+    let open LogicalFormula in    
     match t with
     | TBool -> 
       (match !e with
       | And(_) | Or(_)| Atom(_) | True | Not(_) ->
-        let x, s = gen_subf e in
+        (* let x, s = gen_subf e in
         let x_neg, s_neg = gen_neg x s in
         let pos_cnf = gen_cnf x s in
         let neg_cnf = gen_cnf x_neg s_neg in
-        [(`True, x, pos_cnf); (`False, x_neg, neg_cnf)]
+        [(`True, x, pos_cnf); (`False, x_neg, neg_cnf)] *)
+        let x, s = gen_subf e in
+        let pos_cnf = gen_cnf x s in
+        [(`True, x, pos_cnf)]
       | _ -> failwith "Unreachable")
     | TInt(1) ->
       (match !e with
       | And(_) | Or(_)| Atom(_) | True | Not(_) ->
-        let x, s = gen_subf e in
+        (* let x, s = gen_subf e in
         let x_neg, s_neg = gen_neg x s in
         let pos_cnf = gen_cnf x s in
         let neg_cnf = gen_cnf x_neg s_neg in
-        [(`Int(0), x_neg, neg_cnf); (`Int(1), x, pos_cnf)]
+        [(`Int(0), x_neg, neg_cnf); (`Int(1), x, pos_cnf)] *)
+        let x, s = gen_subf e in
+        let pos_cnf = gen_cnf x s in
+        [(`Int(1), x, pos_cnf)]
       | _ -> failwith "Unreachable")
     | TInt(sz) ->
-      let e1, e2 = match !(LF.extract_tup e p.binary) with
+      (* let e1, e2 = match !(LF.extract_tup e p.binary) with
       | Tup(e1, e2) -> e1, e2
       | _ -> failwith "Unreachable"
       in 
@@ -438,7 +452,18 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
             `Int(tval) -> `Int(tval + curbitvalue), and_x, and_cnf
           | _ -> failwith "Unreachable"
         ) in
-      lower @ upper
+      lower @ upper *)
+      (* let e1, e2 = match !(LF.extract_tup e p.binary) with
+      | Tup(e1, e2) -> e1, e2
+      | _ -> failwith "Unreachable"
+      in 
+      let x, s = gen_subf e in
+      let x_neg, s_neg = gen_neg x s in
+      let pos_cnf = gen_cnf x s in
+      let neg_cnf = gen_cnf x_neg s_neg in *)
+      let x, s = gen_subf e in
+      let pos_cnf = gen_cnf x s in
+      [(`Int(sz), x, pos_cnf)]
     | TTuple(t1, t2) ->
       (match !e with
       | Tup(e1, e2) -> 
@@ -462,105 +487,126 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
 
   {table=tbl_cnfs; weights=p.weights}
 
-let gen_output_cnf (c: LF.cnf) (w: LF.weights) =
-  let env = Hashtbl.Poly.create () in
-  let n = ref 0 in
-  let fresh () =
-    n := !n + 1;
-    (Format.sprintf "%d" !n)
-  in
 
-  let res, n_clauses = List.fold c ~init:("",0) ~f:(fun (r,n) d ->
-    let clause = List.fold d ~init:"" ~f:(fun acc l ->
-      match l with
-      | Pos(var) -> 
-        (match Hashtbl.Poly.find env var with
-        | None -> 
-          let x = fresh() in
-          Hashtbl.Poly.add_exn env ~key:var ~data:x;
-          (Format.sprintf "%s%s " acc x)
-        | Some(x) ->
-          (Format.sprintf "%s%s " acc x))
-      | Neg(var) ->
-        (match Hashtbl.Poly.find env var with
-        | None -> 
-          let x = fresh() in
-          Hashtbl.Poly.add_exn env ~key:var ~data:x;
-          (Format.sprintf "%s-%s " acc x)
-        | Some(x) ->
-          (Format.sprintf "%s-%s " acc x)))
+let compute_cnf ?debug (sharpsat_dir: String.t) (wcnf: LF.wcnf) : (LF.label * Bignum.t * Bignum.t) List.t = 
+  let cnf_subf = Hashtbl.Poly.create () in
+
+  let gen_output_cnf (c: LF.cnf) =
+    let env = Hashtbl.Poly.create () in
+    let n = ref 0 in
+    let fresh () =
+      n := !n + 1;
+      (Format.sprintf "%d" !n)
     in
-
-    (Format.sprintf "%s\n%s0" r clause), (n+1))
-  in
-
-  let res, n_vars = Hashtbl.Poly.fold env ~init:(res, 0) ~f:(fun ~key:var ~data:x (r,n) ->
-    let line = 
-      match Hashtbl.Poly.find w var with
-      | None -> ""
-      | Some(f) -> (Format.sprintf "\nc p weight %s %s 0" x (Bignum.to_string_accurate f))
+  
+    let res, n_clauses = List.fold c ~init:("",0) ~f:(fun (r,n) d ->
+      match d with
+      | [] -> r, n
+      | _ ->
+        let clause = Hashtbl.Poly.find_or_add cnf_subf d ~default:(fun () ->
+          List.fold d ~init:"" ~f:(fun acc l ->
+            match l with
+            | Pos(var) -> 
+              (match Hashtbl.Poly.find env var with
+              | None -> 
+                let x = fresh() in
+                Hashtbl.Poly.add_exn env ~key:var ~data:x;
+                (Format.sprintf "%s%s " acc x)
+              | Some(x) ->
+                (Format.sprintf "%s%s " acc x))
+            | Neg(var) ->
+              (match Hashtbl.Poly.find env var with
+              | None -> 
+                let x = fresh() in
+                Hashtbl.Poly.add_exn env ~key:var ~data:x;
+                (Format.sprintf "%s-%s " acc x)
+              | Some(x) ->
+                (Format.sprintf "%s-%s " acc x)))
+        ) in
+        
+        (Format.sprintf "%s\n%s0" r clause), (n+1))
     in
-    (Format.sprintf "%s%s" r line), n+1)
+  
+    let res, n_vars = Hashtbl.Poly.fold env ~init:(res, 0) ~f:(fun ~key:var ~data:x (r,n) ->
+      let line = 
+        match Hashtbl.Poly.find wcnf.weights var with
+        | None -> ""
+        | Some(f) -> (Format.sprintf "\nc p weight %s %s 0" x (Bignum.to_string_accurate f))
+      in
+      (Format.sprintf "%s%s" r line), n+1)
+    in
+  
+    let res = Format.sprintf "p cnf %d %d%s" n_vars n_clauses res in
+    res 
   in
 
-  let res = Format.sprintf "p cnf %d %d%s" n_vars n_clauses res in
-  res 
+  let call_sharpsat (cnf_content: String.t) : Bignum.t * Bignum.t = 
+    let temp_name, temp_outchannel = Filename.open_temp_file "dice" ".cnf" in
+    let cwd = Unix.getcwd () in
+    let cmd = "./sharpSAT" in
+    let cmd = Format.sprintf "%s -WD -decot 1 -decow 100 -tmpdir . -cs 3500 %s" cmd temp_name in
+    (match debug with
+    | Some(true)->
+      Format.printf "Call: %s\n" cmd;
+    | _ -> ());
 
-let compute_cnf ?debug (sharpsat_dir: String.t) (c: LF.cnf) (w: LF.weights) : Bignum.t * Bignum.t = 
-  let cnf_content = gen_output_cnf c w in
-  let temp_name, temp_outchannel = Filename.open_temp_file "dice" ".cnf" in
-  let cwd = Unix.getcwd () in
-  let cmd = "./sharpSAT" in
-  let cmd = Format.sprintf "%s -WD -decot 60 -decow 100 -tmpdir . -cs 3500 %s" cmd temp_name in
-  (match debug with
-   | Some(true)->
     Format.printf "Call: %s\n" cmd;
-   | _ -> ());
 
-  (* write to temp file *)
-	protect ~f:(fun ()->fprintf temp_outchannel "%s" cnf_content) ~finally:(fun() ->Out_channel.close temp_outchannel);
-  
-  (* call sharpSAT *)
-  Unix.chdir sharpsat_dir;
-  let inp = Unix.open_process_in cmd in
-  let r = In_channel.input_lines inp in
-  In_channel.close inp;
-  Unix.chdir cwd;
+    (* write to temp file *)
+    protect ~f:(fun ()->fprintf temp_outchannel "%s" cnf_content) ~finally:(fun() ->Out_channel.close temp_outchannel);
+    
+    (* call sharpSAT *)
+    Unix.chdir sharpsat_dir;
+    let inp = Unix.open_process_in cmd in
+    let r = In_channel.input_lines inp in
+    In_channel.close inp;
+    Unix.chdir cwd;
 
-  (* get result *)
-  let p = match List.last r with
-  | None -> failwith "Could not run sharpSAT"
-  | Some(r) -> 
-    let lst_line = String.split r ~on:' ' in
-    let r = match List.last lst_line with
-      | None -> failwith "Could not parse sharpSAT results"
-      | Some(r) -> r
-    in 
-    r
+    (* get result *)
+    let p = match List.last r with
+    | None -> failwith "Could not run sharpSAT"
+    | Some(r) -> 
+      let lst_line = String.split r ~on:' ' in
+      let r = match List.last lst_line with
+        | None -> failwith "Could not parse sharpSAT results"
+        | Some(r) -> r
+      in 
+      r
+    in
+
+    let p = try Bignum.of_string p with
+      _ -> failwith "sharpSAT did not solve within an hour"
+    in
+
+    (* get decisions *)
+    let d = List.fold r ~init:"0" ~f:(fun acc line ->
+      let lst_line = String.split line ~on:' ' in
+      match lst_line with
+      | ["c"; "o"; "decisions"; _] ->
+        (match List.last lst_line with
+        | None -> failwith "Could not parse sharpSAT results"
+        | Some(r) -> String.strip r) 
+      | _ -> acc
+    )
+    in
+
+    let d = try Bignum.of_string d with
+      _ -> failwith "sharpSAT did not solve within an hour"
+    in
+
+    p, d
   in
 
-  let p = try Bignum.of_string p with
-    _ -> failwith "sharpSAT did not solve within an hour"
-  in
+  List.map wcnf.table ~f:(fun (label, cnf_expr) -> 
+    let cnf_t1 = Time.now() in
+    let cnf_content = gen_output_cnf cnf_expr in
+    let cnf_t2 = Time.now() in
+    let cnf_time = Time.diff cnf_t2 cnf_t1 in
+    Format.printf "%s\n" (Time.Span.to_string cnf_time);
+    let prob, decisions = call_sharpsat cnf_content in
+    if Bignum.(prob = zero) then (label, Bignum.zero, decisions) else
+      (label, prob, decisions))
 
-  (* get decisions *)
-  let d = List.fold r ~init:"0" ~f:(fun acc line ->
-    let lst_line = String.split line ~on:' ' in
-    match lst_line with
-    | ["c"; "o"; "decisions"; _] ->
-      (match List.last lst_line with
-      | None -> failwith "Could not parse sharpSAT results"
-      | Some(r) -> String.strip r) 
-    | _ -> acc
-  )
-  in
-
-  let d = try Bignum.of_string d with
-    _ -> failwith "sharpSAT did not solve within an hour"
-  in
-
-  p, d
-  
 
 let get_prob p =
   let c = compile_program ~eager_eval:false p in
