@@ -550,14 +550,12 @@ let compute_cnf ?debug (sharpsat_dir: String.t) (wcnf: LF.wcnf) : (LF.label * Bi
   let call_sharpsat (temp_name: String.t) : Bignum.t * Bignum.t = 
     let cwd = Unix.getcwd () in
     let cmd = "./sharpSAT" in
-    let cmd = Format.sprintf "%s -WD -decot 1 -decow 100 -tmpdir . -cs 3500 %s" cmd temp_name in
+    let cmd = Format.sprintf "%s -WD -decot 30 -decow 100 -tmpdir . -cs 3500 %s" cmd temp_name in
     (match debug with
     | Some(true)->
       Format.printf "Call: %s\n" cmd;
     | _ -> ());
 
-    Format.printf "Call: %s\n" cmd;
-    
     (* call sharpSAT *)
     Unix.chdir sharpsat_dir;
     let inp = Unix.open_process_in cmd in
@@ -605,7 +603,10 @@ let compute_cnf ?debug (sharpsat_dir: String.t) (wcnf: LF.wcnf) : (LF.label * Bi
     let temp_name = gen_output_cnf cnf_expr in
     let cnf_t2 = Time.now() in
     let cnf_time = Time.diff cnf_t2 cnf_t1 in
-    Format.printf "%s\n" (Time.Span.to_string cnf_time);
+    (match debug with
+    | Some(true)->
+      Format.printf "Gen CNF File Time: %s\n" (Time.Span.to_string cnf_time);
+    | _ -> ());
     let prob, decisions = call_sharpsat temp_name in
     if Bignum.(prob = zero) then (label, Bignum.zero, decisions) else
       (label, prob, decisions))

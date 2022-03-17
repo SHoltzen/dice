@@ -1464,7 +1464,7 @@ let from_core_prog (p: CG.program) : LF.program =
     | True -> true
     | Or(e1, e2) -> is_true_ref e1 || is_true_ref e2
     | Not(e1) -> not (is_true_ref e1)
-    | And(e1, e2) -> is_true_ref e1 && is_true_ref e2
+    | And(e1, e2) -> not (is_false_ref e1 || is_false_ref e2)
     | _ -> failwith "Expression is not a constant"
   in
   let weights = Hashtbl.Poly.create () in
@@ -1613,11 +1613,11 @@ let from_core_prog (p: CG.program) : LF.program =
     | Or(e1, e2) -> 
       let e1' = remove_redundancy e1 in
       let e2' = remove_redundancy e2 in
-      if phys_equal e1' ref_true || phys_equal e2' ref_true then
+      if is_true_ref e1' || is_true_ref e2' then
         ref_true
-      else if phys_equal e1' ref_false then
+      else if is_false_ref e1' then
         e2'
-      else if phys_equal e2' ref_false then
+      else if is_false_ref e2' then
         e1'
       else
         let ref_node = Hashtbl.Poly.find_or_add binary (e1', e2', Or_ind)
