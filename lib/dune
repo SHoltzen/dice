@@ -11,6 +11,7 @@
   (no-infer
     (progn
       (chdir ../rsdd (run cargo build --release))
+      (copy ../rsdd/target/release/librsdd.dylib ../rsdd/target/release/librsdd.so)
       (copy ../rsdd/target/release/librsdd.so dllrsdd.so)
       (copy ../rsdd/target/release/librsdd.a librsdd.a)
       ))))
@@ -22,4 +23,3 @@
  (library_flags (-linkall))
  (name diceLib)
  (preprocess (pps ppx_jane)))
-
