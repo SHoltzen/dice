@@ -311,6 +311,7 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
     let x = Format.sprintf "x_%d" !subfx in
     x
   in
+  let true_clause = fresh () in
 
   let cnf_nodes = Hashtbl.Poly.create () in
 
@@ -322,9 +323,7 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
     (* !t1 | !x1
         t1 | x1 *)
     let subf_1 = [Neg(x); Neg(x1)] in
-    let subf_2 = match x1 with
-    | "" -> []
-    | _ -> [Pos(x); Pos(x1)] in
+    let subf_2 = if String.equal x1 true_clause then [] else [Pos(x); Pos(x1)] in
     
     let subf = subf_1::subf_2::[] in
     x, (subf@s1)
@@ -336,14 +335,8 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
 
     (* !t1 | (x1 & x2) => (!t1 | x1) & (!t1 | x2)
       t1 | !(x1 & x2) => (t1 | !x1 | !x2)  *)
-    let subf_1 = match x1 with 
-    | "" -> []
-    | _ -> [Neg(x); Pos(x1)]
-    in
-    let subf_2 = match x2 with
-    | "" -> []
-    | _ -> [Neg(x); Pos(x2)]
-    in
+    let subf_1 = if String.equal x1 true_clause then [] else [Neg(x); Pos(x1)] in
+    let subf_2 = if String.equal x2 true_clause then [] else [Neg(x); Pos(x2)] in
     let subf_3 = [Pos(x); Neg(x1); Neg(x2)] in
     
     let subf = subf_1::subf_2::subf_3::[] in
@@ -367,17 +360,15 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
 
           (* !t1 | (x1 | x2) => (!t1 | x1 | x2)
             t1 | !(x1 | x2) => (t1 | !x1) & (t1 | !x2) *)
-          let subf_1 = match x1, x2 with 
-          | "", _ | _, "" -> []
-          | _, _ -> [Neg(x); Pos(x1); Pos(x2)]
-          in
+          let subf_1 = if (String.equal x1 true_clause) || (String.equal x2 true_clause) then 
+            [] else [Neg(x); Pos(x1); Pos(x2)] in
           let subf_2 = [Pos(x); Neg(x1)] in
           let subf_3 = [Pos(x); Neg(x2)] in
           
           let subf = subf_1::subf_2::subf_3::[] in
           x, (subf@s1@s2))
       | Atom(x) -> (fun () -> x, [])
-      | True -> (fun () -> "", [])
+      | True -> (fun () -> true_clause, [[Pos(true_clause)]])
       | Not(e1) -> 
         (fun () -> 
           let x1, s1 = gen_subf e1 in
