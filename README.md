@@ -98,6 +98,15 @@ false	0.651163
 
 This output shows that `a` has a 34.8837% chance of landing on heads.
 
+## Optimizations
+
+The Dice compiler has the following built-in optimizations and alternative run-time modes 
+that are activated with the following flags:
+
+* `-determinism`: replaces deterministic probabilistic choices with non-random choices (i.e., `flip 1.0` becomes `true`). It is recommended that this flag be enabled for most cases.
+* `-eager-eval`: changes the compilation order to avoid substitution during compilation. Can perform faster than the default compilation order on certain cases.
+* `-flip-lifting`: removes redundant `flip` expressions from certain classes of programs -- can increase performance.
+
 ## Datatypes
 In addition to Booleans, `dice` supports integers, tuples, and lists.
 
