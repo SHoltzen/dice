@@ -40,11 +40,9 @@ exception Syntax_error of string
 (** [parse_with_error] parses [lexbuf] as a program or fails with a syntax error *)
 val parse_with_error: Lexing.lexbuf -> ExternalGrammar.program
 
-(** [parse_and_prob]: [debug flag] -> [program text] -> [prob]
+(** [parse_and_prob]: [debug flag] -> [program text] -> [optimize] -> [prob]
     Parses and prints the probability of [program text]. *)
-val parse_and_prob: ?debug:bool -> string -> float
-
-val parse_optimize_and_prob: ?debug:bool -> string -> float
+val parse_and_prob: ?debug:bool -> string -> bool -> float
 
 (** prints the current position of the lex buffer to the out channel *)
 val print_position : out_channel -> Lexing.lexbuf -> unit

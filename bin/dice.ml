@@ -93,15 +93,10 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
   let parsed_marginals = match partial_marginals with
   | None -> Passes.select_marginals random_marginal parsed_norec
   | Some(x) -> Passes.select_marginals ~partial:x random_marginal parsed_norec in
-  let optimize = local_hoisting || global_hoisting || branch_elimination || determinism in
   let (t, internal) =
-    if inline_functions && optimize then
-      (from_external_prog_optimize ~cfg sbk_encoding (Passes.inline_functions parsed_marginals) local_hoisting global_hoisting max_flips branch_elimination determinism)
-    else if inline_functions && not optimize then
-      (from_external_prog ~cfg sbk_encoding (Passes.inline_functions parsed_marginals))
-    else if not inline_functions && optimize then
-      (from_external_prog_optimize ~cfg sbk_encoding parsed_marginals local_hoisting global_hoisting max_flips branch_elimination determinism)
-    else from_external_prog ~cfg sbk_encoding parsed_marginals in
+    let inlined = if inline_functions then Passes.inline_functions parsed_marginals else parsed_marginals in
+    (from_external_prog ~cfg sbk_encoding inlined local_hoisting global_hoisting max_flips branch_elimination determinism)
+  in
   let res = if print_internal then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog internal)] else res in
   let res = if print_unparsed then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog_unparsed internal)] else res in
   let res = if show_flip_count then res @ [StringRes("Number of flips", CoreGrammar.count_flips internal)] else res in

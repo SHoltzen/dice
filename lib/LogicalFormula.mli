@@ -27,8 +27,6 @@ type unary = (expr ref, expr ref) Core.Hashtbl.Poly.t
 type program = {
   body: expr ref;
   weights: weights;
-  binary: binary ref;
-  unary: unary ref;
 }
 [@@deriving sexp_of]
 
@@ -57,7 +55,5 @@ val string_of_prog : program -> String.t
 
 val string_of_cnf : cnf -> String.t
 val string_of_wcnf : wcnf -> String.t
-
-val extract_tup : expr ref -> binary ref -> expr ref
 
 val size_of_lf : program -> int

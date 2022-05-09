@@ -250,8 +250,7 @@ let compile_to_bdd (p: LF.program) : compiled_program =
   let ctx = new_context false () in
   let env = Hashtbl.Poly.create () in
   let w = p.weights in
-  let b = p.binary in
-  let e = LF.extract_tup p.body b in
+  let e = p.body in
   (* let u = p.unary in *)
   let rec compile_expr_bdd (ctx: compile_context) (e: LF.expr ref) : compiled_expr =
     
@@ -413,7 +412,7 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
         [(`Int(0), x_neg, neg_cnf); (`Int(1), x, pos_cnf)]
       | _ -> failwith "Unreachable")
     | TInt(sz) ->
-      let e1, e2 = match !(LF.extract_tup e p.binary) with
+      let e1, e2 = match !e with
       | Tup(e1, e2) -> e1, e2
       | _ -> failwith "Unreachable"
       in 
@@ -627,7 +626,7 @@ let print_position outx lexbuf =
 
 
 (** [parse_and_prob] parses and computes the probability for string [txt] *)
-let parse_and_prob ?debug txt =
+let parse_and_prob ?debug txt optimize =
   let buf = Lexing.from_string txt in
   let parsed = try Parser.program Lexer.token buf with
   | SyntaxError msg ->
@@ -636,24 +635,7 @@ let parse_and_prob ?debug txt =
   | Parser.Error ->
     fprintf stderr "%a: syntax error\n" print_position buf;
     failwith (Format.sprintf "Error parsing %s" txt) in
-  let (_, transformed) = Passes.from_external_prog false (Passes.expand_recursion parsed) in
-  (match debug with
-   | Some(true)->
-     Format.printf "Program: %s\n" (ExternalGrammar.string_of_prog parsed);
-     Format.printf "After passes: %s\n" (CoreGrammar.string_of_prog (transformed));
-   | _ -> ());
-   Bignum.to_float (get_prob transformed)
-
-let parse_optimize_and_prob ?debug txt =
-  let buf = Lexing.from_string txt in
-  let parsed = try Parser.program Lexer.token buf with
-  | SyntaxError msg ->
-    fprintf stderr "%a: %s\n" print_position buf msg;
-    failwith (Format.sprintf "Error parsing %s" txt)
-  | Parser.Error ->
-    fprintf stderr "%a: syntax error\n" print_position buf;
-    failwith (Format.sprintf "Error parsing %s" txt) in
-  let (_, transformed) = Passes.from_external_prog_optimize false (Passes.expand_recursion parsed) true true None true true in
+  let (_, transformed) = Passes.from_external_prog false (Passes.expand_recursion parsed) optimize optimize None optimize optimize in
   (match debug with
    | Some(true)->
      Format.printf "Program: %s\n" (ExternalGrammar.string_of_prog parsed);

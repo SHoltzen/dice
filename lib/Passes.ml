@@ -1383,20 +1383,7 @@ let check_return_type (f: EG.func) (t : EG.typ) : unit =
                        f.name (string_of_typ t)))
   | _ -> ()
 
-let from_external_func mgr cfg sbk (tenv: EG.tenv) (f: EG.func) : (EG.typ * CG.func) =
-  (* add the arguments to the type environment *)
-  let tenvwithargs = List.fold f.args ~init:tenv ~f:(fun acc (name, typ) ->
-      Map.Poly.set acc ~key:name ~data:typ
-    ) in
-  let (t, conv) = from_external_expr mgr cfg true sbk tenvwithargs f.body in
-  check_return_type f t;
-  (* convert arguments *)
-  let args = List.map f.args ~f:(from_external_arg cfg) in
-  (TFunc(List.map f.args ~f:snd, t), {name = f.name;
-       args = args;
-       body = conv})
-
-let from_external_func_optimize mgr cfg sbk (tenv: EG.tenv) (f: EG.func) (local_hoisting: bool) (global_hoisting: bool) (max_flips: int option) (branch_elimination: bool) (determinism: bool) : (EG.typ * CG.func) =
+let from_external_func mgr cfg sbk (tenv: EG.tenv) (f: EG.func) (local_hoisting: bool) (global_hoisting: bool) (max_flips: int option) (branch_elimination: bool) (determinism: bool) : (EG.typ * CG.func) =
   (* add the arguments to the type environment *)
   let tenvwithargs = List.fold f.args ~init:tenv ~f:(fun acc (name, typ) ->
       Map.Poly.set acc ~key:name ~data:typ
@@ -1410,20 +1397,10 @@ let from_external_func_optimize mgr cfg sbk (tenv: EG.tenv) (f: EG.func) (local_
         args = args;
         body = optbody})
 
-let from_external_prog ?(cfg: config = default_config) sbk (p: EG.program) : (EG.typ * CG.program) =
+let from_external_prog ?(cfg: config = default_config) sbk (p: EG.program) (local_hoisting: bool) (global_hoisting: bool) (max_flips: int option) (branch_elimination: bool) (determinism: bool) : (EG.typ * CG.program) =
   let mgr = Cudd.Man.make_d () in
   let (tenv, functions) = List.fold p.functions ~init:(Map.Poly.empty, []) ~f:(fun (tenv, flst) i ->
-      let (t, conv) = from_external_func mgr cfg sbk tenv i in
-      let tenv' = Map.Poly.set tenv ~key:i.name ~data:t in
-      (tenv', flst @ [conv])
-    ) in
-  let (t, convbody) = from_external_expr mgr cfg false sbk tenv p.body in
-  (t, {functions = functions; body = convbody})
-
-let from_external_prog_optimize ?(cfg: config = default_config) sbk (p: EG.program) (local_hoisting: bool) (global_hoisting: bool) (max_flips: int option) (branch_elimination: bool) (determinism: bool) : (EG.typ * CG.program) =
-  let mgr = Cudd.Man.make_d () in
-  let (tenv, functions) = List.fold p.functions ~init:(Map.Poly.empty, []) ~f:(fun (tenv, flst) i ->
-      let (t, conv) = from_external_func_optimize mgr cfg sbk tenv i local_hoisting global_hoisting max_flips branch_elimination determinism in
+      let (t, conv) = from_external_func mgr cfg sbk tenv i local_hoisting global_hoisting max_flips branch_elimination determinism in
       let tenv' = Map.Poly.set tenv ~key:i.name ~data:t in
       (tenv', flst @ [conv])
     ) in
@@ -1432,6 +1409,7 @@ let from_external_prog_optimize ?(cfg: config = default_config) sbk (p: EG.progr
   (t, {functions = functions; body = optbody})
 
 let from_core_prog (p: CG.program) : LF.program =
+  Format.printf "CG here\n"; flush_all ();
   let open LogicalFormula in
   let e = p.body in
   let ref_true = ref True in
@@ -1470,59 +1448,66 @@ let from_core_prog (p: CG.program) : LF.program =
   let weights = Hashtbl.Poly.create () in
   let env = Hashtbl.Poly.create () in
 
-  let binary = Hashtbl.Poly.create () in
-  let unary = Hashtbl.Poly.create () in
+  let gen_eq (e1: LF.expr ref) (e2: LF.expr ref) : LF.expr ref = 
+    let ref_not_e1 = ref (Not(e1)) in
+    let ref_not_e2 = ref (Not(e2)) in
+    let ref_or1 = ref (Or(ref_not_e1, e1)) in
+    let ref_or2 = ref (Or(e1, ref_not_e2)) in
+    let ref_and = ref (And(ref_or1, ref_or2)) in
+    ref_and
+  in
 
-  let binary_ref = ref binary in
-  let unary_ref = ref unary in
+  let gen_xor (e1: LF.expr ref) (e2: LF.expr ref) : LF.expr ref = 
+    let ref_not_e1 = ref (Not(e1)) in
+    let ref_not_e2 = ref (Not(e2)) in
+    let ref_and1 = ref (And(e1, ref_not_e2)) in
+    let ref_and2 = ref (And(ref_not_e1, e2)) in
+    let ref_or = ref (Or(ref_and1, ref_and2)) in
+    ref_or
+  in
+
+  let gen_ite (g: LF.expr ref) (thn: LF.expr ref) (els: LF.expr ref) : LF.expr ref = 
+    let ref_not_g = ref (Not(g)) in
+    let ref_and1 = ref (And(g, thn)) in
+    let ref_and2 = ref (And(ref_not_g, els)) in
+    let ref_or = ref (Or(ref_and1, ref_and2)) in
+    ref_or
+  in
 
   let rec from_core_prog_h (e: CG.expr) : LF.expr ref = 
     match e with
     | And(e1, e2) -> 
       let c1 = from_core_prog_h e1 in
       let c2 = from_core_prog_h e2 in
-      let ref_node = Hashtbl.Poly.find_or_add binary (c1, c2, And_ind) 
-        ~default:(fun () -> ref (And(c1, c2))) in
-      ref_node
+      ref (And(c1, c2))
     | Or(e1, e2) -> 
       let c1 = from_core_prog_h e1 in
       let c2 = from_core_prog_h e2 in
-      let ref_node = Hashtbl.Poly.find_or_add binary (c1, c2, Or_ind) 
-        ~default:(fun () -> ref (Or(c1, c2))) in
-      ref_node
+      ref (Or(c1, c2))
     | Xor(e1, e2) -> 
       let c1 = from_core_prog_h e1 in
       let c2 = from_core_prog_h e2 in
-      let ref_not_c1 = Hashtbl.Poly.find_or_add unary c1
-        ~default:(fun () -> ref (Not(c1))) in
-      let ref_not_c2 = Hashtbl.Poly.find_or_add unary c2
-        ~default:(fun () -> ref (Not(c2))) in
-      let ref_and1 = Hashtbl.Poly.find_or_add binary (c1, ref_not_c2, And_ind)
-        ~default:(fun () -> ref (And(c1, ref_not_c2))) in
-      let ref_and2 = Hashtbl.Poly.find_or_add binary (ref_not_c1, c2, And_ind)
-        ~default:(fun () -> ref (And(ref_not_c1, c2))) in
-      let ref_or = Hashtbl.Poly.find_or_add binary (ref_and1, ref_and2, Or_ind)
-        ~default:(fun () -> ref (Or(ref_and1, ref_and2))) in
-      ref_or
+      (match !c1, !c2 with
+      | Tup(c1_1, c1_2), Tup(c2_1, c2_2) ->
+        let c1' = gen_xor c1_1 c2_1 in
+        let c2' = gen_xor c1_2 c2_2 in
+        ref (Tup(c1', c2'))
+      | _ -> 
+        gen_xor c1 c2)
     | Eq(e1, e2) -> 
       let c1 = from_core_prog_h e1 in
       let c2 = from_core_prog_h e2 in
-      let ref_not_c1 = Hashtbl.Poly.find_or_add unary c1
-        ~default:(fun () -> ref (Not(c1))) in
-      let ref_not_c2 = Hashtbl.Poly.find_or_add unary c2
-        ~default:(fun () -> ref (Not(c2))) in
-      let ref_or1 = Hashtbl.Poly.find_or_add binary (ref_not_c1, c2, Or_ind)
-        ~default:(fun () -> ref (Or(ref_not_c1, c2))) in
-      let ref_or2 = Hashtbl.Poly.find_or_add binary (c1, ref_not_c2, Or_ind)
-        ~default:(fun () -> ref (Or(c1, ref_not_c2))) in
-      let ref_and = Hashtbl.Poly.find_or_add binary (ref_or1, ref_or2, And_ind)
-        ~default:(fun () -> ref (And(ref_or1, ref_or2))) in
-      ref_and
+      (match !c1, !c2 with
+      | Tup(c1_1, c1_2), Tup(c2_1, c2_2) ->
+        let c1' = gen_eq c1_1 c2_1 in
+        let c2' = gen_eq c1_2 c2_2 in
+        ref (Tup(c1', c2'))
+      | _ -> 
+        gen_eq c1 c2)
       (* Or(And(c1, c2), And(Not(c1), Not(c2))) *)
     | Not(e) ->
       let c = from_core_prog_h e in
-      let ref_not_c = Hashtbl.Poly.find_or_add unary c
-        ~default:(fun () -> ref (Not(c))) in
+      let ref_not_c = ref (Not(c)) in
       ref_not_c
     | True -> ref_true
     | False -> ref_false
@@ -1533,8 +1518,7 @@ let from_core_prog (p: CG.program) : LF.program =
     | Tup(e1, e2) ->
       let c1 = from_core_prog_h e1 in
       let c2 = from_core_prog_h e2 in
-      let ref_node = Hashtbl.Poly.find_or_add binary (c1, c2, Tup_ind)
-        ~default:(fun () -> ref (Tup(c1, c2))) in
+      let ref_node = ref (Tup(c1, c2)) in
       ref_node
     | Ite(g, thn, els) ->
       let cg = from_core_prog_h g in
@@ -1544,25 +1528,23 @@ let from_core_prog (p: CG.program) : LF.program =
       else
         let cthn = from_core_prog_h thn in
         let cels = from_core_prog_h els in
-        let ref_not_cg = Hashtbl.Poly.find_or_add unary cg
-          ~default:(fun () -> ref (Not(cg))) in
-        let ref_and1 = Hashtbl.Poly.find_or_add binary (cg, cthn, And_ind)
-          ~default:(fun () -> ref (And(cg, cthn))) in
-        let ref_and2 = Hashtbl.Poly.find_or_add binary (ref_not_cg, cels, And_ind)
-          ~default:(fun () -> ref (And(ref_not_cg, cels))) in
-        let ref_or = Hashtbl.Poly.find_or_add binary (ref_and1, ref_and2, Or_ind)
-          ~default:(fun () -> ref (Or(ref_and1, ref_and2))) in
-        ref_or
+        (match !cthn, !cels with
+        | Tup(c1_1, c1_2), Tup(c2_1, c2_2) ->
+          let cthn' = gen_ite cg c1_1 c2_1 in
+          let cels' = gen_ite cg c1_2 c2_2 in
+          ref (Tup(cthn', cels'))
+        | _ -> 
+          gen_ite cg cthn cels)
     | Fst(e) ->
       let c = from_core_prog_h e in
-      let r = match !(LF.extract_tup c (ref binary)) with
+      let r = match !c with
       | Tup(c1, _) -> c1
       | _ -> failwith (Format.sprintf "Internal Failure: calling `fst` on non-tuple at %s" (LF.string_of_expr c))
       in 
       r
     | Snd(e) ->
       let c = from_core_prog_h e in
-      let r = match !(LF.extract_tup c (ref binary)) with
+      let r = match !c with
       | Tup(_, c2) -> c2
       | _ -> failwith (Format.sprintf "Internal Failure: calling `snd` on non-tuple at %s" (CG.string_of_expr e))
       in 
@@ -1607,8 +1589,7 @@ let from_core_prog (p: CG.program) : LF.program =
       else if is_false_ref e1' || is_false_ref e2' then
           ref_false
       else
-        let ref_node = Hashtbl.Poly.find_or_add binary (e1', e2', And_ind)
-          ~default:(fun () -> ref (And(e1', e2'))) in
+        let ref_node = ref (And(e1', e2')) in
         ref_node
     | Or(e1, e2) -> 
       let e1' = remove_redundancy e1 in
@@ -1620,8 +1601,7 @@ let from_core_prog (p: CG.program) : LF.program =
       else if is_false_ref e2' then
         e1'
       else
-        let ref_node = Hashtbl.Poly.find_or_add binary (e1', e2', Or_ind)
-          ~default:(fun () -> ref (Or(e1', e2'))) in
+        let ref_node = ref (Or(e1', e2')) in
         ref_node
     | Atom(_) -> e
     | True -> ref_true
@@ -1630,20 +1610,18 @@ let from_core_prog (p: CG.program) : LF.program =
       (match !e1' with
       | Not(e2) -> e2
       | _ -> 
-        let ref_not = Hashtbl.Poly.find_or_add unary e1'
-          ~default:(fun () -> ref (Not(e1'))) in
+        let ref_not = ref (Not(e1')) in
         ref_not)
     | Tup(e1, e2) -> 
       let e1' = remove_redundancy e1 in
       let e2' = remove_redundancy e2 in
-      let ref_node = Hashtbl.Poly.find_or_add binary (e1', e2', Tup_ind)
-        ~default:(fun () -> ref (Tup(e1', e2'))) in
+      let ref_node = ref (Tup(e1', e2')) in
       ref_node
   in
 
   let r = from_core_prog_h e in
   let r = remove_redundancy r in
-  {body = r; weights = weights; binary = binary_ref; unary = unary_ref;}
+  {body = r; weights = weights}
 
 (* Assumes the Bayesian Network format *)
 let select_marginals ?(partial = 0) (random: bool) (p: EG.program) : EG.program =
@@ -1706,7 +1684,31 @@ let select_marginals ?(partial = 0) (random: bool) (p: EG.program) : EG.program 
     | Some(e) -> e
   in
 
-  if random then
+  let rec replace (e: EG.eexpr) (new_root: EG.eexpr) : EG.eexpr = 
+    match e with
+    | Let(s, x, e1, e2) -> 
+      let e2' = replace e2 new_root in
+      Let(s, x, e1, e2')
+    | Tup(_) | Ident(_) -> new_root
+    | _ -> failwith "Not implemented"
+  in
+  
+  if partial > 0 then
+    let e = p.body in
+    let roots = get_roots e in
+    let n = length roots in
+    if n < 2 then
+      p
+    else
+      let x = n - 1 in
+      let new_root = extract roots [x] in
+
+      let e' = replace e new_root in
+      {body=e'; functions=p.functions}
+  else
+    p
+
+  (* if random then
     (* take random marginal *)
     let e = p.body in
     let roots = get_roots e in
@@ -1731,4 +1733,4 @@ let select_marginals ?(partial = 0) (random: bool) (p: EG.program) : EG.program 
       p
     else
       (* take partial marginals *)
-      p
+      p *)
