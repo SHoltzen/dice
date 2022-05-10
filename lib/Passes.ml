@@ -1451,7 +1451,7 @@ let from_core_prog (p: CG.program) : LF.program =
   let gen_eq (e1: LF.expr ref) (e2: LF.expr ref) : LF.expr ref = 
     let ref_not_e1 = ref (Not(e1)) in
     let ref_not_e2 = ref (Not(e2)) in
-    let ref_or1 = ref (Or(ref_not_e1, e1)) in
+    let ref_or1 = ref (Or(ref_not_e1, e2)) in
     let ref_or2 = ref (Or(e1, ref_not_e2)) in
     let ref_and = ref (And(ref_or1, ref_or2)) in
     ref_and
@@ -1472,6 +1472,17 @@ let from_core_prog (p: CG.program) : LF.program =
     let ref_and2 = ref (And(ref_not_g, els)) in
     let ref_or = ref (Or(ref_and1, ref_and2)) in
     ref_or
+  in
+
+  let rec gen_ite_expr (g: LF.expr ref) (thn: LF.expr ref) (els: LF.expr ref) : LF.expr ref = 
+    (match !thn, !els with
+    | Tup(thn_1, thn_2), Tup(els_1, els_2) ->
+      let c1 = gen_ite_expr g thn_1 els_1 in
+      let c2 = gen_ite_expr g thn_2 els_2 in
+      ref (Tup(c1, c2))
+    | _ ->
+      gen_ite g thn els
+    )
   in
 
   let rec from_core_prog_h (e: CG.expr) : LF.expr ref = 
@@ -1528,13 +1539,7 @@ let from_core_prog (p: CG.program) : LF.program =
       else
         let cthn = from_core_prog_h thn in
         let cels = from_core_prog_h els in
-        (match !cthn, !cels with
-        | Tup(c1_1, c1_2), Tup(c2_1, c2_2) ->
-          let cthn' = gen_ite cg c1_1 c2_1 in
-          let cels' = gen_ite cg c1_2 c2_2 in
-          ref (Tup(cthn', cels'))
-        | _ -> 
-          gen_ite cg cthn cels)
+        gen_ite_expr cg cthn cels
     | Fst(e) ->
       let c = from_core_prog_h e in
       let r = match !c with
@@ -1620,7 +1625,8 @@ let from_core_prog (p: CG.program) : LF.program =
   in
 
   let r = from_core_prog_h e in
-  let r = remove_redundancy r in
+  (* let r = remove_redundancy r in *)
+  Format.printf "CG done\n"; flush_all ();
   {body = r; weights = weights}
 
 (* Assumes the Bayesian Network format *)
