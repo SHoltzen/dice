@@ -472,7 +472,7 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
   {table=tbl_cnfs; weights=p.weights}
 
 
-let compute_cnf ?debug (sharpsat_dir: String.t) (wcnf: LF.wcnf) : (LF.label * Bignum.t * Bignum.t) List.t = 
+let compute_cnf ?debug (sharpsat_dir: String.t) (fc_timeout: int) (wcnf: LF.wcnf) : (LF.label * Bignum.t * Bignum.t) List.t = 
 
   let gen_output_cnf (c: LF.cnf) =
     let env = Hashtbl.Poly.create () in
@@ -550,7 +550,7 @@ let compute_cnf ?debug (sharpsat_dir: String.t) (wcnf: LF.wcnf) : (LF.label * Bi
   let call_sharpsat (temp_name: String.t) : Bignum.t * Bignum.t = 
     let cwd = Unix.getcwd () in
     let cmd = "./sharpSAT" in
-    let cmd = Format.sprintf "%s -WD -decot 30 -decow 100 -tmpdir . -cs 3500 %s" cmd temp_name in
+    let cmd = Format.sprintf "%s -WD -decot %d -decow 100 -tmpdir . -cs 3500 %s" cmd fc_timeout temp_name in
     (match debug with
     | Some(true)->
       Format.printf "Call: %s\n" cmd;

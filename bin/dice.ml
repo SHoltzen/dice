@@ -82,7 +82,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~local_hoisting ~global_hoisting ~branch_elimination ~determinism ~sbk_encoding ~print_state_bdd
     ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_cnf ~print_function_bdd
     ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc ~logical_formula
-    ~cnf ~sharpsat_dir ~print_cnf_decisions ~verbose ~partial_marginals ~random_marginal ~show_lf_size ~show_time
+    ~cnf ~sharpsat_dir ~print_cnf_decisions ~fc_timeout ~verbose ~partial_marginals ~random_marginal ~show_lf_size ~show_time
     lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
@@ -124,8 +124,10 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
       let res = if print_cnf then res @ [StringRes("CNF", LogicalFormula.string_of_wcnf wcnf)] else res in
       let s_dir = match sharpsat_dir with None -> "../sharpsat-td/bin/" | Some(d) -> d in
       
+      let fc_timeout = match fc_timeout with | None -> 30 | Some(t) -> t in
+
       let sharpsat_t1 = Time.now() in
-      let probs = Compiler.compute_cnf ~debug:verbose s_dir wcnf in
+      let probs = Compiler.compute_cnf ~debug:verbose s_dir fc_timeout wcnf in
       let sharpsat_t2 = Time.now() in
       
       let res = if show_time then
@@ -281,6 +283,7 @@ let command =
      (* and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order" *)
      and json = flag "-json" no_arg ~doc:" print output as JSON"
      and sharpsat_dir = flag "-sharpsat-dir" (optional string) ~doc:" path to sharpsat binary (default ../sharpsat-td/bin/)"
+     and fc_timeout = flag "-fc-timeout" (optional int) ~doc:" time in seconds to run flowcutter for for SharpSAT-td"
      and verbose = flag "-verbose" no_arg ~doc:" print additional debugging output"
      and partial_marginals = flag "-partial-marginals" (optional int) ~doc:" computes a random subset of the marginals of size n"
      and random_marginal = flag "-random-marginal" no_arg ~doc:" computes the results of a random marginal. Takes precedence over partial marginals"
@@ -295,7 +298,7 @@ let command =
                   ~branch_elimination ~determinism ~sbk_encoding ~show_recursive_calls ~print_state_bdd
                   ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_cnf ~print_function_bdd
                   ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc ~logical_formula
-                  ~cnf ~sharpsat_dir ~print_cnf_decisions ~verbose ~partial_marginals ~random_marginal ~show_lf_size
+                  ~cnf ~sharpsat_dir ~print_cnf_decisions ~fc_timeout ~verbose ~partial_marginals ~random_marginal ~show_lf_size
                   ~show_time
                   lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
