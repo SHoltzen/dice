@@ -315,7 +315,7 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
   let cnf_nodes = Hashtbl.Poly.create () in
 
   (* Generate LF expressions for each row of the table (String.t * LF.expr) list *)
-  let gen_neg (x1: String.t) (s1: LF.cnf) =
+  let gen_neg (x1: String.t) (c: LF.cnf) =
     let open LogicalFormula in
     let x = fresh() in
 
@@ -324,11 +324,11 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
     let subf_1 = [Neg(x); Neg(x1)] in
     let subf_2 = if String.equal x1 true_clause then [] else [Pos(x); Pos(x1)] in
     
-    let subf = subf_1::subf_2::[] in
-    x, (subf@s1)
+    let s = subf_1::subf_2::c in
+    x, s
   in
 
-  let gen_and (x1: String.t) (s1: LF.cnf) (x2: String.t) (s2: LF.cnf) =
+  let gen_and (x1: String.t) (x2: String.t) (c: LF.cnf) =
     let open LogicalFormula in
     let x = fresh() in
 
@@ -338,23 +338,32 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
     let subf_2 = if String.equal x2 true_clause then [] else [Neg(x); Pos(x2)] in
     let subf_3 = [Pos(x); Neg(x1); Neg(x2)] in
     
-    let subf = subf_1::subf_2::subf_3::[] in
-    x, (subf@s1@s2)
+    let s = subf_1::subf_2::subf_3::c in
+    x, s
   in
 
-  let rec gen_subf (e: LF.expr ref) : String.t * LF.cnf =
-    let open LogicalFormula in
-    
-    let def_func = match !e with
+  let gen_subf (e: LF.expr ref) : String.t * LF.cnf =
+
+    let rec gen_subf_e (e: LF.expr ref) (c: LF.cnf) : String.t * LF.cnf =
+      let open LogicalFormula in
+      
+      (* Find if already seen e *)
+      match Hashtbl.Poly.find cnf_nodes e with
+      | None -> 
+        (match !e with
+        | And(e1, e2) -> 
       | And(e1, e2) -> 
-        (fun () -> 
-          let x1, s1 = gen_subf e1 in
-          let x2, s2 = gen_subf e2 in
-          gen_and x1 s1 x2 s2)
+        | And(e1, e2) -> 
+          let x1, c1 = gen_subf_e e1 c in
+          let x2, c2 = gen_subf_e e2 c1 in
+          let x, c' = gen_and x1 x2 c2 in
+          Hashtbl.Poly.add_exn cnf_nodes ~key:e ~data:x;
+          x, c'
+        | Or(e1, e2) -> 
       | Or(e1, e2) -> 
-        (fun () -> 
-          let x1, s1 = gen_subf e1 in
-          let x2, s2 = gen_subf e2 in
+        | Or(e1, e2) -> 
+          let x1, c1 = gen_subf_e e1 c in
+          let x2, c2 = gen_subf_e e2 c1 in
           let x = fresh() in
 
           (* !t1 | (x1 | x2) => (!t1 | x1 | x2)
@@ -364,22 +373,29 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
           let subf_2 = [Pos(x); Neg(x1)] in
           let subf_3 = [Pos(x); Neg(x2)] in
           
-          let subf = subf_1::subf_2::subf_3::[] in
-          x, (subf@s1@s2))
-      | Atom(x) -> (fun () -> x, [])
-      | True -> (fun () -> true_clause, [[Pos(true_clause)]])
+          let s = subf_1::subf_2::subf_3::c2 in
+          Hashtbl.Poly.add_exn cnf_nodes ~key:e ~data:x;
+          x, s
+        | Atom(x) -> x, c
+        | True -> true_clause, c
+        | Not(e1) -> 
       | Not(e1) -> 
-        (fun () -> 
-          let x1, s1 = gen_subf e1 in
-          gen_neg x1 s1)
+        | Not(e1) -> 
+          let x1, c1 = gen_subf_e e1 c in
+          let x, c' = gen_neg x1 c1 in
+          Hashtbl.Poly.add_exn cnf_nodes ~key:e ~data:x;
+          x, c'
+        | Tup(e1, e2) -> 
       | Tup(e1, e2) -> 
-        (fun () -> 
+        | Tup(e1, e2) -> 
           let tup = ref (And(e1, e2)) in 
-          let x1, s1 = gen_subf tup in
-          x1, s1)
+          let x1, c1 = gen_subf_e tup c in
+          Hashtbl.Poly.add_exn cnf_nodes ~key:e ~data:x1;
+          x1, c1)
+      | Some(x) -> x, c
     in
-    let x, subf = Hashtbl.Poly.find_or_add cnf_nodes e ~default:def_func in
-    x, subf
+    
+    gen_subf_e e [[Pos(true_clause)]]
   in
 
   let gen_cnf (x: String.t) (e: LF.cnf) : LF.cnf =
@@ -419,9 +435,10 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
       let sub1 = gen_table e2 (TInt(sz-1)) in
       let curbitvalue = 1 lsl (sz - 1) in
       let x1, e1_cnf = gen_subf e1 in
+      let x1_neg, s1 = gen_neg x1 e1_cnf in
       let lower = List.map sub1 ~f:(fun (t, subx, subcnf) ->
-          let x1_neg, s1 = gen_neg x1 e1_cnf in
-          let and_x, s = gen_and x1_neg s1 subx subcnf in
+          let s1' = List.rev_append subcnf s1 in
+          let and_x, s = gen_and x1_neg subx s1' in
           let and_cnf = gen_cnf and_x s in
 
           match t with
@@ -429,7 +446,8 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
           | _ -> failwith "Unreachable"
         ) in
       let upper = List.map sub1 ~f:(fun (t, subx, subcnf) ->
-          let and_x, s = gen_and x1 e1_cnf subx subcnf in
+          let s1' = List.rev_append subcnf e1_cnf in
+          let and_x, s = gen_and x1 subx s1' in
           let and_cnf = gen_cnf and_x s in
           
           match t with
@@ -443,7 +461,8 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
         let lst = gen_table e1 t1 and rst = gen_table e2 t2 in
         List.map lst ~f:(fun (lt, lx, le) ->
             List.map rst ~f:(fun (rt, rx, re) ->
-                let and_x, s = gen_and lx le rx re in
+                let s1 = List.rev_append le re in
+                let and_x, s = gen_and lx rx s1 in
                 let and_cnf = gen_cnf and_x s in
 
                 (`Tup(lt, rt), and_x, and_cnf)
@@ -462,7 +481,6 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
 
 
 let compute_cnf ?debug (sharpsat_dir: String.t) (wcnf: LF.wcnf) : (LF.label * Bignum.t * Bignum.t) List.t = 
-  let cnf_subf = Hashtbl.Poly.create () in
 
   let gen_output_cnf (c: LF.cnf) =
     let env = Hashtbl.Poly.create () in
@@ -588,18 +606,23 @@ let compute_cnf ?debug (sharpsat_dir: String.t) (wcnf: LF.wcnf) : (LF.label * Bi
     p, d
   in
 
-  List.map wcnf.table ~f:(fun (label, cnf_expr) -> 
-    let cnf_t1 = Time.now() in
-    let temp_name = gen_output_cnf cnf_expr in
-    let cnf_t2 = Time.now() in
-    let cnf_time = Time.diff cnf_t2 cnf_t1 in
-    (match debug with
-    | Some(true)->
-      Format.printf "Gen CNF File Time: %s\n" (Time.Span.to_string cnf_time);
-    | _ -> ());
-    let prob, decisions = call_sharpsat temp_name in
-    if Bignum.(prob = zero) then (label, Bignum.zero, decisions) else
-      (label, prob, decisions))
+  let n = List.length wcnf.table in
+  List.folding_mapi wcnf.table ~init:Bignum.zero ~f:(fun i acc (label, cnf_expr) -> 
+    if i = n - 1 then
+      let prob = Bignum.(one - acc) in
+      Bignum.one, (label, prob, Bignum.zero)
+    else
+      let cnf_t1 = Time.now() in
+      let temp_name = gen_output_cnf cnf_expr in
+      let cnf_t2 = Time.now() in
+      let cnf_time = Time.diff cnf_t2 cnf_t1 in
+      (match debug with
+      | Some(true)->
+        Format.printf "Gen CNF File Time: %s\n" (Time.Span.to_string cnf_time);
+      | _ -> ());
+      let prob, decisions = call_sharpsat temp_name in
+      if Bignum.(prob = zero) then acc, (label, Bignum.zero, decisions) else
+        Bignum.(acc + prob), (label, prob, decisions))
 
 
 let get_prob p =
