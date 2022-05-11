@@ -1409,7 +1409,6 @@ let from_external_prog ?(cfg: config = default_config) sbk (p: EG.program) (loca
   (t, {functions = functions; body = optbody})
 
 let from_core_prog (p: CG.program) : LF.program =
-  Format.printf "CG here\n"; flush_all ();
   let open LogicalFormula in
   let e = p.body in
   let ref_true = ref True in
@@ -1626,7 +1625,6 @@ let from_core_prog (p: CG.program) : LF.program =
 
   let r = from_core_prog_h e in
   (* let r = remove_redundancy r in *)
-  Format.printf "CG done\n"; flush_all ();
   {body = r; weights = weights}
 
 (* Assumes the Bayesian Network format *)
