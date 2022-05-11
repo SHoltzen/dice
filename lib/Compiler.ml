@@ -352,15 +352,11 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
       | None -> 
         (match !e with
         | And(e1, e2) -> 
-      | And(e1, e2) -> 
-        | And(e1, e2) -> 
           let x1, c1 = gen_subf_e e1 c in
           let x2, c2 = gen_subf_e e2 c1 in
           let x, c' = gen_and x1 x2 c2 in
           Hashtbl.Poly.add_exn cnf_nodes ~key:e ~data:x;
           x, c'
-        | Or(e1, e2) -> 
-      | Or(e1, e2) -> 
         | Or(e1, e2) -> 
           let x1, c1 = gen_subf_e e1 c in
           let x2, c2 = gen_subf_e e2 c1 in
@@ -379,14 +375,10 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
         | Atom(x) -> x, c
         | True -> true_clause, c
         | Not(e1) -> 
-      | Not(e1) -> 
-        | Not(e1) -> 
           let x1, c1 = gen_subf_e e1 c in
           let x, c' = gen_neg x1 c1 in
           Hashtbl.Poly.add_exn cnf_nodes ~key:e ~data:x;
           x, c'
-        | Tup(e1, e2) -> 
-      | Tup(e1, e2) -> 
         | Tup(e1, e2) -> 
           let tup = ref (And(e1, e2)) in 
           let x1, c1 = gen_subf_e tup c in
