@@ -429,7 +429,10 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
       let x1, e1_cnf = gen_subf e1 in
       let x1_neg, s1 = gen_neg x1 e1_cnf in
       let lower = List.map sub1 ~f:(fun (t, subx, subcnf) ->
-          let s1' = List.rev_append subcnf s1 in
+          let s1' = if List.length subcnf < List.length s1 then 
+            List.rev_append subcnf s1 
+            else List.rev_append s1 subcnf 
+          in
           let and_x, s = gen_and x1_neg subx s1' in
           let and_cnf = gen_cnf and_x s in
 
@@ -438,7 +441,10 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
           | _ -> failwith "Unreachable"
         ) in
       let upper = List.map sub1 ~f:(fun (t, subx, subcnf) ->
-          let s1' = List.rev_append subcnf e1_cnf in
+          let s1' = if List.length subcnf < List.length e1_cnf then 
+            List.rev_append subcnf e1_cnf 
+            else List.rev_append e1_cnf subcnf 
+          in
           let and_x, s = gen_and x1 subx s1' in
           let and_cnf = gen_cnf and_x s in
           
@@ -453,7 +459,10 @@ let compile_to_cnf (p: LF.program) t : LF.wcnf =
         let lst = gen_table e1 t1 and rst = gen_table e2 t2 in
         List.map lst ~f:(fun (lt, lx, le) ->
             List.map rst ~f:(fun (rt, rx, re) ->
-                let s1 = List.rev_append le re in
+                let s1 = if List.length le < List.length re then 
+                  List.rev_append le re 
+                  else List.rev_append re le
+                in
                 let and_x, s = gen_and lx rx s1 in
                 let and_cnf = gen_cnf and_x s in
 
@@ -650,7 +659,7 @@ let parse_and_prob ?debug txt optimize =
   | Parser.Error ->
     fprintf stderr "%a: syntax error\n" print_position buf;
     failwith (Format.sprintf "Error parsing %s" txt) in
-  let (_, transformed) = Passes.from_external_prog false (Passes.expand_recursion parsed) optimize optimize None optimize optimize in
+  let (_, transformed) = Passes.from_external_prog false (Passes.expand_recursion parsed) optimize optimize None optimize optimize optimize in
   (match debug with
    | Some(true)->
      Format.printf "Program: %s\n" (ExternalGrammar.string_of_prog parsed);
