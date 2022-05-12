@@ -124,35 +124,38 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
       let res = if print_cnf then res @ [StringRes("CNF", LogicalFormula.string_of_wcnf wcnf)] else res in
       let s_dir = match sharpsat_dir with None -> "../sharpsat-td/bin/" | Some(d) -> d in
       
-      let fc_timeout = match fc_timeout with | None -> 30 | Some(t) -> t in
-
-      let sharpsat_t1 = Time.now() in
-      let probs = Compiler.compute_cnf ~debug:verbose s_dir fc_timeout wcnf in
-      let sharpsat_t2 = Time.now() in
-      
       let res = if show_time then
-        let lf_time = Time.diff cnf_t1 lf_t1 in
-        let cnf_time = Time.diff cnf_t2 cnf_t1 in
-        let sharpsat_time = Time.diff sharpsat_t2 sharpsat_t1 in
-        res @ [StringRes("LF Time Elapsed", Time.Span.to_string lf_time);
-               StringRes("CNF Time Elapsed", Time.Span.to_string cnf_time);
-               StringRes("SharpSAT-td Time Elapsed", Time.Span.to_string sharpsat_time)] else res
-      in
-
-      let res = if print_cnf_decisions then 
-        let sum = List.fold probs ~init:Bignum.zero ~f:(fun acc (_, _, dec) -> Bignum.(acc + dec)) in
-        res @ [StringRes("Total CNF decisions", Bignum.to_string_hum sum)] else res in
-      let res = if skip_table then res else res @
-        (let table = if print_cnf_decisions then
-            [["Value"; "Probability"; "Decisions"]] @ List.map probs ~f:(fun (label, prob, dec) ->
-              [print_pretty label; Bignum.to_string_hum prob; Bignum.to_string_hum dec])
-          else
-            [["Value"; "Probability"]] @ List.map probs ~f:(fun (label, prob, _) ->
-              [print_pretty label; Bignum.to_string_hum prob])
+          let lf_time = Time.diff cnf_t1 lf_t1 in
+          let cnf_time = Time.diff cnf_t2 cnf_t1 in
+          res @ [StringRes("LF Time Elapsed", Time.Span.to_string lf_time);
+                 StringRes("CNF Time Elapsed", Time.Span.to_string cnf_time)] else res
         in
-        [TableRes("CNF Joint Distribution", table)])
-      in
-      res
+
+      let res = if skip_table then res else
+        (let fc_timeout = match fc_timeout with | None -> 30 | Some(t) -> t in
+        let sharpsat_t1 = Time.now() in
+        let probs = Compiler.compute_cnf ~debug:verbose s_dir fc_timeout wcnf in
+        let sharpsat_t2 = Time.now() in
+        
+        let res = if show_time then
+          let sharpsat_time = Time.diff sharpsat_t2 sharpsat_t1 in
+          res @ [StringRes("SharpSAT-td Time Elapsed", Time.Span.to_string sharpsat_time)] else res
+        in
+  
+        let res = if print_cnf_decisions then 
+          let sum = List.fold probs ~init:Bignum.zero ~f:(fun acc (_, _, dec) -> Bignum.(acc + dec)) in
+          res @ [StringRes("Total CNF decisions", Bignum.to_string_hum sum)] else res in
+        let res = if skip_table then res else res @
+          (let table = if print_cnf_decisions then
+              [["Value"; "Probability"; "Decisions"]] @ List.map probs ~f:(fun (label, prob, dec) ->
+                [print_pretty label; Bignum.to_string_hum prob; Bignum.to_string_hum dec])
+            else
+              [["Value"; "Probability"]] @ List.map probs ~f:(fun (label, prob, _) ->
+                [print_pretty label; Bignum.to_string_hum prob])
+          in
+          [TableRes("CNF Joint Distribution", table)])
+        in res)
+      in res
     else
       let compiled, res = if logical_formula then 
         let lf_t1 = Time.now() in
