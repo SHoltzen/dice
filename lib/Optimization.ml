@@ -686,8 +686,37 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr * env * tree =
       let e1', e1_hoisted, e1_carried, t1 = down_pass_e e1 t to_hoist hoisted carried in
       Fst(e1'), e1_hoisted, e1_carried, t1
     | Not(e1) ->
-      let e1', e1_hoisted, e1_carried, t1 = down_pass_e e1 t to_hoist hoisted carried in
-      Not(e1'), e1_hoisted, e1_carried, t1
+      (match e1 with 
+      | Flip(f) -> 
+        (match to_hoist with
+        | [] -> e, hoisted, carried, t
+        | _ -> 
+          (match t with
+          | Leaf(id) -> 
+            let entry = Hashtbl.find_opt flip_env id in
+            (match entry with
+            | None -> failwith "unknown flip id"
+            | Some((p, var, vals)) -> 
+              (match var with
+              | None -> 
+                let last_opt = last_flip to_hoist in
+                (match last_opt with
+                | None -> e, hoisted, carried, t
+                | Some(last) ->
+                  if id < last then
+                    let x = fresh() in
+                    Hashtbl.replace flip_env id (p, Some(x), vals);
+                    Ident(x), hoisted, (id::carried), Non
+                  else
+                    e, hoisted, carried, t)
+              | Some(x)-> 
+                let hoisted' = List.sort_uniq compare (id::hoisted) in
+                Ident(x), hoisted', carried, Non))
+          | Non -> e, hoisted, carried, t
+          | _ -> failwith "unexpected flip tree element"))
+      | _ ->
+        let e1', e1_hoisted, e1_carried, t1 = down_pass_e e1 t to_hoist hoisted carried in
+        Not(e1'), e1_hoisted, e1_carried, t1)
     | Observe(e1) ->
       let e1', e1_hoisted, e1_carried, t1 = down_pass_e e1 t to_hoist hoisted carried in
       Observe(e1'), e1_hoisted, e1_carried, t1
