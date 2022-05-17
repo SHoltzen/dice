@@ -659,7 +659,7 @@ let parse_and_prob ?debug txt optimize =
   | Parser.Error ->
     fprintf stderr "%a: syntax error\n" print_position buf;
     failwith (Format.sprintf "Error parsing %s" txt) in
-  let (_, transformed) = Passes.from_external_prog false (Passes.expand_recursion parsed) optimize optimize None optimize optimize optimize in
+  let (_, transformed) = Passes.from_external_prog false (Passes.expand_recursion parsed) optimize optimize None optimize optimize in
   (match debug with
    | Some(true)->
      Format.printf "Program: %s\n" (ExternalGrammar.string_of_prog parsed);

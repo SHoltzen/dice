@@ -132,7 +132,8 @@ let up_pass (e: CG.expr) (max_flips: int) : tree * env =
     | [] -> new_l, None
     | (p, i)::tail -> 
       if equal prob p then 
-        (List.rev_append new_l tail), Some((p, i@ids)) 
+        let ids' = List.rev_append i ids in
+        (List.rev_append new_l tail), Some((p, ids')) 
       else 
         merge tail (prob, ids) ((p, i)::new_l)
   in
@@ -172,18 +173,20 @@ let up_pass (e: CG.expr) (max_flips: int) : tree * env =
       let els_flips_l, els_flips_g, els_tree = up_pass_e els in
       let flips_l, shared = find_shared thn_flips_l els_flips_l [] [] in
       let flips_g, _ = find_shared thn_flips_g els_flips_g [] [] in
-      (g_flips_l@flips_l), (g_flips_g@flips_g), Node(shared, g_tree, thn_tree, els_tree)
+      let flips_local = List.rev_append g_flips_l flips_l in
+      let flips_global = List.rev_append g_flips_g flips_g in
+      flips_local, flips_global, Node(shared, g_tree, thn_tree, els_tree)
     | Let(_, e1, e2) ->
       let e1_flips_l, e1_flips_g, e1_tree = up_pass_e e1 in
       let e2_flips_l, e2_flips_g, e2_tree = up_pass_e e2 in
-      let flips_local = e1_flips_l@e2_flips_l in
+      let flips_local = List.rev_append e1_flips_l e2_flips_l in
       let flips_global, shared_global = find_shared_global e1_flips_g e2_flips_g [] [] in
       flips_local, flips_global, Joint(shared_global, e1_tree, e2_tree)
     | And(e1, e2) | Or(e1, e2) | Xor(e1, e2) | Eq(e1, e2) | Tup(e1, e2) ->
       let e1_flips_l, e1_flips_g, e1_tree = up_pass_e e1 in
       let e2_flips_l, e2_flips_g, e2_tree = up_pass_e e2 in
-      let flips_l = e1_flips_l@e2_flips_l in
-      let flips_g = e1_flips_g@e2_flips_g in
+      let flips_l = List.rev_append e1_flips_l e2_flips_l in
+      let flips_g = List.rev_append e1_flips_g e2_flips_g in
       flips_l, flips_g, Joint([], e1_tree, e2_tree)
     | Not(e1) -> 
       (match e1 with
@@ -297,7 +300,9 @@ let cross_up (e: CG.expr) (t: tree) (flip_env: env) : env =
         let entry_opt = Hashtbl.find_opt flip_env id in
         (match entry_opt with
         | None -> failwith "can't find flip entry"
-        | Some(p, x, v) -> (Hashtbl.replace flip_env id (p, x, (vals_thn@v))););
+        | Some(p, x, v) -> 
+          let v' = List.rev_append vals_thn v in
+          (Hashtbl.replace flip_env id (p, x, v')););
         let vals_thn' = (id, true)::vals_thn in
         let vals_els' = (id, false)::vals_els in
         facts', vals_thn', vals_els'
@@ -431,7 +436,9 @@ let cross_up (e: CG.expr) (t: tree) (flip_env: env) : env =
         let entry_opt = Hashtbl.find_opt flip_env id in
         (match entry_opt with
         | None -> failwith "can't find flip entry"
-        | Some(p, x, v) -> (Hashtbl.replace flip_env id (p, x, (vals@v))););
+        | Some(p, x, v) -> 
+          let v' = List.rev_append vals v in
+          (Hashtbl.replace flip_env id (p, x, v')););
         let vals' = (id, true)::vals in
         facts', vals'
       | Non -> facts, vals
@@ -570,7 +577,8 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr * env * tree =
         | Some(x) -> x, curr_flips
       in 
       (create_flip ids (p, Some(x), []));
-      flips_to_hoist tail (ids@hoisted) curr_flips'
+      let hoisted' = List.rev_append ids hoisted in
+      flips_to_hoist tail hoisted' curr_flips'
   in
 
   let rec down_pass_e (e: CG.expr) (t:tree) (to_hoist: int list) (hoisted: int list) (carried: int list)
@@ -634,7 +642,8 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr * env * tree =
           | None -> failwith "unexpected flip tree element" 
           | Some(t) -> t
         in
-        let hoisted' = List.sort_uniq compare (hoisted@g_hoisted) in
+        let all_hoisted = List.rev_append hoisted g_hoisted in
+        let hoisted' = List.sort_uniq compare all_hoisted in
         hoisted_expr, hoisted', prev_flips, hoisted_t
       | _ -> failwith "unexpected flip tree element")
     | Let(x, e1, e2) -> 
@@ -855,7 +864,8 @@ let cross_down (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
 
         let hoisted_expr, _ = make_exprs flip_env curr_flips (Let(x, e1', e2')) None in
         
-        let hoisted' = List.sort_uniq compare (hoisted@e1_hoisted) in
+        let all_hoisted = List.rev_append hoisted e1_hoisted in
+        let hoisted' = List.sort_uniq compare all_hoisted in
         hoisted_expr, hoisted', prev_flips
       | _ -> failwith "unexpected flip tree element")
     | And(e1, e2) ->

@@ -1405,7 +1405,11 @@ let from_external_prog ?(cfg: config = default_config) sbk (p: EG.program) (loca
       (tenv', flst @ [conv])
     ) in
   let (t, convbody) = from_external_expr mgr cfg false sbk tenv p.body in
+  (* let t1 = Time.now() in *)
   let optbody = Optimization.do_optimize convbody !n local_hoisting global_hoisting max_flips branch_elimination determinism in
+  (* let t2 = Time.now() in *)
+  (* let optimize_time = Time.diff t2 t1 in *)
+  (* Format.printf "%s\n" (Time.Span.to_string optimize_time); flush_all(); *)
   (t, {functions = functions; body = optbody})
 
 let from_core_prog (p: CG.program) : LF.program =

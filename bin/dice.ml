@@ -170,7 +170,16 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
           res @ [StringRes("LF Time Elapsed", Time.Span.to_string lf_time);
                  StringRes("LF to BDD Time Elapsed", Time.Span.to_string bdd_time)] else res
         in
-        bdd_form, res else Compiler.compile_program internal ~eager_eval, res in
+        bdd_form, res else
+          let comp_t1 = Time.now() in
+          let compiled = Compiler.compile_program internal ~eager_eval in
+          let comp_t2 = Time.now() in
+          let res = if show_time then
+            let comp_time = Time.Span.to_sec (Time.diff comp_t2 comp_t1) in
+            res @ [StringRes("Compilation Time Elapsed", Float.to_string comp_time)] else res
+          in
+          compiled, res 
+      in
       let zbdd = compiled.body.z in
       let res = if skip_table then res else res @
         (let z = Wmc.wmc ~float_wmc compiled.ctx.man zbdd compiled.ctx.weights in
