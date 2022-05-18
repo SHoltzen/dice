@@ -924,8 +924,15 @@ let cross_down (e: CG.expr) (t: tree) (flip_env: env) : CG.expr =
 let do_flip_hoisting (e: CG.expr) (new_n: int) (global_hoisting: bool) (max_flips: int option) : CG.expr = 
   n := new_n;
   let max_f = match max_flips with None -> default_max_flips | Some(f) -> f in
+  let t1 = Core.Time.now() in
   let t, flip_env = up_pass e max_f in
+  let t2 = Core.Time.now() in
   let e', flip_env', t' = down_pass e t flip_env in
+  let t3 = Core.Time.now() in
+  let up_time = Core.Time.diff t2 t1 in
+  let down_time = Core.Time.diff t3 t2 in
+  Format.printf "Up time: %s\n" (Core.Time.Span.to_string up_time);
+  Format.printf "Down time: %s\n" (Core.Time.Span.to_string down_time);
   let e'' = 
     if global_hoisting then 
       let flip_env'' = cross_up e' t' flip_env' in
