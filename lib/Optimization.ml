@@ -569,7 +569,7 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr * env * tree =
         create_flip tail entry
     in
     match shared with
-    | [] -> (List.sort_uniq compare hoisted), curr_flips
+    | [] -> hoisted, curr_flips
     | (p, ids)::tail -> 
       let x, curr_flips' = 
         match find_hoisted_var ids with
@@ -607,7 +607,7 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr * env * tree =
                 else
                   e, hoisted, carried, t)
             | Some(x)-> 
-              let hoisted' = List.sort_uniq compare (id::hoisted) in
+              let hoisted' = id::hoisted in
               Ident(x), hoisted', carried, Non))
         | Non -> e, hoisted, carried, t
         | _ -> failwith "unexpected flip tree element"))
@@ -643,7 +643,7 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr * env * tree =
           | Some(t) -> t
         in
         let all_hoisted = List.rev_append hoisted g_hoisted in
-        let hoisted' = List.sort_uniq compare all_hoisted in
+        let hoisted' = all_hoisted in
         hoisted_expr, hoisted', prev_flips, hoisted_t
       | _ -> failwith "unexpected flip tree element")
     | Let(x, e1, e2) -> 
@@ -719,7 +719,7 @@ let down_pass (e: CG.expr) (t: tree) (flip_env: env) : CG.expr * env * tree =
                   else
                     e, hoisted, carried, t)
               | Some(x)-> 
-                let hoisted' = List.sort_uniq compare (id::hoisted) in
+                let hoisted' = (id::hoisted) in
                 Ident(x), hoisted', carried, Non))
           | Non -> e, hoisted, carried, t
           | _ -> failwith "unexpected flip tree element"))
