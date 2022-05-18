@@ -5,7 +5,7 @@ open CG
 let n = ref 0
 let m = ref 0
 
-let default_max_flips = 10000 
+let default_max_flips = 100000
 
 let fresh () =
   n := !n + 1;
