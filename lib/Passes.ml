@@ -1383,20 +1383,7 @@ let check_return_type (f: EG.func) (t : EG.typ) : unit =
                        f.name (string_of_typ t)))
   | _ -> ()
 
-let from_external_func mgr cfg sbk (tenv: EG.tenv) (f: EG.func) : (EG.typ * CG.func) =
-  (* add the arguments to the type environment *)
-  let tenvwithargs = List.fold f.args ~init:tenv ~f:(fun acc (name, typ) ->
-      Map.Poly.set acc ~key:name ~data:typ
-    ) in
-  let (t, conv) = from_external_expr mgr cfg true sbk tenvwithargs f.body in
-  check_return_type f t;
-  (* convert arguments *)
-  let args = List.map f.args ~f:(from_external_arg cfg) in
-  (TFunc(List.map f.args ~f:snd, t), {name = f.name;
-       args = args;
-       body = conv})
-
-let from_external_func_optimize mgr cfg sbk (tenv: EG.tenv) (f: EG.func) (local_hoisting: bool) (global_hoisting: bool) (max_flips: int option) (branch_elimination: bool) (determinism: bool) : (EG.typ * CG.func) =
+let from_external_func mgr cfg sbk (tenv: EG.tenv) (f: EG.func) (local_hoisting: bool) (global_hoisting: bool) (max_flips: int option) (branch_elimination: bool) (determinism: bool) : (EG.typ * CG.func) =
   (* add the arguments to the type environment *)
   let tenvwithargs = List.fold f.args ~init:tenv ~f:(fun acc (name, typ) ->
       Map.Poly.set acc ~key:name ~data:typ
@@ -1410,93 +1397,162 @@ let from_external_func_optimize mgr cfg sbk (tenv: EG.tenv) (f: EG.func) (local_
         args = args;
         body = optbody})
 
-let from_external_prog ?(cfg: config = default_config) sbk (p: EG.program) : (EG.typ * CG.program) =
+let from_external_prog ?(cfg: config = default_config) sbk (p: EG.program) (local_hoisting: bool) (global_hoisting: bool) (max_flips: int option) (branch_elimination: bool) (determinism: bool) : (EG.typ * CG.program) =
   let mgr = Cudd.Man.make_d () in
   let (tenv, functions) = List.fold p.functions ~init:(Map.Poly.empty, []) ~f:(fun (tenv, flst) i ->
-      let (t, conv) = from_external_func mgr cfg sbk tenv i in
+      let (t, conv) = from_external_func mgr cfg sbk tenv i local_hoisting global_hoisting max_flips branch_elimination determinism in
       let tenv' = Map.Poly.set tenv ~key:i.name ~data:t in
       (tenv', flst @ [conv])
     ) in
   let (t, convbody) = from_external_expr mgr cfg false sbk tenv p.body in
-  (t, {functions = functions; body = convbody})
-
-let from_external_prog_optimize ?(cfg: config = default_config) sbk (p: EG.program) (local_hoisting: bool) (global_hoisting: bool) (max_flips: int option) (branch_elimination: bool) (determinism: bool) : (EG.typ * CG.program) =
-  let mgr = Cudd.Man.make_d () in
-  let (tenv, functions) = List.fold p.functions ~init:(Map.Poly.empty, []) ~f:(fun (tenv, flst) i ->
-      let (t, conv) = from_external_func_optimize mgr cfg sbk tenv i local_hoisting global_hoisting max_flips branch_elimination determinism in
-      let tenv' = Map.Poly.set tenv ~key:i.name ~data:t in
-      (tenv', flst @ [conv])
-    ) in
-  let (t, convbody) = from_external_expr mgr cfg false sbk tenv p.body in
+  (* let t1 = Time.now() in *)
   let optbody = Optimization.do_optimize convbody !n local_hoisting global_hoisting max_flips branch_elimination determinism in
+  (* let t2 = Time.now() in *)
+  (* let optimize_time = Time.diff t2 t1 in *)
+  (* Format.printf "%s\n" (Time.Span.to_string optimize_time); flush_all(); *)
   (t, {functions = functions; body = optbody})
 
 let from_core_prog (p: CG.program) : LF.program =
+  let open LogicalFormula in
   let e = p.body in
-  let is_const (e: LF.expr) : bool =
-    match e with
-    | True | Neg(True) 
-    | And(Neg(True), _) | And(_, Neg(True))
-    | Or(True, _) | Or(_, True) -> true
+  let ref_true = ref True in
+  let ref_false = ref (Not(ref_true)) in
+  
+  let is_true_ref (e: LF.expr ref) : bool =
+    match !e with
+    | True -> true
     | _ -> false
   in
-  let is_true (e: LF.expr) : bool = 
-    match e with
-    | True | Or(True, _) | Or(_, True) -> true
-    | Neg(True) | And(Neg(True), _) | And(_, Neg(True)) -> false
+  let is_false_ref (e: LF.expr ref) : bool =
+    match !e with
+    | Not(e1) ->
+      (match !e1 with 
+      | True -> true
+      | _ -> false)
+    | _ -> false
+  in
+
+  let is_const (e: LF.expr ref) : bool =
+    match !e with
+    | True -> true
+    | Not(e1) -> is_true_ref e1
+    | Or(e1, e2) -> is_true_ref e1 || is_true_ref e2
+    | And(e1, e2) -> is_false_ref e1 || is_false_ref e2
+    | _ -> false
+  in
+  let is_true (e: LF.expr ref) : bool = 
+    match !e with
+    | True -> true
+    | Or(e1, e2) -> is_true_ref e1 || is_true_ref e2
+    | Not(e1) -> not (is_true_ref e1)
+    | And(e1, e2) -> not (is_false_ref e1 || is_false_ref e2)
     | _ -> failwith "Expression is not a constant"
   in
   let weights = Hashtbl.Poly.create () in
-  let rec from_core_prog_h (env: env) (e: CG.expr) : LF.expr = 
+  let env = Hashtbl.Poly.create () in
+
+  let gen_eq (e1: LF.expr ref) (e2: LF.expr ref) : LF.expr ref = 
+    let ref_not_e1 = ref (Not(e1)) in
+    let ref_not_e2 = ref (Not(e2)) in
+    let ref_or1 = ref (Or(ref_not_e1, e2)) in
+    let ref_or2 = ref (Or(e1, ref_not_e2)) in
+    let ref_and = ref (And(ref_or1, ref_or2)) in
+    ref_and
+  in
+
+  let gen_xor (e1: LF.expr ref) (e2: LF.expr ref) : LF.expr ref = 
+    let ref_not_e1 = ref (Not(e1)) in
+    let ref_not_e2 = ref (Not(e2)) in
+    let ref_and1 = ref (And(e1, ref_not_e2)) in
+    let ref_and2 = ref (And(ref_not_e1, e2)) in
+    let ref_or = ref (Or(ref_and1, ref_and2)) in
+    ref_or
+  in
+
+  let gen_ite (g: LF.expr ref) (thn: LF.expr ref) (els: LF.expr ref) : LF.expr ref = 
+    let ref_not_g = ref (Not(g)) in
+    let ref_and1 = ref (And(g, thn)) in
+    let ref_and2 = ref (And(ref_not_g, els)) in
+    let ref_or = ref (Or(ref_and1, ref_and2)) in
+    ref_or
+  in
+
+  let rec gen_ite_expr (g: LF.expr ref) (thn: LF.expr ref) (els: LF.expr ref) : LF.expr ref = 
+    (match !thn, !els with
+    | Tup(thn_1, thn_2), Tup(els_1, els_2) ->
+      let c1 = gen_ite_expr g thn_1 els_1 in
+      let c2 = gen_ite_expr g thn_2 els_2 in
+      ref (Tup(c1, c2))
+    | _ ->
+      gen_ite g thn els
+    )
+  in
+
+  let rec from_core_prog_h (e: CG.expr) : LF.expr ref = 
     match e with
     | And(e1, e2) -> 
-      let c1 = from_core_prog_h env e1 in
-      let c2 = from_core_prog_h env e2 in
-      And(c1, c2)
+      let c1 = from_core_prog_h e1 in
+      let c2 = from_core_prog_h e2 in
+      ref (And(c1, c2))
     | Or(e1, e2) -> 
-      let c1 = from_core_prog_h env e1 in
-      let c2 = from_core_prog_h env e2 in
-      Or(c1, c2)
+      let c1 = from_core_prog_h e1 in
+      let c2 = from_core_prog_h e2 in
+      ref (Or(c1, c2))
     | Xor(e1, e2) -> 
-      let c1 = from_core_prog_h env e1 in
-      let c2 = from_core_prog_h env e2 in  
-      Or(And(c1, Neg(c2)), And(Neg(c1), c2))
+      let c1 = from_core_prog_h e1 in
+      let c2 = from_core_prog_h e2 in
+      (match !c1, !c2 with
+      | Tup(c1_1, c1_2), Tup(c2_1, c2_2) ->
+        let c1' = gen_xor c1_1 c2_1 in
+        let c2' = gen_xor c1_2 c2_2 in
+        ref (Tup(c1', c2'))
+      | _ -> 
+        gen_xor c1 c2)
     | Eq(e1, e2) -> 
-      let c1 = from_core_prog_h env e1 in
-      let c2 = from_core_prog_h env e2 in
-      Or(And(c1, c2), And(Neg(c1), Neg(c2)))
+      let c1 = from_core_prog_h e1 in
+      let c2 = from_core_prog_h e2 in
+      (match !c1, !c2 with
+      | Tup(c1_1, c1_2), Tup(c2_1, c2_2) ->
+        let c1' = gen_eq c1_1 c2_1 in
+        let c2' = gen_eq c1_2 c2_2 in
+        ref (Tup(c1', c2'))
+      | _ -> 
+        gen_eq c1 c2)
+      (* Or(And(c1, c2), And(Not(c1), Not(c2))) *)
     | Not(e) ->
-      let c = from_core_prog_h env e in
-      Neg(c)
-    | True -> True
-    | False -> Neg(True)
+      let c = from_core_prog_h e in
+      let ref_not_c = ref (Not(c)) in
+      ref_not_c
+    | True -> ref_true
+    | False -> ref_false
     | Ident(s) ->
-      (match Map.Poly.find env s with
+      (match Hashtbl.Poly.find env s with
       | Some(r) -> r
       | _ -> failwith (sprintf "Could not find variable '%s'" s))
     | Tup(e1, e2) ->
-      let c1 = from_core_prog_h env e1 in
-      let c2 = from_core_prog_h env e2 in
-      Tup(c1, c2)
+      let c1 = from_core_prog_h e1 in
+      let c2 = from_core_prog_h e2 in
+      let ref_node = ref (Tup(c1, c2)) in
+      ref_node
     | Ite(g, thn, els) ->
-      let cg = from_core_prog_h env g in
+      let cg = from_core_prog_h g in
       if is_const cg then
-        let r = from_core_prog_h env (if is_true cg then thn else els) in
+        let r = from_core_prog_h (if is_true cg then thn else els) in
         r
       else
-        let cthn = from_core_prog_h env thn in
-        let cels = from_core_prog_h env els in
-        Or(And(cg, cthn), And(Neg(cg), cels))
+        let cthn = from_core_prog_h thn in
+        let cels = from_core_prog_h els in
+        gen_ite_expr cg cthn cels
     | Fst(e) ->
-      let c = from_core_prog_h env e in
-      let r = match c with
+      let c = from_core_prog_h e in
+      let r = match !c with
       | Tup(c1, _) -> c1
-      | _ -> failwith (Format.sprintf "Internal Failure: calling `fst` on non-tuple at %s" (CG.string_of_expr e))
+      | _ -> failwith (Format.sprintf "Internal Failure: calling `fst` on non-tuple at %s" (LF.string_of_expr c))
       in 
       r
     | Snd(e) ->
-      let c = from_core_prog_h env e in
-      let r = match c with
+      let c = from_core_prog_h e in
+      let r = match !c with
       | Tup(_, c2) -> c2
       | _ -> failwith (Format.sprintf "Internal Failure: calling `snd` on non-tuple at %s" (CG.string_of_expr e))
       in 
@@ -1504,20 +1560,73 @@ let from_core_prog (p: CG.program) : LF.program =
     | Flip(f) ->
       let var_name = (Format.sprintf "f%d_%s" !flip_id (Bignum.to_string_hum f)) in
       flip_id := !flip_id + 1;
-      Hashtbl.Poly.add_exn weights ~key:var_name ~data:f;
-      Atom(var_name)
+      (if Bignum.equal f Bignum.one then () else Hashtbl.Poly.add_exn weights ~key:var_name ~data:f);
+      ref (Atom(var_name))
     | Observe(g) ->
-      let c = from_core_prog_h env g in
+      let c = from_core_prog_h g in
       c
     | Let(x, e1, e2) ->
-      let c1 = from_core_prog_h env e1 in
-      let env' = Map.Poly.set env ~key:x ~data:c1 in
-      let c2 = from_core_prog_h env' e2 in
+      let c1 = from_core_prog_h e1 in
+      let c2 = Hashtbl.Poly.find_and_call env x ~if_found:(fun data ->
+        (Hashtbl.Poly.set env ~key:x ~data:c1);
+        let c2 = from_core_prog_h e2 in
+        (Hashtbl.Poly.set env ~key:x ~data:data);
+        c2
+        ) ~if_not_found:(fun x ->
+          (Hashtbl.Poly.set env ~key:x ~data:c1);
+          let c2 = from_core_prog_h e2 in
+          (Hashtbl.Poly.remove env x);
+          c2
+        )
+      in
       c2
     | Sample(_) -> failwith "not implemented"
     | FuncCall(_, _) -> failwith "not implemented"
     | _ -> failwith "not implemented"
   in
-  let env = Map.Poly.empty in
-  let r = from_core_prog_h env e in
+
+  let rec remove_redundancy (e: LF.expr ref) : LF.expr ref =
+    match !e with 
+    | And(e1, e2) -> 
+      let e1' = remove_redundancy e1 in
+      let e2' = remove_redundancy e2 in
+      if is_true_ref e1' then
+        e2'
+      else if is_true_ref e2' then
+          e1'
+      else if is_false_ref e1' || is_false_ref e2' then
+          ref_false
+      else
+        let ref_node = ref (And(e1', e2')) in
+        ref_node
+    | Or(e1, e2) -> 
+      let e1' = remove_redundancy e1 in
+      let e2' = remove_redundancy e2 in
+      if is_true_ref e1' || is_true_ref e2' then
+        ref_true
+      else if is_false_ref e1' then
+        e2'
+      else if is_false_ref e2' then
+        e1'
+      else
+        let ref_node = ref (Or(e1', e2')) in
+        ref_node
+    | Atom(_) -> e
+    | True -> ref_true
+    | Not(e1) -> 
+      let e1' = remove_redundancy e1 in
+      (match !e1' with
+      | Not(e2) -> e2
+      | _ -> 
+        let ref_not = ref (Not(e1')) in
+        ref_not)
+    | Tup(e1, e2) -> 
+      let e1' = remove_redundancy e1 in
+      let e2' = remove_redundancy e2 in
+      let ref_node = ref (Tup(e1', e2')) in
+      ref_node
+  in
+
+  let r = from_core_prog_h e in
+  (* let r = remove_redundancy r in *)
   {body = r; weights = weights}

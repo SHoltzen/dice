@@ -7,93 +7,93 @@ open Compiler
 
 let test_1 _ =
   let prog = "let x = flip 0.4 in x" in
-  assert_feq 0.4 (parse_and_prob prog);
-  assert_feq 0.4 (parse_optimize_and_prob prog)
+  assert_feq 0.4 (parse_and_prob prog false);
+  assert_feq 0.4 (parse_and_prob prog true)
 
 let test_not test_ctx =
   let prog = "let x = flip 0.4 in !x" in
-  assert_feq 0.6 (parse_and_prob prog);
-  assert_feq 0.6 (parse_optimize_and_prob prog)
+  assert_feq 0.6 (parse_and_prob prog false);
+  assert_feq 0.6 (parse_and_prob prog true)
 
 let test_obs1 _ =
   let prog = "let x = flip 0.4 in let y = flip 0.1 in let z = observe x || y in x" in
-  assert_feq (0.4 /. 0.46) (parse_and_prob prog);
-  assert_feq (0.4 /. 0.46) (parse_optimize_and_prob prog)
+  assert_feq (0.4 /. 0.46) (parse_and_prob prog false);
+  assert_feq (0.4 /. 0.46) (parse_and_prob prog true)
 
 let test_obs2 _ =
   let prog = "let x = flip 0.4 in let y = flip 0.1 in let z = observe x || y in !x" in
-  assert_feq (0.06 /. 0.46) (parse_and_prob prog);
-  assert_feq (0.06 /. 0.46) (parse_optimize_and_prob prog)
+  assert_feq (0.06 /. 0.46) (parse_and_prob prog false);
+  assert_feq (0.06 /. 0.46) (parse_and_prob prog true)
 
 let test_tup1 _ =
   let prog = "let x = (flip 0.1, flip 0.4) in snd x" in
-  assert_feq 0.4 (parse_and_prob prog);
-  assert_feq 0.4 (parse_optimize_and_prob prog)
+  assert_feq 0.4 (parse_and_prob prog false);
+  assert_feq 0.4 (parse_and_prob prog true)
 
 let test_nestedtup _ =
   let prog = "let x = (flip 0.1, (flip 0.4, flip 0.7)) in fst (snd x)" in
-  assert_feq 0.4 (parse_and_prob prog);
-  assert_feq 0.4 (parse_optimize_and_prob prog)
+  assert_feq 0.4 (parse_and_prob prog false);
+  assert_feq 0.4 (parse_and_prob prog true)
 
 let test_nestedtup2 _ =
   let prog = "let x = (flip 0.1, (flip 0.4, flip 0.7)) in ! fst (snd x)" in
-  assert_feq 0.6 (parse_and_prob prog);
-  assert_feq 0.6 (parse_optimize_and_prob prog)
+  assert_feq 0.6 (parse_and_prob prog false);
+  assert_feq 0.6 (parse_and_prob prog true)
 
 let test_ite1 _ =
   let prog = "if flip 0.4 then true else false" in
-  assert_feq 0.4 (parse_and_prob prog);
-  assert_feq 0.4 (parse_optimize_and_prob prog)
+  assert_feq 0.4 (parse_and_prob prog false);
+  assert_feq 0.4 (parse_and_prob prog true)
 
 let test_ite2 _ =
   let prog = "if flip 0.4 then flip 0.6 else false" in
-  assert_feq 0.24 (parse_and_prob prog);
-  assert_feq 0.24 (parse_optimize_and_prob prog)
+  assert_feq 0.24 (parse_and_prob prog false);
+  assert_feq 0.24 (parse_and_prob prog true)
 
 let test_ite3 _ =
   let prog = "if flip 0.4 then let z = observe false in flip 0.6 else false" in
-  assert_feq 0.0 (parse_and_prob prog);
-  assert_feq 0.0 (parse_optimize_and_prob prog)
+  assert_feq 0.0 (parse_and_prob prog false);
+  assert_feq 0.0 (parse_and_prob prog true)
 
 let test_int1 _ =
   let prog = "let x = discrete(0.1, 0.4, 0.5) in x == int(2, 1)" in
-  assert_feq 0.4 (parse_and_prob prog);
-  assert_feq 0.4 (parse_optimize_and_prob prog)
+  assert_feq 0.4 (parse_and_prob prog false);
+  assert_feq 0.4 (parse_and_prob prog true)
 
 let test_int2 _ =
   let prog = "let x = discrete(0.1, 0.4, 0.5) in let z = observe ! (x == int(2, 0)) in x == int(2, 1)" in
-  assert_feq (0.4 /. 0.9) (parse_and_prob prog);
-  assert_feq (0.4 /. 0.9) (parse_optimize_and_prob prog)
+  assert_feq (0.4 /. 0.9) (parse_and_prob prog false);
+  assert_feq (0.4 /. 0.9) (parse_and_prob prog true)
 
 let test_int3 _ =
   let prog = "let x = discrete(0.1, 0.4, 0.5) in let z = observe ! (x == int(2, 0) || x == int(2,1)) in x == int(2, 2)" in
-  assert_feq 1.0 (parse_and_prob prog);
-  assert_feq 1.0 (parse_optimize_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false);
+  assert_feq 1.0 (parse_and_prob prog true)
 
 let test_int4 _ =
   let prog = "let x = discrete(0.1, 0.4, 0.5) in let z = observe ! (x == int(2, 1)) in x == int(2, 2)" in
-  assert_feq (0.5 /. 0.6) (parse_and_prob prog);
-  assert_feq (0.5 /. 0.6) (parse_optimize_and_prob prog)
+  assert_feq (0.5 /. 0.6) (parse_and_prob prog false);
+  assert_feq (0.5 /. 0.6) (parse_and_prob prog true)
 
 let test_add1 _ =
   let prog = "let x = int(3, 0) + int(3, 1) in x == int(3, 1)" in
-  assert_feq 1.0 (parse_and_prob prog);
-  assert_feq 1.0 (parse_optimize_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false);
+  assert_feq 1.0 (parse_and_prob prog true)
 
 let test_add2 _ =
   let prog = "let x = discrete(0.1, 0.4, 0.5) + int(2, 1) in x == int(2, 1)" in
-  assert_feq 0.1 (parse_and_prob prog);
-  assert_feq 0.1 (parse_optimize_and_prob prog)
+  assert_feq 0.1 (parse_and_prob prog false);
+  assert_feq 0.1 (parse_and_prob prog true)
 
 let test_add3 _ =
   let prog = "let x = discrete(0.1, 0.4, 0.5) + discrete(1.0, 0.0, 0.0) in x == int(2, 1)" in
-  assert_feq 0.4 (parse_and_prob prog);
-  assert_feq 0.4 (parse_optimize_and_prob prog)
+  assert_feq 0.4 (parse_and_prob prog false);
+  assert_feq 0.4 (parse_and_prob prog true)
 
 let test_add4 _ =
   let prog = "let x = discrete(0.25, 0.25, 0.25, 0.25) + discrete(0.25, 0.25, 0.25, 0.25) in x == int(2, 1)" in
-  assert_feq 0.25 (parse_and_prob prog);
-  assert_feq 0.25 (parse_optimize_and_prob prog)
+  assert_feq 0.25 (parse_and_prob prog false);
+  assert_feq 0.25 (parse_and_prob prog true)
 
 let test_add5 _ =
   let prog = "
@@ -102,35 +102,35 @@ let test_add5 _ =
    let sum = x + y in
    let z = observe x == int(3, 1) in
    sum == int(3, 1)" in
-  assert_feq 0.1 (parse_and_prob prog);
-  assert_feq 0.1 (parse_optimize_and_prob prog)
+  assert_feq 0.1 (parse_and_prob prog false);
+  assert_feq 0.1 (parse_and_prob prog true)
 
 let test_add6 _ =
   let prog = "let x = discrete(0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125)
 + discrete(0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125) in x == int(3, 1)" in
-  assert_feq 0.125 (parse_and_prob prog);
-  assert_feq 0.125 (parse_optimize_and_prob prog)
+  assert_feq 0.125 (parse_and_prob prog false);
+  assert_feq 0.125 (parse_and_prob prog true)
 
 let test_sub1 _ =
   let prog = "let x = int(3, 0) - int(3, 1) in x == int(3, 7)" in
-  assert_feq 1.0 (parse_and_prob prog);
-  assert_feq 1.0 (parse_optimize_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false);
+  assert_feq 1.0 (parse_and_prob prog true)
 
 let test_sub2 _ =
   let prog = "let x = discrete(0.1, 0.4, 0.5) - int(2, 1) in x == int(2, 1)" in
-  assert_feq 0.5 (parse_and_prob prog);
-  assert_feq 0.5 (parse_optimize_and_prob prog)
+  assert_feq 0.5 (parse_and_prob prog false);
+  assert_feq 0.5 (parse_and_prob prog true)
 
 let test_sub3 _ =
   let prog = "let x = discrete(0.1, 0.4, 0.5) - discrete(0.0, 1.0, 0.0) in x == int(2, 1)" in
-  assert_feq 0.5 (parse_and_prob prog);
-  assert_feq 0.5 (parse_optimize_and_prob prog)
+  assert_feq 0.5 (parse_and_prob prog false);
+  assert_feq 0.5 (parse_and_prob prog true)
 
 let test_sub4 _ =
   let prog = "let x = discrete(0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125)
 - discrete(0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125) in x == int(3, 1)" in
-  assert_feq 0.125 (parse_and_prob prog);
-  assert_feq 0.125 (parse_optimize_and_prob prog)
+  assert_feq 0.125 (parse_and_prob prog false);
+  assert_feq 0.125 (parse_and_prob prog true)
 
 
 let test_op1 _ =
@@ -138,24 +138,24 @@ let test_op1 _ =
    let x = discrete(0.1, 0.2, 0.3, 0.4) in
    let y = discrete(0.4, 0.3, 0.2, 0.1) in
    x < y" in
-  assert_feq (3.0 /. 20.0) (parse_and_prob prog);
-  assert_feq (3.0 /. 20.0) (parse_optimize_and_prob prog)
+  assert_feq (3.0 /. 20.0) (parse_and_prob prog false);
+  assert_feq (3.0 /. 20.0) (parse_and_prob prog true)
 
 let test_op2 _ =
   let prog = "
    let x = discrete(0.1, 0.2, 0.3, 0.4) in
    let y = discrete(0.4, 0.3, 0.2, 0.1) in
    x <= y" in
-  assert_feq (7.0 /. 20.0) (parse_and_prob prog);
-  assert_feq (7.0 /. 20.0) (parse_optimize_and_prob prog)
+  assert_feq (7.0 /. 20.0) (parse_and_prob prog false);
+  assert_feq (7.0 /. 20.0) (parse_and_prob prog true)
 
 let test_op3 _ =
   let prog = "
    let x = discrete(0.1, 0.2, 0.3, 0.4) in
    let y = discrete(0.4, 0.3, 0.2, 0.1) in
    (x + y) < int(2, 2)" in
-  assert_feq (23.0 /. 50.0) (parse_and_prob prog);
-  assert_feq (23.0 /. 50.0) (parse_optimize_and_prob prog)
+  assert_feq (23.0 /. 50.0) (parse_and_prob prog false);
+  assert_feq (23.0 /. 50.0) (parse_and_prob prog true)
 
 let test_op4 _ =
   let prog = "
@@ -163,89 +163,89 @@ let test_op4 _ =
    let y = discrete(0.4, 0.3, 0.2, 0.1) in
    let tmp = observe (x + y) < int(2, 2) in
    x == y" in
-  assert_feq (5.0 /. 23.0) (parse_and_prob prog);
-  assert_feq (5.0 /. 23.0) (parse_optimize_and_prob prog)
+  assert_feq (5.0 /. 23.0) (parse_and_prob prog false);
+  assert_feq (5.0 /. 23.0) (parse_and_prob prog true)
 
 
 let test_iff1 _ =
   let prog = "true <=> false" in
-  assert_feq 0.0 (parse_and_prob prog)
+  assert_feq 0.0 (parse_and_prob prog false)
 
 let test_iff2 _ =
   let prog = "false <=> false" in
-  assert_feq 1.0 (parse_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false)
 
 let test_iff3 _ =
   let prog = "flip 0.1 <=> flip 0.4" in
-  assert_feq 0.58 (parse_and_prob prog)
+  assert_feq 0.58 (parse_and_prob prog false)
 
 
 let test_xor1 _ =
   let prog = "true ^ false" in
-  assert_feq 1.0 (parse_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false)
 
 let test_xor2 _ =
   let prog = "false ^ false" in
-  assert_feq 0.0 (parse_and_prob prog)
+  assert_feq 0.0 (parse_and_prob prog false)
 
 let test_xor3 _ =
   let prog = "flip 0.1 ^ flip 0.4" in
-  assert_feq 0.42 (parse_and_prob prog)
+  assert_feq 0.42 (parse_and_prob prog false)
 
 
 let test_mul1 _ =
   let prog = "let x = int(3, 0) * int(3, 1) in x == int(3, 0)" in
-  assert_feq 1.0 (parse_and_prob prog);
-  assert_feq 1.0 (parse_optimize_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false);
+  assert_feq 1.0 (parse_and_prob prog true)
 
 let test_mul2 _ =
   let prog = "let x = int(3, 2) * int(3, 2) in x == int(3, 4)" in
-  assert_feq 1.0 (parse_and_prob prog);
-  assert_feq 1.0 (parse_optimize_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false);
+  assert_feq 1.0 (parse_and_prob prog true)
 
 let test_mul3 _ =
   let prog = "let x = int(3, 3) * int(3, 3) in x == int(3, 1)" in
-  assert_feq 1.0 (parse_and_prob prog);
-  assert_feq 1.0 (parse_optimize_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false);
+  assert_feq 1.0 (parse_and_prob prog true)
 
 let test_mul4 _ =
   let prog = "let x = int(4, 3) * int(4, 3) in x == int(4, 9)" in
-  assert_feq 1.0 (parse_and_prob prog);
-  assert_feq 1.0 (parse_optimize_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false);
+  assert_feq 1.0 (parse_and_prob prog true)
 
 let test_mul5 _ =
   let prog = "let x = int(4, 3) * int(4, 3) * int(4, 3) in x == int(4, 11)" in
-  assert_feq 1.0 (parse_and_prob prog);
-  assert_feq 1.0 (parse_optimize_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false);
+  assert_feq 1.0 (parse_and_prob prog true)
 
 let test_mul6 _ =
   let prog = "let x = discrete(0.1, 0.4, 0.5, 0.0) * int(2, 2) in x == int(2, 0)" in
-  assert_feq 0.6 (parse_and_prob prog);
-  assert_feq 0.6 (parse_optimize_and_prob prog)
+  assert_feq 0.6 (parse_and_prob prog false);
+  assert_feq 0.6 (parse_and_prob prog true)
 
 let test_leftshift_1 _ =
   let prog = "let x = int(4, 1) in let y = x << 2 in y == int(4, 4)" in
-  assert_feq 1.0 (parse_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false)
 
 let test_leftshift_2 _ =
   let prog = "let x = int(4, 1) in let y = x << 5 in y == int(4, 0)" in
-  assert_feq 1.0 (parse_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false)
 
 let test_rightshift_1 _ =
   let prog = "let x = int(4, 8) in let y = x >> 2 in y == int(4, 2)" in
-  assert_feq 1.0 (parse_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false)
 
 let test_rightshift_2 _ =
   let prog = "let x = int(4, 12) in let y = x >> 1 in y == int(4, 6)" in
-  assert_feq 1.0 (parse_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false)
 
 let test_rightshift_3 _ =
   let prog = "let x = int(4, 12) in let y = x >> 5 in y == int(4, 0)" in
-  assert_feq 1.0 (parse_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false)
 
 let test_rightshift_4 _ =
   let prog = "let x = int(2, 2) in int(2, 1) == (x >> 1)" in
-  assert_feq 1.0 (parse_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false)
 
 let test_rightshift_5 _ =
   let prog = "
@@ -256,50 +256,50 @@ let b = a in
 let _y1 = if ( nth_bit(int(2,1), b)) then true else false in
 let _y0 = if ( nth_bit(int(2,1), b >> 1)) then _y1 else true in
 _x0 <=> _y0" in
-  assert_feq 1.0 (parse_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false)
 
 
 let test_unif_1 _ = 
   let prog1 = "let u = uniform(4, 0, 10) in u < int(4, 4)" in
   let prog2 = "let d = discrete(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1) in d < int(4, 4)" in
-  assert_feq (parse_and_prob prog1) (parse_and_prob prog2);
-  assert_feq 0.4 (parse_and_prob prog1) 
+  assert_feq (parse_and_prob prog1 false) (parse_and_prob prog2 false);
+  assert_feq 0.4 (parse_and_prob prog1 false)
 
 let test_unif_2 _ =
   let prog1 = "let u = uniform(3, 2, 6) in u == int(3, 0)" in
   let prog2 = "let d = discrete(0., 0., 0.25, 0.25, 0.25, 0.25) in d == int(3, 0)" in
-  assert_feq (parse_and_prob prog1) (parse_and_prob prog2);
-  assert_feq 0. (parse_and_prob prog1) 
+  assert_feq (parse_and_prob prog1 false) (parse_and_prob prog2 false);
+  assert_feq 0. (parse_and_prob prog1 false)
 
 let test_unif_3 _ = 
   let prog1 = "let u = uniform(3, 3, 4) in u == int(3, 3)" in
   let prog2 = "let d = discrete(0., 0., 0., 1., 0.) in d == int(3, 3)" in
-  assert_feq (parse_and_prob prog1) (parse_and_prob prog2);
-  assert_feq 1. (parse_and_prob prog1)
+  assert_feq (parse_and_prob prog1 false) (parse_and_prob prog2 false);
+  assert_feq 1. (parse_and_prob prog1 false)
 
 let test_unif_4 _ = 
   let prog = "
     let u = uniform(2, 1, 4) in
     let d = discrete(0., 0.5, 0.25, 0.25) in
     u == d && u < int(2, 3)" in
-  assert_feq 0.25 (parse_and_prob prog)
+  assert_feq 0.25 (parse_and_prob prog false)
   
 
 let test_binom_1 _ = 
   let prog = "let b = binomial(3, 4, 0.25) in b == int(3, 1)" in
-  assert_feq 0.421875 (parse_and_prob prog)
+  assert_feq 0.421875 (parse_and_prob prog false)
 
 let test_binom_2 _ = 
   let prog = "let b = binomial(5, 29, 0.5) in b <= int(5, 14)" in 
-  assert_feq 0.5 (parse_and_prob prog)
+  assert_feq 0.5 (parse_and_prob prog false)
 
 let test_binom_3 _ = 
   let prog = "let b = binomial(3, 0, 0.5) in b == int(3, 0)" in
-  assert_feq 1. (parse_and_prob prog)
+  assert_feq 1. (parse_and_prob prog false)
 
 let test_binom_4 _ = 
   let prog = "let b = binomial(3, 1, 0.3) in b == int(3, 1)" in
-  assert_feq 0.3 (parse_and_prob prog)
+  assert_feq 0.3 (parse_and_prob prog false)
 
 
 let test_fcall1 _ =
@@ -308,8 +308,8 @@ let test_fcall1 _ =
       (flip 0.5) && test
     }
     foo(true) && foo(true)" in
-  assert_feq 0.25 (parse_and_prob prog);
-  assert_feq 0.25 (parse_optimize_and_prob prog)
+  assert_feq 0.25 (parse_and_prob prog false);
+  assert_feq 0.25 (parse_and_prob prog true)
 
 let test_fcall2 _ =
   let prog = "
@@ -317,8 +317,8 @@ let test_fcall2 _ =
       (flip 0.5) && test
     }
     foo(true) && foo(false)" in
-  assert_feq 0.0 (parse_and_prob prog);
-  assert_feq 0.0 (parse_optimize_and_prob prog)
+  assert_feq 0.0 (parse_and_prob prog false);
+  assert_feq 0.0 (parse_and_prob prog true)
 
 let test_fcall3 _ =
   let prog = "
@@ -326,8 +326,8 @@ let test_fcall3 _ =
       (flip 0.5) && test
     }
     foo(flip 0.5) && foo(flip 0.5)" in
-  assert_feq 0.06250 (parse_and_prob prog);
-  assert_feq 0.06250 (parse_optimize_and_prob prog)
+  assert_feq 0.06250 (parse_and_prob prog false);
+  assert_feq 0.06250 (parse_and_prob prog true)
 
 let test_fcall4 _ =
   let prog = "
@@ -338,8 +338,8 @@ let test_fcall4 _ =
     let z = flip 0.5 in
     let tmp = foo(z) in
     z" in
-  assert_feq 1.0 (parse_and_prob prog);
-  assert_feq 1.0 (parse_optimize_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false);
+  assert_feq 1.0 (parse_and_prob prog true)
 
 let test_fcall5 _ =
   let prog = "
@@ -351,8 +351,8 @@ let test_fcall5 _ =
     let f2 = flip 0.1 in
     let tmp = foo(f1, f2) in
     f1" in
-  assert_feq (0.4 /. 0.46) (parse_and_prob prog);
-  assert_feq (0.4 /. 0.46) (parse_optimize_and_prob prog)
+  assert_feq (0.4 /. 0.46) (parse_and_prob prog false);
+  assert_feq (0.4 /. 0.46) (parse_and_prob prog true)
 
 let test_fcall6 _ =
   let prog = "
@@ -362,8 +362,8 @@ let test_fcall6 _ =
     }
     let f1 = flip 0.4 in
     let tmp = foo((f1, flip 0.1)) in f1" in
-  assert_feq (0.4 /. 0.46) (parse_and_prob prog);
-  assert_feq (0.4 /. 0.46) (parse_optimize_and_prob prog)
+  assert_feq (0.4 /. 0.46) (parse_and_prob prog false);
+  assert_feq (0.4 /. 0.46) (parse_and_prob prog true)
 
 let test_fcall7 _ =
   let prog = "
@@ -373,30 +373,30 @@ let test_fcall7 _ =
     }
     let f1 = discrete(0.1, 0.4, 0.5) in
     let tmp = foo(f1) in f1 == int(2, 1)" in
-  assert_feq (0.4 /. 0.9) (parse_and_prob prog);
-  assert_feq (0.4 /. 0.9) (parse_optimize_and_prob prog)
+  assert_feq (0.4 /. 0.9) (parse_and_prob prog false);
+  assert_feq (0.4 /. 0.9) (parse_and_prob prog true)
 
 let test_nthbit1 _ =
   let prog = "
     let f1 = discrete(0.1, 0.4, 0.3, 0.2) in
     nth_bit(int(2, 1), f1)" in
-  assert_feq 0.6 (parse_and_prob prog)
+  assert_feq 0.6 (parse_and_prob prog false)
 
 let test_nthbit2 _ =
   let prog = "
     let f1 = discrete(0.1, 0.4, 0.3, 0.2) in
     nth_bit(int(2, 0), f1)" in
-  assert_feq 0.5 (parse_and_prob prog)
+  assert_feq 0.5 (parse_and_prob prog false)
 
 let test_nthbit3 _ =
   let prog = "
     let a = int(2, 1) in nth_bit(int(2,1), a)" in
-  assert_feq 1.0 (parse_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false)
 
 let test_nthbit4 _ =
   let prog = "
     let a = int(2, 1) in nth_bit(int(2,0), a)" in
-  assert_feq 0.0 (parse_and_prob prog)
+  assert_feq 0.0 (parse_and_prob prog false)
 
 
 let test_caesar _ =
@@ -412,8 +412,8 @@ let test_caesar _ =
     let tmp = sendchar(key, int(2, 2)) in
     let tmp = sendchar(key, int(2, 3)) in
     key == int(2, 0)" in
-  assert_feq 0.25 (parse_and_prob prog);
-  assert_feq 0.25 (parse_optimize_and_prob prog)
+  assert_feq 0.25 (parse_and_prob prog false);
+  assert_feq 0.25 (parse_and_prob prog true)
 
 let test_caesar_iterate _ =
   let prog = "
@@ -431,8 +431,8 @@ let key = discrete(0.25, 0.25, 0.25, 0.25) in
 let tmp = iterate(sendchar, (key, int(2, 2)), 4) in
 key == int(2, 0)
 " in
-  assert_feq 0.25 (parse_and_prob prog);
-  assert_feq 0.25 (parse_optimize_and_prob prog)
+  assert_feq 0.25 (parse_and_prob prog false);
+  assert_feq 0.25 (parse_and_prob prog true)
 
 
 let test_burglary _ =
@@ -445,59 +445,59 @@ let test_burglary _ =
     let temp = observe john in
     let temp = observe mary in
     burglary" in
-  assert_feq 0.284172 (parse_and_prob prog);
-  assert_feq 0.284172 (parse_optimize_and_prob prog)
+  assert_feq 0.284172 (parse_and_prob prog false);
+  assert_feq 0.284172 (parse_and_prob prog true)
 
 let test_alarm _ =
   let prog = In_channel.read_all "../benchmarks/baselines/alarm.dice" in
-  assert_feq (2969983.0 /. 992160802.0) (parse_and_prob prog);
-  assert_feq (2969983.0 /. 992160802.0) (parse_optimize_and_prob prog)
+  assert_feq (2969983.0 /. 992160802.0) (parse_and_prob prog false);
+  assert_feq (2969983.0 /. 992160802.0) (parse_and_prob prog true)
 
 let test_murder _ =
   let prog = In_channel.read_all "../benchmarks/baselines/murderMystery.dice" in
-  assert_feq (9.0 /. 569.0) (parse_and_prob prog);
-  assert_feq (9.0 /. 569.0) (parse_optimize_and_prob prog)
+  assert_feq (9.0 /. 569.0) (parse_and_prob prog false);
+  assert_feq (9.0 /. 569.0) (parse_and_prob prog true)
 
 let test_evidence1 _ =
   let prog = In_channel.read_all "../benchmarks/baselines/evidence1.dice" in
-  assert_feq (1.0 /. 3.0) (parse_and_prob prog);
-  assert_feq (1.0 /. 3.0) (parse_optimize_and_prob prog)
+  assert_feq (1.0 /. 3.0) (parse_and_prob prog false);
+  assert_feq (1.0 /. 3.0) (parse_and_prob prog true)
 
 let test_evidence2 _ =
   let prog = In_channel.read_all "../benchmarks/baselines/evidence2.dice" in
-  assert_feq (2.0 /. 3.0) (parse_and_prob prog);
-  assert_feq (2.0 /. 3.0) (parse_optimize_and_prob prog)
+  assert_feq (2.0 /. 3.0) (parse_and_prob prog false);
+  assert_feq (2.0 /. 3.0) (parse_and_prob prog true)
 
 let test_grass _ =
   let prog = In_channel.read_all "../benchmarks/baselines/grass.dice" in
-  assert_feq (509.0 /. 719.0) (parse_and_prob prog);
-  assert_feq (509.0 /. 719.0) (parse_optimize_and_prob prog)
+  assert_feq (509.0 /. 719.0) (parse_and_prob prog false);
+  assert_feq (509.0 /. 719.0) (parse_and_prob prog true)
 
 let test_cancer _ =
   let prog = In_channel.read_all "../resources/cancer_test.dice" in
-  assert_feq (42709.0 /. 200000.0) (parse_and_prob prog);
-  assert_feq (42709.0 /. 200000.0) (parse_optimize_and_prob prog)
+  assert_feq (42709.0 /. 200000.0) (parse_and_prob prog false);
+  assert_feq (42709.0 /. 200000.0) (parse_and_prob prog true)
 
 let test_caesar_2 _ =
   let prog = In_channel.read_all "../resources/caesar_test.dice" in
-  assert_feq  (1113032.0 /. 315312455.0) (parse_and_prob prog);
-  assert_feq  (1113032.0 /. 315312455.0) (parse_optimize_and_prob prog)
+  assert_feq  (1113032.0 /. 315312455.0) (parse_and_prob prog false);
+  assert_feq  (1113032.0 /. 315312455.0) (parse_and_prob prog true)
 
 let test_alarm_2 _ =
   (* the correct answer here is from ace *)
   let prog = In_channel.read_all "../resources/alarm_test.dice" in
-  assert_feq 0.281037656 (parse_and_prob prog);
-  assert_feq 0.281037656 (parse_optimize_and_prob prog)
+  assert_feq 0.281037656 (parse_and_prob prog false);
+  assert_feq 0.281037656 (parse_and_prob prog true)
 
 let test_pmc1 _ =
   let prog = In_channel.read_all "../resources/pmc1.dice" in
-  assert_feq (1023.0 /. 2048.0) (parse_and_prob prog);
-  assert_feq (1023.0 /. 2048.0) (parse_optimize_and_prob prog)
+  assert_feq (1023.0 /. 2048.0) (parse_and_prob prog false);
+  assert_feq (1023.0 /. 2048.0) (parse_and_prob prog true)
 
 let test_pmc2 _ =
   let prog = In_channel.read_all "../resources/pmc2.dice" in
-  assert_feq (31.0 /. 64.0) (parse_and_prob prog);
-  assert_feq (31.0 /. 64.0) (parse_optimize_and_prob prog)
+  assert_feq (31.0 /. 64.0) (parse_and_prob prog false);
+  assert_feq (31.0 /. 64.0) (parse_and_prob prog true)
 
 let test_double_flip _ =
   let prog = "
@@ -505,8 +505,8 @@ let test_double_flip _ =
     let c2 = flip 0.5 in
     c1 && c2
     " in
-  assert_feq 0.25 (parse_and_prob prog);
-  assert_feq 0.25 (parse_optimize_and_prob prog)
+  assert_feq 0.25 (parse_and_prob prog false);
+  assert_feq 0.25 (parse_and_prob prog true)
 
 let test_typecheck_1 _ =
   let prog = "
@@ -514,16 +514,16 @@ let test_typecheck_1 _ =
     let c2 = int(2, 1) in
     (c1 == c2) || (c1 != c2)
     " in
-  assert_feq 1.0 (parse_and_prob prog);
-  assert_feq 1.0 (parse_optimize_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false);
+  assert_feq 1.0 (parse_and_prob prog true)
 
 let test_mod_sub _ =
   let prog = "
     let c1 = int(3, 0) in
     let c2 = int(3, 1) in
     (c1 - c2) == int(3, 2)" in
-  assert_feq 1.0 (parse_and_prob prog);
-  assert_feq 1.0 (parse_optimize_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false);
+  assert_feq 1.0 (parse_and_prob prog true)
 
 let test_coin _ =
   (* equivalent psi program:
@@ -556,8 +556,8 @@ let s2 = if flip 0.8 then coin2 + s1 else s1 in
 let candy = s2 >= int(6, 15) in
 let tmp = observe candy in
 coin1 == int(6, 10)
-" in assert_feq 0.45 (parse_and_prob prog);
-  assert_feq 0.45 (parse_optimize_and_prob prog)
+" in assert_feq 0.45 (parse_and_prob prog false);
+  assert_feq 0.45 (parse_and_prob prog true)
 
 let test_swap _ =
   let open Cudd in
@@ -574,8 +574,8 @@ let test_swap _ =
 
 let test_recursion _ =
   let prog = In_channel.read_all "../resources/recursion.dice" in
-  assert_feq (0.5 ** 3.) (parse_and_prob prog);
-  assert_feq (0.5 ** 3.) (parse_optimize_and_prob prog)
+  assert_feq (0.5 ** 3.) (parse_and_prob prog false);
+  assert_feq (0.5 ** 3.) (parse_and_prob prog true)
 
 let test_caesar_recursive _ =
   let prog = "
@@ -594,8 +594,8 @@ let test_caesar_recursive _ =
     let tmp = loop(key, int(2, 0)) in
     key == int(2, 0)
   " in
-  assert_feq 0.25 (parse_and_prob prog);
-  assert_feq 0.25 (parse_optimize_and_prob prog)
+  assert_feq 0.25 (parse_and_prob prog false);
+  assert_feq 0.25 (parse_and_prob prog true)
 
 let test_factorial _ =
   let prog = "
@@ -604,8 +604,8 @@ let test_factorial _ =
     }
     fac(int(7, 5)) == int(7, 120)
   " in
-  assert_feq 1.0 (parse_and_prob prog);
-  assert_feq 1.0 (parse_optimize_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false);
+  assert_feq 1.0 (parse_and_prob prog true)
 
 let test_fibonacci _ =
   let prog = "
@@ -614,32 +614,32 @@ let test_fibonacci _ =
     }
     fib(int(7, 11)) == int(7, 89)
   " in
-  assert_feq 1.0 (parse_and_prob prog);
-  assert_feq 1.0 (parse_optimize_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false);
+  assert_feq 1.0 (parse_and_prob prog true)
 
 let test_list _ =
   let prog = "
     let xs = [true, false, false] in
     (head xs) && !(head (tail xs)) && !(head (tail (tail xs)))
   " in
-  assert_feq 1.0 (parse_and_prob prog);
-  assert_feq 1.0 (parse_optimize_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false);
+  assert_feq 1.0 (parse_and_prob prog true)
 
 let test_length _ =
   let prog = "
     let xs = [true, false, false] in
     (length xs) == int(4, 3)
   " in
-  assert_feq 1.0 (parse_and_prob prog);
-  assert_feq 1.0 (parse_optimize_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false);
+  assert_feq 1.0 (parse_and_prob prog true)
 
 let test_empty _ =
   let prog = "
     let xs = [] : list(bool) in
     (length xs) == int(4, 0)
   " in
-  assert_feq 1.0 (parse_and_prob prog);
-  assert_feq 1.0 (parse_optimize_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false);
+  assert_feq 1.0 (parse_and_prob prog true)
 
 let test_list_recursion _ =
   let prog = "
@@ -652,8 +652,8 @@ let test_list_recursion _ =
     let xs = [true, false, false] in
     !index(int(2, 2), xs) && !index(int(2, 1), xs) && index(int(2, 0), xs)
   " in
-  assert_feq 1.0 (parse_and_prob prog);
-  assert_feq 1.0 (parse_optimize_and_prob prog)
+  assert_feq 1.0 (parse_and_prob prog false);
+  assert_feq 1.0 (parse_and_prob prog true)
 
 let test_list_distribution _ =
   let prog = "
@@ -668,8 +668,8 @@ let test_list_distribution _ =
     let xs = build(int(2, 3)) in
     " in
   let test prob expr =
-    assert_feq prob (parse_and_prob (prog ^ expr));
-    assert_feq prob (parse_optimize_and_prob (prog ^ expr)) in
+    assert_feq prob (parse_and_prob (prog ^ expr) false);
+    assert_feq prob (parse_and_prob (prog ^ expr) true) in
   test (0.5 *. 0.5 *. 0.5) "(length xs) == int(4, 0)";
   test (0.5 *. 0.2 *. 0.5 *. 0.5 *. 3.) "if (length xs) == int(4, 1) then (head xs) else false";
   test (0.5 *. 0.8 *. 0.5 *. 0.5 *. 3.) "if (length xs) == int(4, 1) then !(head xs) else false";
@@ -692,8 +692,8 @@ let test_list_ex _ =
     let ys = if flip 0.5 then (head xs) :: xs else tail xs in
     head ys
   " in
-  assert_feq (0.2 *. 0.5 +. 0.4 *. 0.5) (parse_and_prob prog);
-  assert_feq (0.2 *. 0.5 +. 0.4 *. 0.5) (parse_optimize_and_prob prog)
+  assert_feq (0.2 *. 0.5 +. 0.4 *. 0.5) (parse_and_prob prog false);
+  assert_feq (0.2 *. 0.5 +. 0.4 *. 0.5) (parse_and_prob prog true)
 
 let test_bdd _ =
   let mgr = Bdd.mk_bdd_manager_default_order 100 in

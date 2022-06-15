@@ -30,9 +30,9 @@ type compiled_program = {
 (** Compile the input program to a [compiled_program] *)
 val compile_program: CoreGrammar.program -> eager_eval:bool -> compiled_program
 val compile_to_bdd : LogicalFormula.program -> compiled_program
-(* val compile_to_cnf : LogicalFormula.expr -> LogicalFormula.cnf (* tseytin encoding *)
-val compile_cnf_to_ddnf : LogicalFormula.cnf -> LogicalFormula.dddnf (* calls sharpsat *)
-  *)
+val compile_to_cnf : LogicalFormula.program -> ExternalGrammar.typ -> LogicalFormula.wcnf
+val compute_cnf : ?debug:bool -> String.t -> int -> LogicalFormula.wcnf -> (LogicalFormula.label * Bignum.t * Bignum.t) List.t
+ 
 val get_prob: CoreGrammar.program -> Bignum.t
 
 exception Syntax_error of string
@@ -40,11 +40,9 @@ exception Syntax_error of string
 (** [parse_with_error] parses [lexbuf] as a program or fails with a syntax error *)
 val parse_with_error: Lexing.lexbuf -> ExternalGrammar.program
 
-(** [parse_and_prob]: [debug flag] -> [program text] -> [prob]
+(** [parse_and_prob]: [debug flag] -> [program text] -> [optimize] -> [prob]
     Parses and prints the probability of [program text]. *)
-val parse_and_prob: ?debug:bool -> string -> float
-
-val parse_optimize_and_prob: ?debug:bool -> string -> float
+val parse_and_prob: ?debug:bool -> string -> bool -> float
 
 (** prints the current position of the lex buffer to the out channel *)
 val print_position : out_channel -> Lexing.lexbuf -> unit
