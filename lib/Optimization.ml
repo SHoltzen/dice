@@ -5,7 +5,7 @@ open CG
 let n = ref 0
 let m = ref 0
 
-let default_max_flips = 100000
+let default_max_flips = 200000
 
 let fresh () =
   n := !n + 1;
@@ -931,8 +931,8 @@ let do_flip_hoisting (e: CG.expr) (new_n: int) (global_hoisting: bool) (max_flip
   let t3 = Core.Time.now() in
   let up_time = Core.Time.diff t2 t1 in
   let down_time = Core.Time.diff t3 t2 in
-  Format.printf "Up time: %s\n" (Core.Time.Span.to_string up_time);
-  Format.printf "Down time: %s\n" (Core.Time.Span.to_string down_time);
+  (* Format.printf "Up time: %s\n" (Core.Time.Span.to_string up_time);
+  Format.printf "Down time: %s\n" (Core.Time.Span.to_string down_time); *)
   let e'' = 
     if global_hoisting then 
       let flip_env'' = cross_up e' t' flip_env' in

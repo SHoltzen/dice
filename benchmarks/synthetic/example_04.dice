@@ -1,0 +1,17 @@
+let x0 = flip 0.985945 in
+let x1 = flip 0.317380 in
+let x2 = flip 0.444987 in
+let x3 = flip 0.996156 in
+let x4 =
+if x0 then if x1 then if x2 then if x3 then flip 0.097391 else flip 0.097391 else if x3 then flip 0.097391 else flip 0.276585 else if x2 then if x3 then flip 0.097391 else flip 0.097391 else if x3 then flip 0.097391 else flip 0.097391 else if x1 then if x2 then if x3 then flip 0.097391 else flip 0.097391 else if x3 then flip 0.097391 else flip 0.097391 else if x2 then if x3 then flip 0.276585 else flip 0.097391 else if x3 then flip 0.097391 else flip 0.097391
+in
+let x5 =
+if x0 then if x1 then if x2 then if x3 then flip 0.831900 else flip 0.831900 else if x3 then flip 0.021057 else flip 0.831900 else if x2 then if x3 then flip 0.831900 else flip 0.021057 else if x3 then flip 0.021057 else flip 0.831900 else if x1 then if x2 then if x3 then flip 0.831900 else flip 0.831900 else if x3 then flip 0.021057 else flip 0.831900 else if x2 then if x3 then flip 0.831900 else flip 0.021057 else if x3 then flip 0.831900 else flip 0.021057
+in
+let x6 =
+if x0 then if x1 then if x2 then if x3 then flip 0.927181 else flip 0.253453 else if x3 then flip 0.927181 else flip 0.927181 else if x2 then if x3 then flip 0.253453 else flip 0.927181 else if x3 then flip 0.927181 else flip 0.253453 else if x1 then if x2 then if x3 then flip 0.253453 else flip 0.927181 else if x3 then flip 0.927181 else flip 0.927181 else if x2 then if x3 then flip 0.927181 else flip 0.253453 else if x3 then flip 0.927181 else flip 0.253453
+in
+let x7 =
+if x0 then if x1 then if x2 then if x3 then flip 0.499550 else flip 0.499550 else if x3 then flip 0.499550 else flip 0.499550 else if x2 then if x3 then flip 0.913105 else flip 0.913105 else if x3 then flip 0.499550 else flip 0.913105 else if x1 then if x2 then if x3 then flip 0.913105 else flip 0.499550 else if x3 then flip 0.499550 else flip 0.499550 else if x2 then if x3 then flip 0.913105 else flip 0.913105 else if x3 then flip 0.499550 else flip 0.499550
+in
+x4 && x5 && x6 && x7

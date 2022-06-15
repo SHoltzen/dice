@@ -82,7 +82,7 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~local_hoisting ~global_hoisting ~branch_elimination ~determinism ~sbk_encoding ~print_state_bdd
     ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_cnf ~print_function_bdd
     ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc ~logical_formula
-    ~cnf ~sharpsat_dir ~print_cnf_decisions ~fc_timeout ~verbose ~partial_marginals ~random_marginal ~show_lf_size ~show_time
+    ~cnf ~sharpsat_dir ~print_cnf_decisions ~fc_timeout ~verbose ~show_lf_size ~show_time
     lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
@@ -90,11 +90,8 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
   let cfg =
     { max_list_length = Option.value (Option.first_some max_list_length recursion_limit)
         ~default:Passes.default_config.max_list_length } in
-  let parsed_marginals = match partial_marginals with
-  | None -> Passes.select_marginals random_marginal parsed_norec
-  | Some(x) -> Passes.select_marginals ~partial:x random_marginal parsed_norec in
   let (t, internal) =
-    let inlined = if inline_functions then Passes.inline_functions parsed_marginals else parsed_marginals in
+    let inlined = if inline_functions then Passes.inline_functions parsed_norec else parsed_norec in
     (from_external_prog ~cfg sbk_encoding inlined local_hoisting global_hoisting max_flips branch_elimination determinism)
   in
   let res = if print_internal then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog internal)] else res in
@@ -290,13 +287,10 @@ let command =
      and logical_formula = flag "-logical-formula" no_arg ~doc:" use logical formula interface"
      and cnf = flag "-cnf" no_arg ~doc:" compiles to CNF"
      and print_cnf_decisions = flag "-show-cnf-decisions" no_arg ~doc:" show the number of decisions performed by SharpSAT-td"
-     (* and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order" *)
      and json = flag "-json" no_arg ~doc:" print output as JSON"
      and sharpsat_dir = flag "-sharpsat-dir" (optional string) ~doc:" path to sharpsat binary (default ../sharpsat-td/bin/)"
      and fc_timeout = flag "-fc-timeout" (optional int) ~doc:" time in seconds to run flowcutter for for SharpSAT-td"
      and verbose = flag "-verbose" no_arg ~doc:" print additional debugging output"
-     and partial_marginals = flag "-partial-marginals" (optional int) ~doc:" computes a random subset of the marginals of size n"
-     and random_marginal = flag "-random-marginal" no_arg ~doc:" computes the results of a random marginal. Takes precedence over partial marginals"
      and show_lf_size = flag "-show-lf-size" no_arg ~doc:" show the number of nodes in the logical formula"
      and show_time = flag "-show-time" no_arg ~doc:" show the time it takes to generate CNF and to run SharpSAT-td"
      in fun () ->
@@ -308,7 +302,7 @@ let command =
                   ~branch_elimination ~determinism ~sbk_encoding ~show_recursive_calls ~print_state_bdd
                   ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_cnf ~print_function_bdd
                   ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc ~logical_formula
-                  ~cnf ~sharpsat_dir ~print_cnf_decisions ~fc_timeout ~verbose ~partial_marginals ~random_marginal ~show_lf_size
+                  ~cnf ~sharpsat_dir ~print_cnf_decisions ~fc_timeout ~verbose ~show_lf_size
                   ~show_time
                   lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))

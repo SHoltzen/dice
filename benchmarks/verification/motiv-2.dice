@@ -1,0 +1,21 @@
+fun step(state: (bool, bool)) {
+    let s0 = fst state in
+    let s1 = snd state in
+    let s0p = if s0 then flip 0.1 else flip 0.9 in
+    let s1p = if s1 then flip 0.1 else flip 0.9 in
+    (s0p, s1p)
+}
+
+let s0 = (false, false) in
+let s0 = step(s0) in
+let s0 = step(s0) in
+let s0 = step(s0) in
+let s0 = step(s0) in
+let s0 = step(s0) in
+let s0 = step(s0) in
+let s0 = step(s0) in
+let s0 = step(s0) in
+let s0 = step(s0) in
+let s0 = step(s0) in
+let s0 = step(s0) in
+s0

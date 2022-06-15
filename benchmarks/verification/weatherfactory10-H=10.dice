@@ -1,0 +1,364 @@
+
+fun step(packedstate : ( bool, ( bool, ( bool, ( bool, ( bool, ( bool, ( bool, ( bool, ( bool, (bool, bool))))))))))) {
+	let sun = fst packedstate in 
+	let state1 = fst (snd packedstate) in 
+	let state2 = fst (snd (snd packedstate)) in 
+	let state3 = fst (snd (snd (snd packedstate))) in 
+	let state4 = fst (snd (snd (snd (snd packedstate)))) in 
+	let state5 = fst (snd (snd (snd (snd (snd packedstate))))) in 
+	let state6 = fst (snd (snd (snd (snd (snd (snd packedstate)))))) in 
+	let state7 = fst (snd (snd (snd (snd (snd (snd (snd packedstate))))))) in 
+	let state8 = fst (snd (snd (snd (snd (snd (snd (snd (snd packedstate)))))))) in 
+	let state9 = fst (snd (snd (snd (snd (snd (snd (snd (snd (snd packedstate))))))))) in 
+	 let state10 = snd (snd (snd (snd (snd (snd (snd (snd (snd (snd packedstate))))))))) in 
+
+	let allStrike = (((((((((state1 && state2) && state3) && state4) && state5) && state6) && state7) && state8) && state9) && state10) in
+	if allStrike then 
+		( sun, ( state1, ( state2, ( state3, ( state4, ( state5, ( state6, ( state7, ( state8, (state9, state10))))))))))
+	else
+		let _cmd_act_1 = (((((((((((sun || !(sun)) && ((((state1 && sun) || (!(state1) && sun)) || (state1 && !(sun))) || (!(state1) && !(sun)))) && ((((state2 && sun) || (!(state2) && sun)) || (state2 && !(sun))) || (!(state2) && !(sun)))) && ((((state3 && sun) || (!(state3) && sun)) || (state3 && !(sun))) || (!(state3) && !(sun)))) && ((((state4 && sun) || (!(state4) && sun)) || (state4 && !(sun))) || (!(state4) && !(sun)))) && ((((state5 && sun) || (!(state5) && sun)) || (state5 && !(sun))) || (!(state5) && !(sun)))) && ((((state6 && sun) || (!(state6) && sun)) || (state6 && !(sun))) || (!(state6) && !(sun)))) && ((((state7 && sun) || (!(state7) && sun)) || (state7 && !(sun))) || (!(state7) && !(sun)))) && ((((state8 && sun) || (!(state8) && sun)) || (state8 && !(sun))) || (!(state8) && !(sun)))) && ((((state9 && sun) || (!(state9) && sun)) || (state9 && !(sun))) || (!(state9) && !(sun)))) && ((((state10 && sun) || (!(state10) && sun)) || (state10 && !(sun))) || (!(state10) && !(sun)))) in
+		let _count = 
+			(if _cmd_act_1 then int(1, 1) else int(1, 0)) in 
+		if _count == int(1,0) then
+			( sun, ( state1, ( state2, ( state3, ( state4, ( state5, ( state6, ( state7, ( state8, (state9, state10))))))))))
+		else
+			let _sel_act =
+				if _count == int(1, 1) then int(1, 1) else 
+					discrete(0.0, 1.0)
+					in
+			let _offset0 = _sel_act in 
+			let _take1 = ((_offset0 == int(1, 1)) && _cmd_act_1) in 
+			 if _take1 then
+				let _result_0 =
+					 if sun then 
+						let _sel_update_0 = discrete(0.700000000, 0.300000000) in 
+							if _sel_update_0 == int(1, 0) then
+								(sun)
+							else
+								(!(sun))
+					else if !(sun) then 
+						let _sel_update_0 = discrete(0.400000000, 0.600000000) in 
+							if _sel_update_0 == int(1, 0) then
+								(sun)
+							else
+								(!(sun))
+					else
+						sun
+				in
+				let sun_prime = _result_0 in 
+				let _result_1 =
+					 if (state1 && sun) then 
+						let _sel_update_1 = discrete(0.030000000, 0.970000000) in 
+							if _sel_update_1 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (!(state1) && sun) then 
+						let _sel_update_1 = discrete(0.140000000, 0.860000000) in 
+							if _sel_update_1 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (state1 && !(sun)) then 
+						let _sel_update_1 = discrete(0.060000000, 0.940000000) in 
+							if _sel_update_1 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (!(state1) && !(sun)) then 
+						let _sel_update_1 = discrete(0.080000000, 0.920000000) in 
+							if _sel_update_1 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else
+						state1
+				in
+				let state1_prime = _result_1 in 
+				let _result_2 =
+					 if (state2 && sun) then 
+						let _sel_update_2 = discrete(0.060000000, 0.940000000) in 
+							if _sel_update_2 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (!(state2) && sun) then 
+						let _sel_update_2 = discrete(0.210000000, 0.790000000) in 
+							if _sel_update_2 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (state2 && !(sun)) then 
+						let _sel_update_2 = discrete(0.120000000, 0.880000000) in 
+							if _sel_update_2 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (!(state2) && !(sun)) then 
+						let _sel_update_2 = discrete(0.120000000, 0.880000000) in 
+							if _sel_update_2 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else
+						state2
+				in
+				let state2_prime = _result_2 in 
+				let _result_3 =
+					 if (state3 && sun) then 
+						let _sel_update_3 = discrete(0.123000000, 0.877000000) in 
+							if _sel_update_3 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (!(state3) && sun) then 
+						let _sel_update_3 = discrete(0.315000000, 0.685000000) in 
+							if _sel_update_3 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (state3 && !(sun)) then 
+						let _sel_update_3 = discrete(0.246000000, 0.754000000) in 
+							if _sel_update_3 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (!(state3) && !(sun)) then 
+						let _sel_update_3 = discrete(0.180000000, 0.820000000) in 
+							if _sel_update_3 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else
+						state3
+				in
+				let state3_prime = _result_3 in 
+				let _result_4 =
+					 if (state4 && sun) then 
+						let _sel_update_4 = discrete(0.282000000, 0.718000000) in 
+							if _sel_update_4 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (!(state4) && sun) then 
+						let _sel_update_4 = discrete(0.170100000, 0.829900000) in 
+							if _sel_update_4 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (state4 && !(sun)) then 
+						let _sel_update_4 = discrete(0.564000000, 0.436000000) in 
+							if _sel_update_4 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (!(state4) && !(sun)) then 
+						let _sel_update_4 = discrete(0.097200000, 0.902800000) in 
+							if _sel_update_4 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else
+						state4
+				in
+				let state4_prime = _result_4 in 
+				let _result_5 =
+					 if (state5 && sun) then 
+						let _sel_update_5 = discrete(0.130200000, 0.869800000) in 
+							if _sel_update_5 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (!(state5) && sun) then 
+						let _sel_update_5 = discrete(0.205100000, 0.794900000) in 
+							if _sel_update_5 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (state5 && !(sun)) then 
+						let _sel_update_5 = discrete(0.260400000, 0.739600000) in 
+							if _sel_update_5 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (!(state5) && !(sun)) then 
+						let _sel_update_5 = discrete(0.117200000, 0.882800000) in 
+							if _sel_update_5 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else
+						state5
+				in
+				let state5_prime = _result_5 in 
+				let _result_6 =
+					 if (state6 && sun) then 
+						let _sel_update_6 = discrete(0.130230000, 0.869770000) in 
+							if _sel_update_6 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (!(state6) && sun) then 
+						let _sel_update_6 = discrete(0.205380000, 0.794620000) in 
+							if _sel_update_6 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (state6 && !(sun)) then 
+						let _sel_update_6 = discrete(0.260460000, 0.739540000) in 
+							if _sel_update_6 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (!(state6) && !(sun)) then 
+						let _sel_update_6 = discrete(0.117360000, 0.882640000) in 
+							if _sel_update_6 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else
+						state6
+				in
+				let state6_prime = _result_6 in 
+				let _result_7 =
+					 if (state7 && sun) then 
+						let _sel_update_7 = discrete(0.130350000, 0.869650000) in 
+							if _sel_update_7 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (!(state7) && sun) then 
+						let _sel_update_7 = discrete(0.205730000, 0.794270000) in 
+							if _sel_update_7 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (state7 && !(sun)) then 
+						let _sel_update_7 = discrete(0.260700000, 0.739300000) in 
+							if _sel_update_7 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (!(state7) && !(sun)) then 
+						let _sel_update_7 = discrete(0.117560000, 0.882440000) in 
+							if _sel_update_7 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else
+						state7
+				in
+				let state7_prime = _result_7 in 
+				let _result_8 =
+					 if (state8 && sun) then 
+						let _sel_update_8 = discrete(0.130320000, 0.869680000) in 
+							if _sel_update_8 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (!(state8) && sun) then 
+						let _sel_update_8 = discrete(0.204680000, 0.795320000) in 
+							if _sel_update_8 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (state8 && !(sun)) then 
+						let _sel_update_8 = discrete(0.260640000, 0.739360000) in 
+							if _sel_update_8 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (!(state8) && !(sun)) then 
+						let _sel_update_8 = discrete(0.116960000, 0.883040000) in 
+							if _sel_update_8 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else
+						state8
+				in
+				let state8_prime = _result_8 in 
+				let _result_9 =
+					 if (state9 && sun) then 
+						let _sel_update_9 = discrete(0.134970000, 0.865030000) in 
+							if _sel_update_9 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (!(state9) && sun) then 
+						let _sel_update_9 = discrete(0.205310000, 0.794690000) in 
+							if _sel_update_9 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (state9 && !(sun)) then 
+						let _sel_update_9 = discrete(0.269940000, 0.730060000) in 
+							if _sel_update_9 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (!(state9) && !(sun)) then 
+						let _sel_update_9 = discrete(0.117320000, 0.882680000) in 
+							if _sel_update_9 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else
+						state9
+				in
+				let state9_prime = _result_9 in 
+				let _result_10 =
+					 if (state10 && sun) then 
+						let _sel_update_10 = discrete(0.131400000, 0.868600000) in 
+							if _sel_update_10 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (!(state10) && sun) then 
+						let _sel_update_10 = discrete(0.163100000, 0.836900000) in 
+							if _sel_update_10 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (state10 && !(sun)) then 
+						let _sel_update_10 = discrete(0.262800000, 0.737200000) in 
+							if _sel_update_10 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else if (!(state10) && !(sun)) then 
+						let _sel_update_10 = discrete(0.093200000, 0.906800000) in 
+							if _sel_update_10 == int(1, 0) then
+								( true )
+							else
+								( false )
+					else
+						state10
+				in
+				let state10_prime = _result_10 in 
+				( sun_prime, ( state1_prime, ( state2_prime, ( state3_prime, ( state4_prime, ( state5_prime, ( state6_prime, ( state7_prime, ( state8_prime, (state9_prime, state10_prime))))))))))
+			else ( sun, ( state1, ( state2, ( state3, ( state4, ( state5, ( state6, ( state7, ( state8, (state9, state10))))))))))
+}
+let res = step(( true, ( false, ( false, ( false, ( false, ( false, ( false, ( false, ( false, (false, false))))))))))) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+	let sun = fst res in 
+	let state1 = fst (snd res) in 
+	let state2 = fst (snd (snd res)) in 
+	let state3 = fst (snd (snd (snd res))) in 
+	let state4 = fst (snd (snd (snd (snd res)))) in 
+	let state5 = fst (snd (snd (snd (snd (snd res))))) in 
+	let state6 = fst (snd (snd (snd (snd (snd (snd res)))))) in 
+	let state7 = fst (snd (snd (snd (snd (snd (snd (snd res))))))) in 
+	let state8 = fst (snd (snd (snd (snd (snd (snd (snd (snd res)))))))) in 
+	let state9 = fst (snd (snd (snd (snd (snd (snd (snd (snd (snd res))))))))) in 
+	let state10 = snd (snd (snd (snd (snd (snd (snd (snd (snd (snd res))))))))) in 
+	let allStrike = (((((((((state1 && state2) && state3) && state4) && state5) && state6) && state7) && state8) && state9) && state10) in
+(allStrike, false)

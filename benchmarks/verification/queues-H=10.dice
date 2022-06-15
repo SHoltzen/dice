@@ -1,0 +1,169 @@
+fun min(a : int(3), b: int(3)){
+	if a < b then a else b
+}
+fun max(a : int(3), b: int(3)){
+	if a > b then a else b
+}
+
+fun step(packedstate : ( int(3), ( int(3), ( int(3), ( int(3), ( int(3), ( int(3), (int(3), int(3))))))))) {
+	let pos1 = fst packedstate in 
+	let pos2 = fst (snd packedstate) in 
+	let pos3 = fst (snd (snd packedstate)) in 
+	let pos4 = fst (snd (snd (snd packedstate))) in 
+	let pos5 = fst (snd (snd (snd (snd packedstate)))) in 
+	let pos6 = fst (snd (snd (snd (snd (snd packedstate))))) in 
+	let pos7 = fst (snd (snd (snd (snd (snd (snd packedstate)))))) in 
+	 let pos8 = snd (snd (snd (snd (snd (snd (snd packedstate)))))) in 
+
+	let target = ((((pos1==int(3,5)) && (pos2==int(3,5))) && (pos3==int(3,5))) && (((((pos4<int(3,5)) || (pos5<int(3,5))) || (pos6<int(3,5))) || (pos7<int(3,5))) || (pos8<int(3,5)))) in
+	if target then 
+		( pos1, ( pos2, ( pos3, ( pos4, ( pos5, ( pos6, (pos7, pos8)))))))
+	else
+		let _cmd_act_1 = (((((((((pos1<int(3,5)) || (pos1==int(3,5))) && ((pos2<int(3,5)) || (pos2==int(3,5)))) && ((pos3<int(3,5)) || (pos3==int(3,5)))) && ((pos4<int(3,5)) || (pos4==int(3,5)))) && ((pos5<int(3,5)) || (pos5==int(3,5)))) && ((pos6<int(3,5)) || (pos6==int(3,5)))) && ((pos7<int(3,5)) || (pos7==int(3,5)))) && ((pos8<int(3,5)) || (pos8==int(3,5)))) in
+		let _count = 
+			(if _cmd_act_1 then int(1, 1) else int(1, 0)) in 
+		if _count == int(1,0) then
+			( pos1, ( pos2, ( pos3, ( pos4, ( pos5, ( pos6, (pos7, pos8)))))))
+		else
+			let _sel_act =
+				if _count == int(1, 1) then int(1, 1) else 
+					discrete(0.0, 1.0)
+					in
+			let _offset0 = _sel_act in 
+			let _take1 = ((_offset0 == int(1, 1)) && _cmd_act_1) in 
+			 if _take1 then
+				let _result_0 =
+					 if (pos1<int(3,5)) then 
+						let _sel_update_0 = discrete(0.400000000, 0.600000000) in 
+							if _sel_update_0 == int(1, 0) then
+								((pos1+int(3,1)))
+							else
+								(pos1)
+					else if (pos1==int(3,5)) then 
+						let _sel_update_0 = discrete(1.000000000) in 
+															(pos1)
+					else
+						pos1
+				in
+				let pos1_prime = _result_0 in 
+				let _result_1 =
+					 if (pos2<int(3,5)) then 
+						let _sel_update_1 = discrete(0.500000000, 0.500000000) in 
+							if _sel_update_1 == int(1, 0) then
+								((pos2+int(3,1)))
+							else
+								(pos2)
+					else if (pos2==int(3,5)) then 
+						let _sel_update_1 = discrete(1.000000000) in 
+															(pos2)
+					else
+						pos2
+				in
+				let pos2_prime = _result_1 in 
+				let _result_2 =
+					 if (pos3<int(3,5)) then 
+						let _sel_update_2 = discrete(0.650000000, 0.350000000) in 
+							if _sel_update_2 == int(1, 0) then
+								((pos3+int(3,1)))
+							else
+								(pos3)
+					else if (pos3==int(3,5)) then 
+						let _sel_update_2 = discrete(1.000000000) in 
+															(pos3)
+					else
+						pos3
+				in
+				let pos3_prime = _result_2 in 
+				let _result_3 =
+					 if (pos4<int(3,5)) then 
+						let _sel_update_3 = discrete(0.750000000, 0.250000000) in 
+							if _sel_update_3 == int(1, 0) then
+								((pos4+int(3,1)))
+							else
+								(pos4)
+					else if (pos4==int(3,5)) then 
+						let _sel_update_3 = discrete(1.000000000) in 
+															(pos4)
+					else
+						pos4
+				in
+				let pos4_prime = _result_3 in 
+				let _result_4 =
+					 if (pos5<int(3,5)) then 
+						let _sel_update_4 = discrete(0.850000000, 0.150000000) in 
+							if _sel_update_4 == int(1, 0) then
+								((pos5+int(3,1)))
+							else
+								(pos5)
+					else if (pos5==int(3,5)) then 
+						let _sel_update_4 = discrete(1.000000000) in 
+															(pos5)
+					else
+						pos5
+				in
+				let pos5_prime = _result_4 in 
+				let _result_5 =
+					 if (pos6<int(3,5)) then 
+						let _sel_update_5 = discrete(0.900000000, 0.100000000) in 
+							if _sel_update_5 == int(1, 0) then
+								((pos6+int(3,1)))
+							else
+								(pos6)
+					else if (pos6==int(3,5)) then 
+						let _sel_update_5 = discrete(1.000000000) in 
+															(pos6)
+					else
+						pos6
+				in
+				let pos6_prime = _result_5 in 
+				let _result_6 =
+					 if (pos7<int(3,5)) then 
+						let _sel_update_6 = discrete(0.920000000, 0.080000000) in 
+							if _sel_update_6 == int(1, 0) then
+								((pos7+int(3,1)))
+							else
+								(pos7)
+					else if (pos7==int(3,5)) then 
+						let _sel_update_6 = discrete(1.000000000) in 
+															(pos7)
+					else
+						pos7
+				in
+				let pos7_prime = _result_6 in 
+				let _result_7 =
+					 if (pos8<int(3,5)) then 
+						let _sel_update_7 = discrete(0.960000000, 0.040000000) in 
+							if _sel_update_7 == int(1, 0) then
+								((pos8+int(3,1)))
+							else
+								(pos8)
+					else if (pos8==int(3,5)) then 
+						let _sel_update_7 = discrete(1.000000000) in 
+															(pos8)
+					else
+						pos8
+				in
+				let pos8_prime = _result_7 in 
+				( pos1_prime, ( pos2_prime, ( pos3_prime, ( pos4_prime, ( pos5_prime, ( pos6_prime, (pos7_prime, pos8_prime)))))))
+			else ( pos1, ( pos2, ( pos3, ( pos4, ( pos5, ( pos6, (pos7, pos8)))))))
+}
+let res = step(( int(3,0), ( int(3,0), ( int(3,0), ( int(3,0), ( int(3,0), ( int(3,0), (int(3,0), int(3,0))))))))) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+	let pos1 = fst res in 
+	let pos2 = fst (snd res) in 
+	let pos3 = fst (snd (snd res)) in 
+	let pos4 = fst (snd (snd (snd res))) in 
+	let pos5 = fst (snd (snd (snd (snd res)))) in 
+	let pos6 = fst (snd (snd (snd (snd (snd res))))) in 
+	let pos7 = fst (snd (snd (snd (snd (snd (snd res)))))) in 
+	let pos8 = snd (snd (snd (snd (snd (snd (snd res)))))) in 
+	let target = ((((pos1==int(3,5)) && (pos2==int(3,5))) && (pos3==int(3,5))) && (((((pos4<int(3,5)) || (pos5<int(3,5))) || (pos6<int(3,5))) || (pos7<int(3,5))) || (pos8<int(3,5)))) in
+(target, false)
