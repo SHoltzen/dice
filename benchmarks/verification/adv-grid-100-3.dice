@@ -1,0 +1,729 @@
+fun min(a : int(7), b: int(7)){
+	if a < b then a else b
+}
+fun max(a : int(7), b: int(7)){
+	if a > b then a else b
+}
+
+fun step(packedstate : (int(7), int(7))) {
+	let a = fst packedstate in 
+	 let b = snd packedstate in 
+
+	let goal = ((b==int(7,3)) && (a<int(7,100))) in
+	if goal then 
+		(a, b)
+	else if ((a<int(7,100)) && (b<int(7,3))) then
+	 	if a == int(7,0) then
+		if flip 0.33554817275747506 then
+			 ((int(7,0)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,1) then
+		if flip 0.3388704318936877 then
+			 ((int(7,1)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,2) then
+		if flip 0.3421926910299003 then
+			 ((int(7,2)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,3) then
+		if flip 0.34551495016611294 then
+			 ((int(7,3)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,4) then
+		if flip 0.34883720930232553 then
+			 ((int(7,4)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,5) then
+		if flip 0.3521594684385382 then
+			 ((int(7,5)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,6) then
+		if flip 0.3554817275747508 then
+			 ((int(7,6)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,7) then
+		if flip 0.3588039867109634 then
+			 ((int(7,7)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,8) then
+		if flip 0.36212624584717606 then
+			 ((int(7,8)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,9) then
+		if flip 0.36544850498338866 then
+			 ((int(7,9)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,10) then
+		if flip 0.3687707641196013 then
+			 ((int(7,10)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,11) then
+		if flip 0.37209302325581395 then
+			 ((int(7,11)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,12) then
+		if flip 0.37541528239202654 then
+			 ((int(7,12)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,13) then
+		if flip 0.3787375415282392 then
+			 ((int(7,13)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,14) then
+		if flip 0.3820598006644518 then
+			 ((int(7,14)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,15) then
+		if flip 0.3853820598006644 then
+			 ((int(7,15)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,16) then
+		if flip 0.38870431893687707 then
+			 ((int(7,16)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,17) then
+		if flip 0.39202657807308966 then
+			 ((int(7,17)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,18) then
+		if flip 0.3953488372093023 then
+			 ((int(7,18)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,19) then
+		if flip 0.3986710963455149 then
+			 ((int(7,19)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,20) then
+		if flip 0.40199335548172754 then
+			 ((int(7,20)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,21) then
+		if flip 0.4053156146179402 then
+			 ((int(7,21)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,22) then
+		if flip 0.4086378737541528 then
+			 ((int(7,22)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,23) then
+		if flip 0.4119601328903654 then
+			 ((int(7,23)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,24) then
+		if flip 0.415282392026578 then
+			 ((int(7,24)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,25) then
+		if flip 0.41860465116279066 then
+			 ((int(7,25)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,26) then
+		if flip 0.4219269102990033 then
+			 ((int(7,26)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,27) then
+		if flip 0.4252491694352159 then
+			 ((int(7,27)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,28) then
+		if flip 0.42857142857142855 then
+			 ((int(7,28)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,29) then
+		if flip 0.4318936877076412 then
+			 ((int(7,29)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,30) then
+		if flip 0.4352159468438538 then
+			 ((int(7,30)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,31) then
+		if flip 0.43853820598006643 then
+			 ((int(7,31)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,32) then
+		if flip 0.441860465116279 then
+			 ((int(7,32)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,33) then
+		if flip 0.44518272425249167 then
+			 ((int(7,33)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,34) then
+		if flip 0.4485049833887043 then
+			 ((int(7,34)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,35) then
+		if flip 0.4518272425249169 then
+			 ((int(7,35)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,36) then
+		if flip 0.45514950166112955 then
+			 ((int(7,36)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,37) then
+		if flip 0.45847176079734214 then
+			 ((int(7,37)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,38) then
+		if flip 0.4617940199335548 then
+			 ((int(7,38)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,39) then
+		if flip 0.46511627906976744 then
+			 ((int(7,39)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,40) then
+		if flip 0.46843853820598 then
+			 ((int(7,40)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,41) then
+		if flip 0.4717607973421927 then
+			 ((int(7,41)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,42) then
+		if flip 0.47508305647840526 then
+			 ((int(7,42)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,43) then
+		if flip 0.4784053156146179 then
+			 ((int(7,43)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,44) then
+		if flip 0.48172757475083056 then
+			 ((int(7,44)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,45) then
+		if flip 0.48504983388704315 then
+			 ((int(7,45)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,46) then
+		if flip 0.4883720930232558 then
+			 ((int(7,46)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,47) then
+		if flip 0.4916943521594684 then
+			 ((int(7,47)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,48) then
+		if flip 0.49501661129568103 then
+			 ((int(7,48)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,49) then
+		if flip 0.4983388704318937 then
+			 ((int(7,49)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,50) then
+		if flip 0.5016611295681063 then
+			 ((int(7,50)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,51) then
+		if flip 0.5049833887043189 then
+			 ((int(7,51)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,52) then
+		if flip 0.5083056478405316 then
+			 ((int(7,52)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,53) then
+		if flip 0.5116279069767441 then
+			 ((int(7,53)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,54) then
+		if flip 0.5149501661129567 then
+			 ((int(7,54)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,55) then
+		if flip 0.5182724252491694 then
+			 ((int(7,55)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,56) then
+		if flip 0.521594684385382 then
+			 ((int(7,56)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,57) then
+		if flip 0.5249169435215947 then
+			 ((int(7,57)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,58) then
+		if flip 0.5282392026578072 then
+			 ((int(7,58)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,59) then
+		if flip 0.5315614617940199 then
+			 ((int(7,59)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,60) then
+		if flip 0.5348837209302325 then
+			 ((int(7,60)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,61) then
+		if flip 0.5382059800664452 then
+			 ((int(7,61)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,62) then
+		if flip 0.5415282392026578 then
+			 ((int(7,62)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,63) then
+		if flip 0.5448504983388703 then
+			 ((int(7,63)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,64) then
+		if flip 0.548172757475083 then
+			 ((int(7,64)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,65) then
+		if flip 0.5514950166112956 then
+			 ((int(7,65)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,66) then
+		if flip 0.5548172757475083 then
+			 ((int(7,66)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,67) then
+		if flip 0.5581395348837209 then
+			 ((int(7,67)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,68) then
+		if flip 0.5614617940199335 then
+			 ((int(7,68)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,69) then
+		if flip 0.5647840531561461 then
+			 ((int(7,69)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,70) then
+		if flip 0.5681063122923588 then
+			 ((int(7,70)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,71) then
+		if flip 0.5714285714285714 then
+			 ((int(7,71)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,72) then
+		if flip 0.574750830564784 then
+			 ((int(7,72)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,73) then
+		if flip 0.5780730897009966 then
+			 ((int(7,73)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,74) then
+		if flip 0.5813953488372092 then
+			 ((int(7,74)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,75) then
+		if flip 0.5847176079734219 then
+			 ((int(7,75)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,76) then
+		if flip 0.5880398671096345 then
+			 ((int(7,76)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,77) then
+		if flip 0.5913621262458472 then
+			 ((int(7,77)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,78) then
+		if flip 0.5946843853820597 then
+			 ((int(7,78)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,79) then
+		if flip 0.5980066445182723 then
+			 ((int(7,79)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,80) then
+		if flip 0.601328903654485 then
+			 ((int(7,80)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,81) then
+		if flip 0.6046511627906976 then
+			 ((int(7,81)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,82) then
+		if flip 0.6079734219269103 then
+			 ((int(7,82)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,83) then
+		if flip 0.6112956810631228 then
+			 ((int(7,83)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,84) then
+		if flip 0.6146179401993355 then
+			 ((int(7,84)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,85) then
+		if flip 0.6179401993355481 then
+			 ((int(7,85)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,86) then
+		if flip 0.6212624584717608 then
+			 ((int(7,86)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,87) then
+		if flip 0.6245847176079734 then
+			 ((int(7,87)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,88) then
+		if flip 0.6279069767441859 then
+			 ((int(7,88)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,89) then
+		if flip 0.6312292358803986 then
+			 ((int(7,89)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,90) then
+		if flip 0.6345514950166112 then
+			 ((int(7,90)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,91) then
+		if flip 0.6378737541528239 then
+			 ((int(7,91)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,92) then
+		if flip 0.6411960132890365 then
+			 ((int(7,92)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,93) then
+		if flip 0.6445182724252491 then
+			 ((int(7,93)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,94) then
+		if flip 0.6478405315614617 then
+			 ((int(7,94)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,95) then
+		if flip 0.6511627906976744 then
+			 ((int(7,95)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,96) then
+		if flip 0.654485049833887 then
+			 ((int(7,96)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,97) then
+		if flip 0.6578073089700996 then
+			 ((int(7,97)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,98) then
+		if flip 0.6611295681063122 then
+			 ((int(7,98)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else if a == int(7,99) then
+		if flip 0.6644518272425248 then
+			 ((int(7,99)+int(7,1)), b)
+		else
+			 (a, (b+int(7,1)))
+ 
+	else 
+		// Case should not be reachable
+		(a, b) 
+
+	else (a, b)
+}
+
+let res = step((int(7,0), int(7,0))) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+	let a = fst res in 
+	let b = snd res in 
+	let goal = ((b==int(7,3)) && (a<int(7,100))) in
+(goal, false)

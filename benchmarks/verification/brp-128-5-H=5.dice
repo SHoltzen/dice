@@ -1,0 +1,411 @@
+fun min(a : int(8), b: int(8)){
+	if a < b then a else b
+}
+fun max(a : int(8), b: int(8)){
+	if a > b then a else b
+}
+
+fun step(packedstate : ( bool, ( bool, ( bool, ( bool, ( int(8), ( int(8), ( int(8), ( int(8), ( bool, ( bool, ( bool, ( bool, ( bool, ( int(8), ( int(8), ( bool, (int(8), int(8))))))))))))))))))) {
+	let bs = fst packedstate in 
+	let s_ab = fst (snd packedstate) in 
+	let fs = fst (snd (snd packedstate)) in 
+	let ls = fst (snd (snd (snd packedstate))) in 
+	let s = fst (snd (snd (snd (snd packedstate)))) in 
+	let srep = fst (snd (snd (snd (snd (snd packedstate))))) in 
+	let nrtr = fst (snd (snd (snd (snd (snd (snd packedstate)))))) in 
+	let i = fst (snd (snd (snd (snd (snd (snd (snd packedstate))))))) in 
+	let fr = fst (snd (snd (snd (snd (snd (snd (snd (snd packedstate)))))))) in 
+	let lr = fst (snd (snd (snd (snd (snd (snd (snd (snd (snd packedstate))))))))) in 
+	let br = fst (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd packedstate)))))))))) in 
+	let r_ab = fst (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd packedstate))))))))))) in 
+	let recv = fst (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd packedstate)))))))))))) in 
+	let r = fst (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd packedstate))))))))))))) in 
+	let rrep = fst (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd packedstate)))))))))))))) in 
+	let T = fst (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd packedstate))))))))))))))) in 
+	let k = fst (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd packedstate)))))))))))))))) in 
+	 let l = snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd packedstate)))))))))))))))) in 
+
+	if (s == int(8, 5)) then 
+		( bs, ( s_ab, ( fs, ( ls, ( s, ( srep, ( nrtr, ( i, ( fr, ( lr, ( br, ( r_ab, ( recv, ( r, ( rrep, ( T, (k, l)))))))))))))))))
+	else
+		let _cmd_act_1 = ((s==int(8,0)) && !(T)) in
+		let _cmd_act_2 = (((s==int(8,1)) || ((s==int(8,3)) && (nrtr<int(8,5)))) && (k==int(8,0))) in
+		let _cmd_act_3 = ((s==int(8,2)) && (l==int(8,1))) in
+		let _cmd_act_4 = ((s==int(8,2)) && (k==int(8,2))) in
+		let _cmd_act_5 = ((s==int(8,2)) && (l==int(8,2))) in
+		let _cmd_act_6 = (((s==int(8,5)) || (s==int(8,6))) && ((((r==int(8,0)) || ((r==int(8,4)) && ls)) || ((r==int(8,4)) && !(ls))) || (r==int(8,5)))) in
+		let _cmd_act_7 = (((r==int(8,4)) || (r==int(8,0))) && (k==int(8,1))) in
+		let _cmd_act_8 = ((((r==int(8,2)) && !(r_ab <=> br)) || (r==int(8,3))) && (l==int(8,0))) in
+		let _cmd_6 = (((s==int(8,3)) && (nrtr==int(8,5))) && (i<int(8,128))) in
+		let _cmd_7 = (((s==int(8,3)) && (nrtr==int(8,5))) && (i==int(8,128))) in
+		let _cmd_8 = ((s==int(8,4)) && (i<int(8,128))) in
+		let _cmd_9 = ((s==int(8,4)) && (i==int(8,128))) in
+		let _cmd_14 = (r==int(8,1)) in
+		let _cmd_15 = ((fr && r_ab <=> br) && ((r==int(8,2)) && !(lr))) in
+		let _cmd_16 = ((!(fr) && r_ab <=> br) && ((r==int(8,2)) && !(lr))) in
+		let _cmd_17 = ((!(fr) && r_ab <=> br) && ((r==int(8,2)) && lr)) in
+		let _count = 
+			(if _cmd_act_1 then int(5, 1) else int(5, 0)) +
+ 			(if _cmd_act_2 then int(5, 1) else int(5, 0)) +
+ 			(if _cmd_act_3 then int(5, 1) else int(5, 0)) +
+ 			(if _cmd_act_4 then int(5, 1) else int(5, 0)) +
+ 			(if _cmd_act_5 then int(5, 1) else int(5, 0)) +
+ 			(if _cmd_act_6 then int(5, 1) else int(5, 0)) +
+ 			(if _cmd_act_7 then int(5, 1) else int(5, 0)) +
+ 			(if _cmd_act_8 then int(5, 1) else int(5, 0)) +
+ 			(if _cmd_6 then int(5, 1) else int(5, 0)) +
+ 			(if _cmd_7 then int(5, 1) else int(5, 0)) +
+ 			(if _cmd_8 then int(5, 1) else int(5, 0)) +
+ 			(if _cmd_9 then int(5, 1) else int(5, 0)) +
+ 			(if _cmd_14 then int(5, 1) else int(5, 0)) +
+ 			(if _cmd_15 then int(5, 1) else int(5, 0)) +
+ 			(if _cmd_16 then int(5, 1) else int(5, 0)) +
+ 			(if _cmd_17 then int(5, 1) else int(5, 0)) in 
+		if _count == int(5,0) then
+			( bs, ( s_ab, ( fs, ( ls, ( s, ( srep, ( nrtr, ( i, ( fr, ( lr, ( br, ( r_ab, ( recv, ( r, ( rrep, ( T, (k, l)))))))))))))))))
+		else
+			let _sel_act =
+				if _count == int(5, 1) then int(5, 1) else if _count == int(5, 2) then
+					 discrete(0.0, 0.5, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0) + int(5, 1)
+				else if _count == int(5, 3) then
+					 discrete(0.0, 0.3333333333333333, 0.3333333333333333, 0.3333333333333333, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0) + int(5, 1)
+				else if _count == int(5, 4) then
+					 discrete(0.0, 0.25, 0.25, 0.25, 0.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0) + int(5, 1)
+				else if _count == int(5, 5) then
+					 discrete(0.0, 0.2, 0.2, 0.2, 0.2, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0) + int(5, 1)
+				else if _count == int(5, 6) then
+					 discrete(0.0, 0.16666666666666666, 0.16666666666666666, 0.16666666666666666, 0.16666666666666666, 0.16666666666666666, 0.16666666666666666, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0) + int(5, 1)
+				else if _count == int(5, 7) then
+					 discrete(0.0, 0.14285714285714285, 0.14285714285714285, 0.14285714285714285, 0.14285714285714285, 0.14285714285714285, 0.14285714285714285, 0.14285714285714285, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0) + int(5, 1)
+				else if _count == int(5, 8) then
+					 discrete(0.0, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0) + int(5, 1)
+				else if _count == int(5, 9) then
+					 discrete(0.0, 0.1111111111111111, 0.1111111111111111, 0.1111111111111111, 0.1111111111111111, 0.1111111111111111, 0.1111111111111111, 0.1111111111111111, 0.1111111111111111, 0.1111111111111111, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0) + int(5, 1)
+				else if _count == int(5, 10) then
+					 discrete(0.0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0) + int(5, 1)
+				else if _count == int(5, 11) then
+					 discrete(0.0, 0.09090909090909091, 0.09090909090909091, 0.09090909090909091, 0.09090909090909091, 0.09090909090909091, 0.09090909090909091, 0.09090909090909091, 0.09090909090909091, 0.09090909090909091, 0.09090909090909091, 0.09090909090909091, 0.0, 0.0, 0.0, 0.0, 0.0) + int(5, 1)
+				else if _count == int(5, 12) then
+					 discrete(0.0, 0.08333333333333333, 0.08333333333333333, 0.08333333333333333, 0.08333333333333333, 0.08333333333333333, 0.08333333333333333, 0.08333333333333333, 0.08333333333333333, 0.08333333333333333, 0.08333333333333333, 0.08333333333333333, 0.08333333333333333, 0.0, 0.0, 0.0, 0.0) + int(5, 1)
+				else if _count == int(5, 13) then
+					 discrete(0.0, 0.07692307692307693, 0.07692307692307693, 0.07692307692307693, 0.07692307692307693, 0.07692307692307693, 0.07692307692307693, 0.07692307692307693, 0.07692307692307693, 0.07692307692307693, 0.07692307692307693, 0.07692307692307693, 0.07692307692307693, 0.07692307692307693, 0.0, 0.0, 0.0) + int(5, 1)
+				else if _count == int(5, 14) then
+					 discrete(0.0, 0.07142857142857142, 0.07142857142857142, 0.07142857142857142, 0.07142857142857142, 0.07142857142857142, 0.07142857142857142, 0.07142857142857142, 0.07142857142857142, 0.07142857142857142, 0.07142857142857142, 0.07142857142857142, 0.07142857142857142, 0.07142857142857142, 0.07142857142857142, 0.0, 0.0) + int(5, 1)
+				else if _count == int(5, 15) then
+					 discrete(0.0, 0.06666666666666667, 0.06666666666666667, 0.06666666666666667, 0.06666666666666667, 0.06666666666666667, 0.06666666666666667, 0.06666666666666667, 0.06666666666666667, 0.06666666666666667, 0.06666666666666667, 0.06666666666666667, 0.06666666666666667, 0.06666666666666667, 0.06666666666666667, 0.06666666666666667, 0.0) + int(5, 1)
+				else 
+					discrete(0.0, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625)
+					in
+			let _offset0 = _sel_act in 
+			let _take1 = ((_offset0 == int(5, 1)) && _cmd_act_1) in 
+			let _offset1 = 
+				if (_cmd_act_1 && _offset0 > int(5, 0)) then 
+					_offset0 - int(5,1) 
+				else
+					_offset0
+			in
+			let _take2 = ((_offset1 == int(5, 1)) && _cmd_act_2) in 
+			let _offset2 = 
+				if (_cmd_act_2 && _offset1 > int(5, 0)) then 
+					_offset1 - int(5,1) 
+				else
+					_offset1
+			in
+			let _take3 = ((_offset2 == int(5, 1)) && _cmd_act_3) in 
+			let _offset3 = 
+				if (_cmd_act_3 && _offset2 > int(5, 0)) then 
+					_offset2 - int(5,1) 
+				else
+					_offset2
+			in
+			let _take4 = ((_offset3 == int(5, 1)) && _cmd_act_4) in 
+			let _offset4 = 
+				if (_cmd_act_4 && _offset3 > int(5, 0)) then 
+					_offset3 - int(5,1) 
+				else
+					_offset3
+			in
+			let _take5 = ((_offset4 == int(5, 1)) && _cmd_act_5) in 
+			let _offset5 = 
+				if (_cmd_act_5 && _offset4 > int(5, 0)) then 
+					_offset4 - int(5,1) 
+				else
+					_offset4
+			in
+			let _take6 = ((_offset5 == int(5, 1)) && _cmd_act_6) in 
+			let _offset6 = 
+				if (_cmd_act_6 && _offset5 > int(5, 0)) then 
+					_offset5 - int(5,1) 
+				else
+					_offset5
+			in
+			let _take7 = ((_offset6 == int(5, 1)) && _cmd_act_7) in 
+			let _offset7 = 
+				if (_cmd_act_7 && _offset6 > int(5, 0)) then 
+					_offset6 - int(5,1) 
+				else
+					_offset6
+			in
+			let _take8 = ((_offset7 == int(5, 1)) && _cmd_act_8) in 
+			let _offset8 = 
+				if (_cmd_act_8 && _offset7 > int(5, 0)) then 
+					_offset7 - int(5,1) 
+				else
+					_offset7
+			in
+			let _take9 = ((_offset8 == int(5, 1)) && _cmd_6) in 
+			let _offset9 = 
+				if (_cmd_6 && _offset8 > int(5, 0)) then 
+					_offset8 - int(5,1) 
+				else
+					_offset8
+			in
+			let _take10 = ((_offset9 == int(5, 1)) && _cmd_7) in 
+			let _offset10 = 
+				if (_cmd_7 && _offset9 > int(5, 0)) then 
+					_offset9 - int(5,1) 
+				else
+					_offset9
+			in
+			let _take11 = ((_offset10 == int(5, 1)) && _cmd_8) in 
+			let _offset11 = 
+				if (_cmd_8 && _offset10 > int(5, 0)) then 
+					_offset10 - int(5,1) 
+				else
+					_offset10
+			in
+			let _take12 = ((_offset11 == int(5, 1)) && _cmd_9) in 
+			let _offset12 = 
+				if (_cmd_9 && _offset11 > int(5, 0)) then 
+					_offset11 - int(5,1) 
+				else
+					_offset11
+			in
+			let _take13 = ((_offset12 == int(5, 1)) && _cmd_14) in 
+			let _offset13 = 
+				if (_cmd_14 && _offset12 > int(5, 0)) then 
+					_offset12 - int(5,1) 
+				else
+					_offset12
+			in
+			let _take14 = ((_offset13 == int(5, 1)) && _cmd_15) in 
+			let _offset14 = 
+				if (_cmd_15 && _offset13 > int(5, 0)) then 
+					_offset13 - int(5,1) 
+				else
+					_offset13
+			in
+			let _take15 = ((_offset14 == int(5, 1)) && _cmd_16) in 
+			let _offset15 = 
+				if (_cmd_16 && _offset14 > int(5, 0)) then 
+					_offset14 - int(5,1) 
+				else
+					_offset14
+			in
+			let _take16 = ((_offset15 == int(5, 1)) && _cmd_17) in 
+			 if _take1 then
+				let _result_0 =
+					 if (s==int(8,0)) then 
+								(( int(8,1), (int(8,0), int(8,1))))
+					else
+						( s, (srep, i))
+				in
+				let s_prime = fst _result_0 in 
+				let srep_prime = fst (snd _result_0) in 
+				let i_prime = snd (snd _result_0)  in 
+				let _result_2 =
+					 if !(T) then 
+								( true )
+					else
+						T
+				in
+				let T_prime = _result_2 in 
+				( bs, ( s_ab, ( fs, ( ls, ( s_prime, ( srep_prime, ( nrtr, ( i_prime, ( fr, ( lr, ( br, ( r_ab, ( recv, ( r, ( rrep, ( T_prime, (k, l)))))))))))))))))
+			else  if _take2 then
+				let _result_0 =
+					 if (s==int(8,1)) then 
+								(( s_ab, ( int(8,2), ( (i==int(8,1)), ((i==int(8,128)), int(8,0))))))
+					else if ((s==int(8,3)) && (nrtr<int(8,5))) then 
+								(( s_ab, ( int(8,2), ( (i==int(8,1)), ((i==int(8,128)), (nrtr+int(8,1)))))))
+					else
+						( bs, ( s, ( fs, (ls, nrtr))))
+				in
+				let bs_prime = fst _result_0 in 
+				let s_prime = fst (snd _result_0) in 
+				let fs_prime = fst (snd (snd _result_0)) in 
+				let ls_prime = fst (snd (snd (snd _result_0))) in 
+				let nrtr_prime = snd (snd (snd (snd _result_0)))  in 
+				let _result_3 =
+					 if (k==int(8,0)) then 
+						let _sel_update_3 = discrete(0.980000000, 0.020000000) in 
+							if _sel_update_3 == int(1, 0) then
+								(int(8,1))
+							else
+								(int(8,2))
+					else
+						k
+				in
+				let k_prime = _result_3 in 
+				( bs_prime, ( s_ab, ( fs_prime, ( ls_prime, ( s_prime, ( srep, ( nrtr_prime, ( i, ( fr, ( lr, ( br, ( r_ab, ( recv, ( r, ( rrep, ( T, (k_prime, l)))))))))))))))))
+			else  if _take3 then
+				let _result_0 =
+					 if (s==int(8,2)) then 
+								((!(s_ab), int(8,4)))
+					else
+						(s_ab, s)
+				in
+				let s_ab_prime = fst _result_0 in 
+				let s_prime = snd _result_0  in 
+				let _result_4 =
+					 if (l==int(8,1)) then 
+								(int(8,0))
+					else
+						l
+				in
+				let l_prime = _result_4 in 
+				( bs, ( s_ab_prime, ( fs, ( ls, ( s_prime, ( srep, ( nrtr, ( i, ( fr, ( lr, ( br, ( r_ab, ( recv, ( r, ( rrep, ( T, (k, l_prime)))))))))))))))))
+			else  if _take4 then
+				let _result_0 =
+					 if (s==int(8,2)) then 
+								(int(8,3))
+					else
+						s
+				in
+				let s_prime = _result_0 in 
+				let _result_3 =
+					 if (k==int(8,2)) then 
+								(int(8,0))
+					else
+						k
+				in
+				let k_prime = _result_3 in 
+				( bs, ( s_ab, ( fs, ( ls, ( s_prime, ( srep, ( nrtr, ( i, ( fr, ( lr, ( br, ( r_ab, ( recv, ( r, ( rrep, ( T, (k_prime, l)))))))))))))))))
+			else  if _take5 then
+				let _result_0 =
+					 if (s==int(8,2)) then 
+								(int(8,3))
+					else
+						s
+				in
+				let s_prime = _result_0 in 
+				let _result_4 =
+					 if (l==int(8,2)) then 
+								(int(8,0))
+					else
+						l
+				in
+				let l_prime = _result_4 in 
+				( bs, ( s_ab, ( fs, ( ls, ( s_prime, ( srep, ( nrtr, ( i, ( fr, ( lr, ( br, ( r_ab, ( recv, ( r, ( rrep, ( T, (k, l_prime)))))))))))))))))
+			else  if _take6 then
+				let _result_0 =
+					 if (s==int(8,5)) then 
+								((s_ab, int(8,6)))
+					else if (s==int(8,6)) then 
+								(( false , int(8,0)))
+					else
+						(s_ab, s)
+				in
+				let s_ab_prime = fst _result_0 in 
+				let s_prime = snd _result_0  in 
+				let _result_1 =
+					 if (r==int(8,0)) then 
+								((int(8,0), rrep))
+					else if ((r==int(8,4)) && ls) then 
+								((int(8,5), rrep))
+					else if ((r==int(8,4)) && !(ls)) then 
+								((int(8,5), int(8,4)))
+					else if (r==int(8,5)) then 
+								((int(8,0), int(8,0)))
+					else
+						(r, rrep)
+				in
+				let r_prime = fst _result_1 in 
+				let rrep_prime = snd _result_1  in 
+				( bs, ( s_ab_prime, ( fs, ( ls, ( s_prime, ( srep, ( nrtr, ( i, ( fr, ( lr, ( br, ( r_ab, ( recv, ( r_prime, ( rrep_prime, ( T, (k, l)))))))))))))))))
+			else  if _take7 then
+				let _result_1 =
+					 if (r==int(8,4)) then 
+								(( fs, ( ls, ( bs, (int(8,2), T)))))
+					else if (r==int(8,0)) then 
+								(( fs, ( ls, ( bs, (int(8,1), T)))))
+					else
+						( fr, ( lr, ( br, (r, recv))))
+				in
+				let fr_prime = fst _result_1 in 
+				let lr_prime = fst (snd _result_1) in 
+				let br_prime = fst (snd (snd _result_1)) in 
+				let r_prime = fst (snd (snd (snd _result_1))) in 
+				let recv_prime = snd (snd (snd (snd _result_1)))  in 
+				let _result_3 =
+					 if (k==int(8,1)) then 
+								(int(8,0))
+					else
+						k
+				in
+				let k_prime = _result_3 in 
+				( bs, ( s_ab, ( fs, ( ls, ( s, ( srep, ( nrtr, ( i, ( fr_prime, ( lr_prime, ( br_prime, ( r_ab, ( recv_prime, ( r_prime, ( rrep, ( T, (k_prime, l)))))))))))))))))
+			else  if _take8 then
+				let _result_1 =
+					 if ((r==int(8,2)) && !(r_ab <=> br)) then 
+								((int(8,4), r_ab))
+					else if (r==int(8,3)) then 
+								((int(8,4), !(r_ab)))
+					else
+						(r, r_ab)
+				in
+				let r_prime = fst _result_1 in 
+				let r_ab_prime = snd _result_1  in 
+				let _result_4 =
+					 if (l==int(8,0)) then 
+						let _sel_update_4 = discrete(0.990000000, 0.010000000) in 
+							if _sel_update_4 == int(1, 0) then
+								(int(8,1))
+							else
+								(int(8,2))
+					else
+						l
+				in
+				let l_prime = _result_4 in 
+				( bs, ( s_ab, ( fs, ( ls, ( s, ( srep, ( nrtr, ( i, ( fr, ( lr, ( br, ( r_ab_prime, ( recv, ( r_prime, ( rrep, ( T, (k, l_prime)))))))))))))))))
+	else if _take9 then
+	 ( bs, ( s_ab, ( fs, ( ls, ( int(8,5), ( int(8,1), ( nrtr, ( i, ( fr, ( lr, ( br, ( r_ab, ( recv, ( r, ( rrep, ( T, (k, l)))))))))))))))))
+	else if _take10 then
+	 ( bs, ( s_ab, ( fs, ( ls, ( int(8,5), ( int(8,2), ( nrtr, ( i, ( fr, ( lr, ( br, ( r_ab, ( recv, ( r, ( rrep, ( T, (k, l)))))))))))))))))
+	else if _take11 then
+	 ( bs, ( s_ab, ( fs, ( ls, ( int(8,1), ( srep, ( nrtr, ( (i+int(8,1)), ( fr, ( lr, ( br, ( r_ab, ( recv, ( r, ( rrep, ( T, (k, l)))))))))))))))))
+	else if _take12 then
+	 ( bs, ( s_ab, ( fs, ( ls, ( int(8,0), ( int(8,3), ( nrtr, ( i, ( fr, ( lr, ( br, ( r_ab, ( recv, ( r, ( rrep, ( T, (k, l)))))))))))))))))
+	else if _take13 then
+	 ( bs, ( s_ab, ( fs, ( ls, ( s, ( srep, ( nrtr, ( i, ( fr, ( lr, ( br, ( br, ( recv, ( int(8,2), ( rrep, ( T, (k, l)))))))))))))))))
+	else if _take14 then
+	 ( bs, ( s_ab, ( fs, ( ls, ( s, ( srep, ( nrtr, ( i, ( fr, ( lr, ( br, ( r_ab, ( recv, ( int(8,3), ( int(8,1), ( T, (k, l)))))))))))))))))
+	else if _take15 then
+	 ( bs, ( s_ab, ( fs, ( ls, ( s, ( srep, ( nrtr, ( i, ( fr, ( lr, ( br, ( r_ab, ( recv, ( int(8,3), ( int(8,2), ( T, (k, l)))))))))))))))))
+	else if _take16 then
+	 ( bs, ( s_ab, ( fs, ( ls, ( s, ( srep, ( nrtr, ( i, ( fr, ( lr, ( br, ( r_ab, ( recv, ( int(8,3), ( int(8,3), ( T, (k, l)))))))))))))))))
+			else ( bs, ( s_ab, ( fs, ( ls, ( s, ( srep, ( nrtr, ( i, ( fr, ( lr, ( br, ( r_ab, ( recv, ( r, ( rrep, ( T, (k, l)))))))))))))))))
+}
+let res = step(( false, ( false, ( false, ( false, ( int(8,0), ( int(8,0), ( int(8,0), ( int(8,0), ( false, ( false, ( false, ( false, ( false, ( int(8,0), ( int(8,0), ( false, (int(8,0), int(8,0))))))))))))))))))) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+let res = step(res) in
+	let bs = fst res in 
+	let s_ab = fst (snd res) in 
+	let fs = fst (snd (snd res)) in 
+	let ls = fst (snd (snd (snd res))) in 
+	let s = fst (snd (snd (snd (snd res)))) in 
+	let srep = fst (snd (snd (snd (snd (snd res))))) in 
+	let nrtr = fst (snd (snd (snd (snd (snd (snd res)))))) in 
+	let i = fst (snd (snd (snd (snd (snd (snd (snd res))))))) in 
+	let fr = fst (snd (snd (snd (snd (snd (snd (snd (snd res)))))))) in 
+	let lr = fst (snd (snd (snd (snd (snd (snd (snd (snd (snd res))))))))) in 
+	let br = fst (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd res)))))))))) in 
+	let r_ab = fst (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd res))))))))))) in 
+	let recv = fst (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd res)))))))))))) in 
+	let r = fst (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd res))))))))))))) in 
+	let rrep = fst (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd res)))))))))))))) in 
+	let T = fst (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd res))))))))))))))) in 
+	let k = fst (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd res)))))))))))))))) in 
+	let l = snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd (snd res)))))))))))))))) in 
+((s == int(8, 5)), false)

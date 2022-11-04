@@ -14,6 +14,6 @@ val inline_functions : ExternalGrammar.program -> ExternalGrammar.program
   * Note: assumes that function calls are inlined, no iteration *)
 val num_paths : ExternalGrammar.program -> LogProbability.t
 
-val from_external_prog: ?cfg:config -> ExternalGrammar.program -> (ExternalGrammar.typ * CoreGrammar.program)
+val from_external_prog: ?cfg:config -> bool -> ExternalGrammar.program -> bool -> bool -> int option -> bool -> bool -> (ExternalGrammar.typ * CoreGrammar.program)
 
-val from_external_prog_optimize: ?cfg:config -> ExternalGrammar.program -> bool -> bool -> bool -> (ExternalGrammar.typ * CoreGrammar.program)
+val from_core_prog: CoreGrammar.program -> LogicalFormula.program

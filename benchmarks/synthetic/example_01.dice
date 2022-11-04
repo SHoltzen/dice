@@ -1,0 +1,5 @@
+let x0 = flip 0.337770 in
+let x1 =
+if x0 then flip 0.689601 else flip 0.689601
+in
+x1

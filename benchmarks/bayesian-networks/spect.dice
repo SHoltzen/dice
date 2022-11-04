@@ -1,0 +1,24 @@
+let var_0 = flip 0.208178 in
+let var_9 = if (var_0) then (flip 0.824561) else (flip 0.649533) in
+let var_8 = if (var_0) then (flip 0.842105) else (flip 0.500000) in
+let var_7 = if (var_0) then (flip 0.894737) else (flip 0.663551) in
+let var_6 = if (var_0) then (flip 0.912281) else (flip 0.719626) in
+let var_5 = if (var_0) then (flip 0.754386) else (flip 0.551402) in
+let var_4 = if (var_0) then (flip 0.877193) else (flip 0.668224) in
+let var_3 = if (var_0) then (flip 0.807018) else (flip 0.551402) in
+let var_22 = if (var_0) then (flip 0.842105) else (flip 0.518692) in
+let var_21 = if (var_0) then (flip 0.894737) else (flip 0.565421) in
+let var_20 = if (var_0) then (flip 0.877193) else (flip 0.621495) in
+let var_2 = if (var_0) then (flip 0.912281) else (flip 0.705607) in
+let var_19 = if (var_0) then (flip 0.859649) else (flip 0.719626) in
+let var_18 = if (var_0) then (flip 0.982456) else (flip 0.831776) in
+let var_17 = if (var_0) then (flip 0.982456) else (flip 0.817757) in
+let var_16 = if (var_0) then (flip 0.912281) else (flip 0.626168) in
+let var_15 = if (var_0) then (flip 0.947368) else (flip 0.785047) in
+let var_14 = if (var_0) then (flip 0.842105) else (flip 0.654206) in
+let var_13 = if (var_0) then (flip 0.859649) else (flip 0.411215) in
+let var_12 = if (var_0) then (flip 0.877193) else (flip 0.654206) in
+let var_11 = if (var_0) then (flip 0.912281) else (flip 0.710280) in
+let var_10 = if (var_0) then (flip 0.807018) else (flip 0.570093) in
+let var_1 = if (var_0) then (flip 0.736842) else (flip 0.504673) in
+(var_1,(var_10,(var_11,(var_12,(var_13,(var_14,(var_15,(var_16,(var_17,(var_18,(var_19,(var_2,(var_20,(var_21,(var_22,(var_3,(var_4,(var_5,(var_6,(var_7,(var_8,(var_9,var_0))))))))))))))))))))))

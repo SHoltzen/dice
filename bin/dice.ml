@@ -2,7 +2,6 @@ open DiceLib
 open Core
 open Passes
 
-
 (** List of rows in a table *)
 type tableres = String.t List.t List.t
 
@@ -15,8 +14,30 @@ let print_res r =
   match r with
   | TableRes(name, rows) ->
     Format.printf "================[ %s ]================\n" name;
-    List.iter rows ~f:(fun row ->
-        List.iter row ~f:(fun i -> Format.printf "%s\t" i);
+    let cols = List.transpose_exn rows in
+    let tabs = List.map cols ~f:(fun col ->
+      let lengths = List.map col ~f:String.length in
+      let max_length = match List.max_elt lengths ~compare:Int.compare with
+      | None -> 0.
+      | Some(x) -> Float.of_int x in
+      let max_spaces = (Float.iround_up_exn (max_length/. 4.)) * 4 in
+      let spaces = List.map lengths ~f:(fun x -> max_spaces - x) in
+      let min_spaces = match List.min_elt spaces ~compare:Int.compare with
+      | None -> 0 
+      | Some(x) -> x in
+      let min_tab = if min_spaces = 0 then 1 else 0 in
+      let tabs = List.map spaces ~f:(fun space ->
+        let space_f = Float.of_int space in
+        let less_tab = if space = max_spaces - 1 then 1 else 0 in
+        let n = (Float.iround_up_exn (space_f/. 4.)) + min_tab - less_tab in
+        String.of_char_list (List.init n ~f:(fun _ -> '\t'))
+      )
+      in tabs) 
+      |> List.transpose_exn 
+    in
+
+    List.iter (List.zip_exn rows tabs) ~f:(fun (row, tab) ->
+        List.iter (List.zip_exn row tab) ~f:(fun (i, t) -> Format.printf "%s%s" i t);
         Format.printf "\n";
       );
     Format.printf "\n"
@@ -58,9 +79,10 @@ let rec print_pretty e =
 
 let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~inline_functions ~sample_amount ~show_recursive_calls
-    ~flip_lifting ~branch_elimination ~determinism ~print_state_bdd
-    ~show_function_size ~print_unparsed ~print_function_bdd
-    ~recursion_limit ~max_list_length ~eager_eval ~wmc_type
+    ~local_hoisting ~global_hoisting ~branch_elimination ~determinism ~sbk_encoding ~print_state_bdd
+    ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_cnf ~print_function_bdd
+    ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~logical_formula
+    ~cnf ~sharpsat_dir ~print_cnf_decisions ~fc_timeout ~verbose ~show_lf_size ~show_time ~wmc_type
     lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
@@ -68,63 +90,135 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
   let cfg =
     { max_list_length = Option.value (Option.first_some max_list_length recursion_limit)
         ~default:Passes.default_config.max_list_length } in
-  let optimize = flip_lifting || branch_elimination || determinism in
   let (t, internal) =
-    if inline_functions && optimize then
-      (from_external_prog_optimize ~cfg (Passes.inline_functions parsed_norec) flip_lifting branch_elimination determinism)
-    else if inline_functions && not optimize then
-      (from_external_prog ~cfg (Passes.inline_functions parsed_norec))
-    else if not inline_functions && optimize then
-      (from_external_prog_optimize ~cfg parsed_norec flip_lifting branch_elimination determinism)
-    else from_external_prog ~cfg parsed_norec in
+    let inlined = if inline_functions then Passes.inline_functions parsed_norec else parsed_norec in
+    (from_external_prog ~cfg sbk_encoding inlined local_hoisting global_hoisting max_flips branch_elimination determinism)
+  in
   let res = if print_internal then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog internal)] else res in
   let res = if print_unparsed then res @ [StringRes("Parsed program", CoreGrammar.string_of_prog_unparsed internal)] else res in
-  match sample_amount with
+  let res = if show_flip_count then res @ [StringRes("Number of flips", CoreGrammar.count_flips internal)] else res in
+  let res = if show_params then
+    let distinct, total = ExternalGrammar.count_params parsed in
+     res @ [StringRes("Number of Distinct Parameters", distinct); StringRes("Number of Parameters", total)] else res in
+  let res = if print_lf || show_lf_size then 
+    let log_form = from_core_prog internal in
+    let res = if print_lf then
+      res @ [StringRes("Logical formula", LogicalFormula.string_of_prog log_form)] else res in
+    let res = if show_lf_size then
+      res @ [StringRes("Logical formula size", string_of_int (LogicalFormula.size_of_lf log_form))] else res in
+      res
+    else res in
+  if no_compile then res else match sample_amount with
   | None ->
-    let compiled = Compiler.compile_program internal ~eager_eval in
-    let zbdd = compiled.body.z in
-    let res = if skip_table then res else res @
-       (let z = Wmc.wmc ~wmc_type compiled.ctx.man zbdd compiled.ctx.weights in
-       let table = VarState.get_table cfg compiled.ctx.man compiled.body.state t in
-       let probs = List.map table ~f:(fun (label, bdd) ->
-          if (Bignum.(z = zero) && (wmc_type = 1 || wmc_type = 2)) || Bignum.((den z) = zero) then (label, Bignum.zero) else 
-             let numer = (Wmc.wmc ~wmc_type compiled.ctx.man (Bdd.bdd_and compiled.ctx.man bdd zbdd) compiled.ctx.weights) in
-             let div_res = if wmc_type = 1 || wmc_type = 2 then Bignum.(numer / z) else LogProbability.rat_div_and_conv numer z in 
-             (label, div_res)) in
-       let l = [["Value"; "Probability"]] @
-         List.map probs ~f:(fun (typ, prob) -> [print_pretty typ; Bignum.to_string_hum prob]) in
-       [TableRes("Joint Distribution", l)]
-      ) in
-    let res = if show_recursive_calls then res @ [StringRes("Number of recursive calls",
-                                                            Format.sprintf "%s" 
-                                                            (Unsigned.UInt64.to_string (Bdd.bdd_num_recursive_calls compiled.ctx.man)))]
-       else res in 
-    (* let res = if show_function_size then
-     *     let all_sizes = List.map (Hashtbl.to_alist compiled.ctx.funcs) ~f:(fun (key, data) ->
-     *         (\* let sz = VarState.state_size [data.body.state; VarState.Leaf(data.body.z)] in *\)
-     *         let sz = Bdd.size (VarState.extract_leaf data.body.state) in
-     *         StringRes(Format.sprintf "Size of function '%s'" key, string_of_int sz)
-     *       ) in
-     *     res @ all_sizes else res in
-     * let res = if print_function_bdd then
-     *     let all_bdds = List.map (Hashtbl.to_alist compiled.ctx.funcs) ~f:(fun (key, data) ->
-     *         let bdd = BddUtil.dump_dot_multiroot compiled.ctx.name_map data.body.state in
-     *         StringRes(Format.sprintf "BDD for function '%s'" key, bdd)
-     *       ) in
-     *     res @ all_bdds else res in *)
-    let res = if print_size then
-        res @ [StringRes("Final compiled BDD size",
-                         string_of_int (VarState.state_size compiled.ctx.man [compiled.body.state; VarState.Leaf(compiled.body.z)]))] 
-      else res in
-    let res = if print_state_bdd then
-        res @ [StringRes("State BDD (graphviz format)",
-                         BddUtil.dump_dot_multiroot compiled.ctx.man compiled.ctx.name_map compiled.body.state);
-               StringRes("State accepting BDD (graphviz format)",
-                        BddUtil.dump_dot_multiroot compiled.ctx.man compiled.ctx.name_map (VarState.Leaf(compiled.body.z)))
-              ]
-      else res in
-    (* Bdd.man_print_stats compiled.ctx.man; *)
-    res
+  | None ->
+    if cnf then 
+      let lf_t1 = Time.now() in
+      let log_form = from_core_prog internal in
+
+      let cnf_t1 = Time.now() in
+      let wcnf = Compiler.compile_to_cnf log_form t in
+      let cnf_t2 = Time.now() in
+
+      let res = if print_cnf then res @ [StringRes("CNF", LogicalFormula.string_of_wcnf wcnf)] else res in
+      let s_dir = match sharpsat_dir with None -> "../sharpsat-td/bin/" | Some(d) -> d in
+      
+      let res = if show_time then
+          let lf_time = Time.diff cnf_t1 lf_t1 in
+          let cnf_time = Time.diff cnf_t2 cnf_t1 in
+          res @ [StringRes("LF Time Elapsed", Time.Span.to_string lf_time);
+                 StringRes("CNF Time Elapsed", Time.Span.to_string cnf_time)] else res
+        in
+
+      let res = if skip_table then res else
+        (let fc_timeout = match fc_timeout with | None -> 30 | Some(t) -> t in
+        let sharpsat_t1 = Time.now() in
+        let probs = Compiler.compute_cnf ~debug:verbose s_dir fc_timeout wcnf in
+        let sharpsat_t2 = Time.now() in
+        
+        let res = if show_time then
+          let sharpsat_time = Time.diff sharpsat_t2 sharpsat_t1 in
+          res @ [StringRes("SharpSAT-td Time Elapsed", Time.Span.to_string sharpsat_time)] else res
+        in
+  
+        let res = if print_cnf_decisions then 
+          let sum = List.fold probs ~init:Bignum.zero ~f:(fun acc (_, _, dec) -> Bignum.(acc + dec)) in
+          res @ [StringRes("Total CNF decisions", Bignum.to_string_hum sum)] else res in
+        let res = if skip_table then res else res @
+          (let table = if print_cnf_decisions then
+              [["Value"; "Probability"; "Decisions"]] @ List.map probs ~f:(fun (label, prob, dec) ->
+                [print_pretty label; Bignum.to_string_hum prob; Bignum.to_string_hum dec])
+            else
+              [["Value"; "Probability"]] @ List.map probs ~f:(fun (label, prob, _) ->
+                [print_pretty label; Bignum.to_string_hum prob])
+          in
+          [TableRes("CNF Joint Distribution", table)])
+        in res)
+      in res
+    else
+      let compiled, res = if logical_formula then 
+        let lf_t1 = Time.now() in
+        let log_form = from_core_prog internal in
+        let lf_t2 = Time.now() in
+        let bdd_form = Compiler.compile_to_bdd log_form in
+        let bdd_t2 = Time.now() in
+
+        let res = if show_time then 
+          let lf_time = Time.diff lf_t2 lf_t1 in
+          let bdd_time = Time.diff bdd_t2 lf_t2 in
+          res @ [StringRes("LF Time Elapsed", Time.Span.to_string lf_time);
+                 StringRes("LF to BDD Time Elapsed", Time.Span.to_string bdd_time)] else res
+        in
+        bdd_form, res else
+          let comp_t1 = Time.now() in
+          let compiled = Compiler.compile_program internal ~eager_eval in
+          let comp_t2 = Time.now() in
+          let res = if show_time then
+            let comp_time = Time.Span.to_sec (Time.diff comp_t2 comp_t1) in
+            res @ [StringRes("Compilation Time Elapsed", Float.to_string comp_time)] else res
+          in
+          compiled, res 
+      in
+      let zbdd = compiled.body.z in
+      let res = if skip_table then res else res @
+        (let z = Wmc.wmc ~float_wmc compiled.ctx.man zbdd compiled.ctx.weights in
+        let table = VarState.get_table cfg compiled.ctx.man compiled.body.state t in
+        let probs = List.map table ~f:(fun (label, bdd) ->
+            if Bignum.(z = zero) then (label, Bignum.zero) else
+              let prob = Bignum.((Wmc.wmc ~float_wmc compiled.ctx.man (Bdd.bdd_and compiled.ctx.man bdd zbdd) compiled.ctx.weights) / z) in
+              (label, prob)) in
+        let l = [["Value"; "Probability"]] @
+          List.map probs ~f:(fun (typ, prob) -> [print_pretty typ; Bignum.to_string_hum prob]) in
+        [TableRes("Joint Distribution", l)]
+        ) in
+      (* let res = if show_recursive_calls then res @ [StringRes("Number of recursive calls",
+      *                                                         Format.sprintf "%f" (Man.num_recursive_calls compiled.ctx.man))]
+      *   else res in *)
+      (* let res = if show_function_size then
+      *     let all_sizes = List.map (Hashtbl.to_alist compiled.ctx.funcs) ~f:(fun (key, data) ->
+      *         (\* let sz = VarState.state_size [data.body.state; VarState.Leaf(data.body.z)] in *\)
+      *         let sz = Bdd.size (VarState.extract_leaf data.body.state) in
+      *         StringRes(Format.sprintf "Size of function '%s'" key, string_of_int sz)
+      *       ) in
+      *     res @ all_sizes else res in
+      * let res = if print_function_bdd then
+      *     let all_bdds = List.map (Hashtbl.to_alist compiled.ctx.funcs) ~f:(fun (key, data) ->
+      *         let bdd = BddUtil.dump_dot_multiroot compiled.ctx.name_map data.body.state in
+      *         StringRes(Format.sprintf "BDD for function '%s'" key, bdd)
+      *       ) in
+      *     res @ all_bdds else res in *)
+      let res = if print_size then
+          res @ [StringRes("Final compiled BDD size",
+                          string_of_int (VarState.state_size compiled.ctx.man [compiled.body.state; VarState.Leaf(compiled.body.z)]))] 
+        else res in
+      let res = if print_state_bdd then
+          res @ [StringRes("State BDD (graphviz format)",
+                          BddUtil.dump_dot_multiroot compiled.ctx.man compiled.ctx.name_map compiled.body.state);
+                StringRes("State accepting BDD (graphviz format)",
+                          BddUtil.dump_dot_multiroot compiled.ctx.man compiled.ctx.name_map (VarState.Leaf(compiled.body.z)))
+                ]
+        else res in
+      Bdd.man_print_stats compiled.ctx.man;
+      res
   (* | Some(n) ->
    *   let sz = ref 0 in
    *   let rec draw_sample (prob, oldz) n =
@@ -168,32 +262,50 @@ let command =
      and print_size = flag "-show-size" no_arg ~doc:" show the size of the final compiled BDD"
      and sample_amount = flag "-sample" (optional int) ~doc:" number of samples to draw"
      and print_parsed = flag "-show-parsed" no_arg ~doc:" print parsed dice program"
-     and flip_lifting = flag "-flip-lifting" no_arg ~doc:" optimize dice program before compilation using flip lifting"
+     and local_hoisting = flag "-local-hoisting" no_arg ~doc:" optimize dice program before compilation using local flip-hoisting"
+     and global_hoisting = flag "-global-hoisting" no_arg ~doc: " perform global flip-hoisting."
      and branch_elimination = flag "-branch-elimination" no_arg ~doc:" optimize dice program before compilation using branch elimination"
      and determinism = flag "-determinism" no_arg ~doc:" optimize dice program before compilation using determinism"
+     and sbk_encoding = flag "-sbk-encoding" no_arg ~doc:" use Sang-Beame-Kautz encoding for integers and categorical distributions"
      and show_function_size = flag "-show-function-size" no_arg ~doc:" print size of all function BDDs"
      and inline_functions = flag "-inline-functions" no_arg ~doc:" inline all function calls"
      and print_internal = flag "-show-internal" no_arg ~doc:" print desugared dice program"
      and print_state_bdd = flag "-print-state-bdd" no_arg ~doc:" print final compiled state BDD (in graphviz format)"
      and print_function_bdd = flag "-print-function-bdd" no_arg ~doc:" print final compiled function state BDD (in graphviz format)"
      and print_unparsed = flag "-show-unparsed" no_arg ~doc:" print unparsed desugared dice program"
+     and print_lf = flag "-show-logical-formula" no_arg ~doc:" print logical formula of dice program"
+     and print_cnf = flag "-show-cnf" no_arg ~doc:" print CNF of dice program"
      and skip_table = flag "-skip-table" no_arg ~doc:" skip printing the joint probability distribution"
      and show_recursive_calls = flag "-num-recursive-calls" no_arg ~doc:" show the number of recursive calls invoked during compilation"
      and eager_eval = flag "-eager-eval" no_arg ~doc:" eager let compilation"
      and recursion_limit = flag "-recursion-limit" (optional int) ~doc:" maximum recursion depth"
      and max_list_length = flag "-max-list-length" (optional int) ~doc:" maximum list length"
+     and show_flip_count = flag "-show-flip-count" no_arg ~doc:" show the number of flips in the program"
+     and show_params = flag "-show-params" no_arg ~doc:" show the sum of number of unique parameters in each table in the program"
+     and no_compile = flag "-no-compile" no_arg ~doc: " parse the program only"
+     and max_flips = flag "-max-flips" (optional int) ~doc: " limit the number of flips during flip-hoisting"
+     and logical_formula = flag "-logical-formula" no_arg ~doc:" use logical formula interface"
+     and cnf = flag "-cnf" no_arg ~doc:" compiles to CNF"
+     and print_cnf_decisions = flag "-show-cnf-decisions" no_arg ~doc:" show the number of decisions performed by SharpSAT-td"
      and wmc_type = flag "-wmc-type" (optional_with_default 0 int) ~doc:" choose computation type (0: log based [default], 1: rational based, 2: float based)"
      (* and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order" *)
      and json = flag "-json" no_arg ~doc:" print output as JSON"
+     and sharpsat_dir = flag "-sharpsat-dir" (optional string) ~doc:" path to sharpsat binary (default ../sharpsat-td/bin/)"
+     and fc_timeout = flag "-fc-timeout" (optional int) ~doc:" time in seconds to run flowcutter for for SharpSAT-td"
+     and verbose = flag "-verbose" no_arg ~doc:" print additional debugging output"
+     and show_lf_size = flag "-show-lf-size" no_arg ~doc:" show the number of nodes in the logical formula"
+     and show_time = flag "-show-time" no_arg ~doc:" show the time it takes to generate CNF and to run SharpSAT-td"
      in fun () ->
        let inx = In_channel.create fname in
        let lexbuf = Lexing.from_channel inx in
        lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = fname };
        let r = (parse_and_print ~print_parsed ~print_internal ~sample_amount
-                  ~print_size ~inline_functions ~skip_table ~flip_lifting
-                  ~branch_elimination ~determinism ~show_recursive_calls ~print_state_bdd
-                  ~show_function_size ~print_unparsed ~print_function_bdd
-                  ~recursion_limit ~max_list_length ~eager_eval ~wmc_type
+                  ~print_size ~inline_functions ~skip_table ~local_hoisting ~global_hoisting
+                  ~branch_elimination ~determinism ~sbk_encoding ~show_recursive_calls ~print_state_bdd
+                  ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_cnf ~print_function_bdd
+                  ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~logical_formula
+                  ~cnf ~sharpsat_dir ~print_cnf_decisions ~fc_timeout ~verbose ~show_lf_size ~wmc_type
+                  ~show_time
                   lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
        else List.iter r ~f:print_res

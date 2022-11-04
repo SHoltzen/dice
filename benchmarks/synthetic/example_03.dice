@@ -1,0 +1,13 @@
+let x0 = flip 0.230147 in
+let x1 = flip 0.144302 in
+let x2 = flip 0.797692 in
+let x3 =
+if x0 then if x1 then if x2 then flip 0.292946 else flip 0.292946 else if x2 then flip 0.701315 else flip 0.292946 else if x1 then if x2 then flip 0.701315 else flip 0.292946 else if x2 then flip 0.292946 else flip 0.292946
+in
+let x4 =
+if x0 then if x1 then if x2 then flip 0.462713 else flip 0.895448 else if x2 then flip 0.895448 else flip 0.895448 else if x1 then if x2 then flip 0.895448 else flip 0.895448 else if x2 then flip 0.462713 else flip 0.895448
+in
+let x5 =
+if x0 then if x1 then if x2 then flip 0.678012 else flip 0.678012 else if x2 then flip 0.678012 else flip 0.661397 else if x1 then if x2 then flip 0.678012 else flip 0.661397 else if x2 then flip 0.678012 else flip 0.678012
+in
+x3 && x4 && x5
