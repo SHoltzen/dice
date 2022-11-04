@@ -132,12 +132,14 @@ let test_sub4 _ =
   assert_feq 0.125 (parse_and_prob prog false);
   assert_feq 0.125 (parse_and_prob prog true)
 
-
 let test_op1 _ =
-  let prog = "
+  (*let prog = "
    let x = discrete(0.1, 0.2, 0.3, 0.4) in
    let y = discrete(0.4, 0.3, 0.2, 0.1) in
-   x < y" in
+   x < y" in*)
+  let prog = "
+   discrete(0.1, 0.2, 0.3, 0.4) < discrete(0.4, 0.3, 0.2, 0.1)" in
+
   assert_feq (3.0 /. 20.0) (parse_and_prob prog false);
   assert_feq (3.0 /. 20.0) (parse_and_prob prog true)
 
@@ -259,7 +261,7 @@ _x0 <=> _y0" in
   assert_feq 1.0 (parse_and_prob prog false)
 
 
-let test_unif_1 _ = 
+let test_unif_1 _ =
   let prog1 = "let u = uniform(4, 0, 10) in u < int(4, 4)" in
   let prog2 = "let d = discrete(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1) in d < int(4, 4)" in
   assert_feq (parse_and_prob prog1 false) (parse_and_prob prog2 false);
@@ -271,13 +273,13 @@ let test_unif_2 _ =
   assert_feq (parse_and_prob prog1 false) (parse_and_prob prog2 false);
   assert_feq 0. (parse_and_prob prog1 false)
 
-let test_unif_3 _ = 
+let test_unif_3 _ =
   let prog1 = "let u = uniform(3, 3, 4) in u == int(3, 3)" in
   let prog2 = "let d = discrete(0., 0., 0., 1., 0.) in d == int(3, 3)" in
   assert_feq (parse_and_prob prog1 false) (parse_and_prob prog2 false);
   assert_feq 1. (parse_and_prob prog1 false)
 
-let test_unif_4 _ = 
+let test_unif_4 _ =
   let prog = "
     let u = uniform(2, 1, 4) in
     let d = discrete(0., 0.5, 0.25, 0.25) in
@@ -285,7 +287,8 @@ let test_unif_4 _ =
   assert_feq 0.25 (parse_and_prob prog false)
   
 
-let test_binom_1 _ = 
+
+let test_binom_1 _ =
   let prog = "let b = binomial(3, 4, 0.25) in b == int(3, 1)" in
   assert_feq 0.421875 (parse_and_prob prog false)
 
@@ -293,11 +296,11 @@ let test_binom_2 _ =
   let prog = "let b = binomial(5, 29, 0.5) in b <= int(5, 14)" in 
   assert_feq 0.5 (parse_and_prob prog false)
 
-let test_binom_3 _ = 
+let test_binom_3 _ =
   let prog = "let b = binomial(3, 0, 0.5) in b == int(3, 0)" in
   assert_feq 1. (parse_and_prob prog false)
 
-let test_binom_4 _ = 
+let test_binom_4 _ =
   let prog = "let b = binomial(3, 1, 0.3) in b == int(3, 1)" in
   assert_feq 0.3 (parse_and_prob prog false)
 
@@ -559,19 +562,6 @@ coin1 == int(6, 10)
 " in assert_feq 0.45 (parse_and_prob prog false);
   assert_feq 0.45 (parse_and_prob prog true)
 
-let test_swap _ =
-  let open Cudd in
-  let mgr = Man.make_d () in
-  let bdd1 = Bdd.newvar mgr in
-  let bdd2 = Bdd.newvar mgr in
-  let bdd3 = Bdd.newvar mgr in
-  let bdd4 = Bdd.newvar mgr in
-  let andbdd = Bdd.dand bdd1 bdd2 in
-  let swapbdd = List.to_array [bdd3; bdd4] in
-  let swapidx = List.to_array [Bdd.topvar bdd1; Bdd.topvar bdd2] in
-  let swapped = Bdd.labeled_vector_compose andbdd swapbdd swapidx in
-  OUnit2.assert_bool "Expected equal bdds" (Bdd.is_equal (Bdd.dand bdd3 bdd4) swapped)
-
 let test_recursion _ =
   let prog = In_channel.read_all "../resources/recursion.dice" in
   assert_feq (0.5 ** 3.) (parse_and_prob prog false);
@@ -695,6 +685,23 @@ let test_list_ex _ =
   assert_feq (0.2 *. 0.5 +. 0.4 *. 0.5) (parse_and_prob prog false);
   assert_feq (0.2 *. 0.5 +. 0.4 *. 0.5) (parse_and_prob prog true)
 
+let test_lte_name _ =
+  let prog1 = "uniform(3, 0, 8) <= uniform(3, 0, 8)" in
+  let prog2 = "
+    let a = uniform(3, 0, 8) in
+    let b = uniform(3, 0, 8) in
+    a <= b" in
+  assert_feq (parse_and_prob prog1) (parse_and_prob prog2)
+
+let test_lt_name _ =
+  let prog1 = "uniform(3, 0, 8) < uniform(3, 0, 8)" in
+  let prog2 = "
+    let a = uniform(3, 0, 8) in
+    let b = uniform(3, 0, 8) in
+    a < b" in
+  assert_feq (parse_and_prob prog1) (parse_and_prob prog2)
+
+
 let test_bdd _ =
   let mgr = Bdd.mk_bdd_manager_default_order 100 in
   let v1 = Bdd.bdd_newvar mgr true in
@@ -769,10 +776,10 @@ let expression_tests =
   "test_unif_3">::test_unif_3;
   "test_unif_4">::test_unif_4;
 
-  "test_binom_1">::test_binom_1;
+  (*"test_binom_1">::test_binom_1;
   "test_binom_2">::test_binom_2;
   "test_binom_3">::test_binom_3;
-  "test_binom_4">::test_binom_4;
+  "test_binom_4">::test_binom_4;*)
 
   "test_fcall1">::test_fcall1;
   "test_fcall2">::test_fcall2;
@@ -809,8 +816,6 @@ let expression_tests =
   (* "test_pmc1">::test_pmc1;
    * "test_pmc2">::test_pmc2; *)
 
-  "test_swap">::test_swap;
-
   "test_recursion">::test_recursion;
   "test_caesar_recursive">::test_caesar_recursive;
   "test_factorial">::test_factorial;
@@ -823,6 +828,8 @@ let expression_tests =
   (* "test_list_distribution">::test_list_distribution; *)
   "test_list_ex">::test_list_ex;
   "test_bdd">::test_bdd;
+  "test_lte_name">::test_lte_name;
+  "test_lt_name">::test_lt_name;
 ]
 
 let () =

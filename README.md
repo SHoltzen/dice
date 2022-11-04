@@ -1,3 +1,5 @@
+[![CI - Build and Test](https://github.com/SHoltzen/dice/actions/workflows/ci.yml/badge.svg)](https://github.com/SHoltzen/dice/actions/workflows/ci.yml)
+
 `dice` is a probabilistic programming language focused on *fast exact inference*
 for *discrete* probabilistic programs. For more information for how `dice` works
 see the research article [here](https://arxiv.org/abs/2005.09089). To cite
@@ -95,6 +97,15 @@ false	0.651163
 ```
 
 This output shows that `a` has a 34.8837% chance of landing on heads.
+
+## Optimizations
+
+The Dice compiler has the following built-in optimizations and alternative run-time modes 
+that are activated with the following flags:
+
+* `-determinism`: replaces deterministic probabilistic choices with non-random choices (i.e., `flip 1.0` becomes `true`). It is recommended that this flag be enabled for most cases.
+* `-eager-eval`: changes the compilation order to avoid substitution during compilation. Can perform faster than the default compilation order on certain cases.
+* `-flip-lifting`: removes redundant `flip` expressions from certain classes of programs -- can increase performance.
 
 ## Datatypes
 In addition to Booleans, `dice` supports integers, tuples, and lists.

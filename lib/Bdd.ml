@@ -96,8 +96,10 @@ let bdd_vector_compose man f (vars: label List.t) (bdds: bddptr List.t) =
 let man_print_stats =
   foreign "rsdd_print_stats" (manager @-> returning void)
 
-
+let bdd_num_recursive_calls = 
+  foreign "rsdd_num_recursive_calls" (manager @-> returning uint64_t)
 
 let bdd_is_const mgr bdd = not (bdd_is_var mgr bdd)
 
 let int_of_label (lbl : label) : int = Unsigned.Size_t.to_int lbl
+

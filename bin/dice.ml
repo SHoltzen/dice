@@ -81,8 +81,8 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
     ~inline_functions ~sample_amount ~show_recursive_calls
     ~local_hoisting ~global_hoisting ~branch_elimination ~determinism ~sbk_encoding ~print_state_bdd
     ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_cnf ~print_function_bdd
-    ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc ~logical_formula
-    ~cnf ~sharpsat_dir ~print_cnf_decisions ~fc_timeout ~verbose ~show_lf_size ~show_time
+    ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~logical_formula
+    ~cnf ~sharpsat_dir ~print_cnf_decisions ~fc_timeout ~verbose ~show_lf_size ~show_time ~wmc_type
     lexbuf : result List.t = try
   let parsed = Compiler.parse_with_error lexbuf in
   let res = if print_parsed then [StringRes("Parsed program", (ExternalGrammar.string_of_prog parsed))] else [] in
@@ -106,9 +106,10 @@ let parse_and_print ~print_parsed ~print_internal ~print_size ~skip_table
       res @ [StringRes("Logical formula", LogicalFormula.string_of_prog log_form)] else res in
     let res = if show_lf_size then
       res @ [StringRes("Logical formula size", string_of_int (LogicalFormula.size_of_lf log_form))] else res in
-    res
+      res
     else res in
   if no_compile then res else match sample_amount with
+  | None ->
   | None ->
     if cnf then 
       let lf_t1 = Time.now() in
@@ -283,10 +284,11 @@ let command =
      and show_params = flag "-show-params" no_arg ~doc:" show the sum of number of unique parameters in each table in the program"
      and no_compile = flag "-no-compile" no_arg ~doc: " parse the program only"
      and max_flips = flag "-max-flips" (optional int) ~doc: " limit the number of flips during flip-hoisting"
-     and float_wmc = flag "-float-wmc" no_arg ~doc:" use float-based wmc"
      and logical_formula = flag "-logical-formula" no_arg ~doc:" use logical formula interface"
      and cnf = flag "-cnf" no_arg ~doc:" compiles to CNF"
      and print_cnf_decisions = flag "-show-cnf-decisions" no_arg ~doc:" show the number of decisions performed by SharpSAT-td"
+     and wmc_type = flag "-wmc-type" (optional_with_default 0 int) ~doc:" choose computation type (0: log based [default], 1: rational based, 2: float based)"
+     (* and print_marginals = flag "-show-marginals" no_arg ~doc:" print the marginal probabilities of a tuple in depth-first order" *)
      and json = flag "-json" no_arg ~doc:" print output as JSON"
      and sharpsat_dir = flag "-sharpsat-dir" (optional string) ~doc:" path to sharpsat binary (default ../sharpsat-td/bin/)"
      and fc_timeout = flag "-fc-timeout" (optional int) ~doc:" time in seconds to run flowcutter for for SharpSAT-td"
@@ -301,8 +303,8 @@ let command =
                   ~print_size ~inline_functions ~skip_table ~local_hoisting ~global_hoisting
                   ~branch_elimination ~determinism ~sbk_encoding ~show_recursive_calls ~print_state_bdd
                   ~show_function_size ~show_flip_count ~show_params ~print_unparsed ~print_lf ~print_cnf ~print_function_bdd
-                  ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~float_wmc ~logical_formula
-                  ~cnf ~sharpsat_dir ~print_cnf_decisions ~fc_timeout ~verbose ~show_lf_size
+                  ~recursion_limit ~max_list_length ~eager_eval ~no_compile ~max_flips ~logical_formula
+                  ~cnf ~sharpsat_dir ~print_cnf_decisions ~fc_timeout ~verbose ~show_lf_size ~wmc_type
                   ~show_time
                   lexbuf) in
        if json then Format.printf "%s" (Yojson.to_string (`List(List.map r ~f:json_res)))
