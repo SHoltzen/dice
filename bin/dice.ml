@@ -170,7 +170,7 @@ let command =
      and print_parsed = flag "-show-parsed" no_arg ~doc:" print parsed dice program"
      and flip_lifting = flag "-flip-lifting" no_arg ~doc:" optimize dice program before compilation using flip lifting"
      and branch_elimination = flag "-branch-elimination" no_arg ~doc:" optimize dice program before compilation using branch elimination"
-     and determinism = flag "-determinism" no_arg ~doc:" optimize dice program before compilation using determinism"
+     and no_determinism = flag "-no-determinism" no_arg ~doc:" remove determinism optimizations"
      and show_function_size = flag "-show-function-size" no_arg ~doc:" print size of all function BDDs"
      and inline_functions = flag "-inline-functions" no_arg ~doc:" inline all function calls"
      and print_internal = flag "-show-internal" no_arg ~doc:" print desugared dice program"
@@ -191,7 +191,7 @@ let command =
        lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = fname };
        let r = (parse_and_print ~print_parsed ~print_internal ~sample_amount
                   ~print_size ~inline_functions ~skip_table ~flip_lifting
-                  ~branch_elimination ~determinism ~show_recursive_calls ~print_state_bdd
+                  ~branch_elimination ~determinism:(not no_determinism) ~show_recursive_calls ~print_state_bdd
                   ~show_function_size ~print_unparsed ~print_function_bdd
                   ~recursion_limit ~max_list_length ~eager_eval ~wmc_type
                   lexbuf) in
