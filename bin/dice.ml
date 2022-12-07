@@ -27,7 +27,7 @@ let print_res r =
     Format.printf "================[ Error ]================\n";
     Format.printf "%s\n" value
 
-let json_res r : Yojson.json =
+let json_res r =
   let open Yojson in
   match r with
   | StringRes(name, v) -> `Assoc([name, `String(v)])
