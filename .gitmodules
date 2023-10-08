@@ -1,3 +1,4 @@
 [submodule "rsdd"]
 	path = rsdd
+	branch = rsdd-dice
 	url = https://github.com/SHoltzen/rsdd
