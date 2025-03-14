@@ -31,7 +31,7 @@
 
 
 (library
- (libraries core cudd sexplib menhirLib ounit2 ctypes ctypes.foreign bignum)
+ (libraries core core_unix.sys_unix cudd sexplib menhirLib ounit2 ctypes ctypes.foreign bignum)
  (foreign_archives rsdd)
  (library_flags (-linkall))
  (name diceLib)

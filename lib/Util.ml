@@ -21,9 +21,9 @@ let bit_length x = Int.floor_log2 x + 1
 let dir_contents dir =
   let rec loop result = function
     | f::fs ->
-      (match Sys.is_directory f with
+      (match Sys_unix.is_directory f with
        | `Yes ->
-         Sys.readdir f
+         Sys_unix.readdir f
          |> Array.to_list
          |> List.map ~f:(Filename.concat f)
          |> List.append fs

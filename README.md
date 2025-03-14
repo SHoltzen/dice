@@ -39,7 +39,7 @@ terminal:
 
 ```
 opam init                  # must be performed before installing opam packages
-opam switch create 4.09.0  # switch to use OCaml version 4.09
+opam switch create 4.14.1  # switch to use OCaml version 4.14
 eval `opam config env`     # optional: add this line to your .bashrc
 source $HOME/.cargo/env    # set up rust environment
 git submodule update --init --recursive    # populate the rsdd subdirectory
