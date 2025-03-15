@@ -1,0 +1,7 @@
+let A = discrete(0.300000,0.500000,0.200000) in
+let S = discrete(0.600000,0.400000) in
+let E = if ((A == int(2, 0))) then (if ((S == int(1, 0))) then (discrete(0.750000,0.250000)) else (discrete(0.640000,0.360000))) else (if ((A == int(2, 1))) then (if ((S == int(1, 0))) then (discrete(0.720000,0.280000)) else (discrete(0.700000,0.300000))) else (if ((S == int(1, 0))) then (discrete(0.880000,0.120000)) else (discrete(0.900000,0.100000)))) in
+let R = if ((E == int(1, 0))) then (discrete(0.250000,0.750000)) else (discrete(0.200000,0.800000)) in
+let O = if ((E == int(1, 0))) then (discrete(0.960000,0.040000)) else (discrete(0.920000,0.080000)) in
+let T = if ((O == int(1, 0))) then (if ((R == int(1, 0))) then (discrete(0.480000,0.420000,0.100000)) else (discrete(0.580000,0.240000,0.180000))) else (if ((R == int(1, 0))) then (discrete(0.560000,0.360000,0.080000)) else (discrete(0.700000,0.210000,0.090000))) in
+T
