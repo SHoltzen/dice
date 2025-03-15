@@ -24,12 +24,12 @@ let run_benches () =
   print_endline (Format.sprintf "Benchmark\tTime (s)\t#Paths (log10)\tBDD Size");
   List.iter benches ~f:(fun (name, bench) ->
       try
-        let t0 = Unix.gettimeofday () in
+        let t0 = Core_unix.gettimeofday () in
         let r = bench () in
         let (parsed, res) = r in
         let st = [res.body.state; VarState.Leaf(res.body.z)] in
         let sz = VarState.state_size res.ctx.man st in
-        let t1 = Unix.gettimeofday () in
+        let t1 = Core_unix.gettimeofday () in
         print_endline (Format.sprintf "%s\t%f\t%s\t%d"
                          name (t1 -. t0) (LogProbability.to_string 10.0 (Passes.num_paths parsed)) sz);
       with ExternalGrammar.Type_error(s) -> Format.printf "Type error in %s: %s\n" name s
@@ -58,14 +58,14 @@ let bench_caesar inline_functions =
   Format.printf "Length\tTime (ms)\tBDD Size\n";
   let lst = [1; 100; 250; 500; 1000; 2500; 5000; 10000] in
   List.iter lst ~f:(fun len ->
-      let t0 = Unix.gettimeofday () in
+      let t0 = Core_unix.gettimeofday () in
       let caesar = gen_caesar (List.init len ~f:(fun _ -> Random.int_incl 0 25)) in
       let res = (if inline_functions then Passes.inline_functions caesar else caesar)
                 |> Passes.from_external_prog
                 |> snd
                 |> Compiler.compile_program ~eager_eval:true in
       let sz = 0 in
-      let t1 = Unix.gettimeofday () in
+      let t1 = Core_unix.gettimeofday () in
       let numpaths = Passes.num_paths caesar in
       print_endline (Format.sprintf "%d\t%f\t%s\t%d" len ((t1 -. t0) *. 1000.0)
                        (LogProbability.to_string 10.0 numpaths) sz);
@@ -97,7 +97,7 @@ let bench_caesar_error inline_functions =
   Format.printf "Length\tTime (ms)\tBDD Size\n";
   let lst = [1; 100; 250; 500; 1000; 2500; 5000; 10000] in
   List.iter lst ~f:(fun len ->
-      let t0 = Unix.gettimeofday () in
+      let t0 = Core_unix.gettimeofday () in
       let caesar = gen_caesar_error (List.init len ~f:(fun _ -> Random.int_incl 0 25)) in
       let res = (if inline_functions then Passes.inline_functions caesar else caesar)
                 |> Passes.from_external_prog
@@ -105,7 +105,7 @@ let bench_caesar_error inline_functions =
                 |> Compiler.compile_program ~eager_eval:true in
       (* let sz = Cudd.Bdd.size res.body.z in *)
       let sz = 0 in
-      let t1 = Unix.gettimeofday () in
+      let t1 = Core_unix.gettimeofday () in
       let numpaths = Passes.num_paths caesar in
       print_endline (Format.sprintf "%d\t%f\t%s\t%d" len ((t1 -. t0) *. 1000.0)
                        (LogProbability.to_string 10.0 numpaths) sz);
@@ -134,12 +134,12 @@ let bench_diamond inline_functions =
   List.iter lst ~f:(fun len ->
       let caesar = gen_diamond (len + 1) in
       let inlined = if inline_functions then Passes.inline_functions caesar else caesar in
-      let t0 = Unix.gettimeofday () in
+      let t0 = Core_unix.gettimeofday () in
       let res = Passes.from_external_prog inlined
                 |> snd
                 |> Compiler.compile_program ~eager_eval:true in
       let sz = VarState.state_size res.ctx.man [res.body.state] in
-      let t1 = Unix.gettimeofday () in
+      let t1 = Core_unix.gettimeofday () in
       let numpaths = Passes.num_paths caesar in
       print_endline (Format.sprintf "%d\t%f\t%s\t%d" len ((t1 -. t0) *. 1000.0)
                        (LogProbability.to_string 10.0 numpaths) sz);
@@ -173,12 +173,12 @@ let bench_ladder inline_functions =
   List.iter lst ~f:(fun len ->
       let caesar = gen_ladder (len + 1) in
       let inlined = if inline_functions then Passes.inline_functions caesar else caesar in
-      let t0 = Unix.gettimeofday () in
+      let t0 = Core_unix.gettimeofday () in
       let res = Passes.from_external_prog inlined
                 |> snd
                 |> Compiler.compile_program ~eager_eval:true in
       let sz = VarState.state_size res.ctx.man [res.body.state] in
-      let t1 = Unix.gettimeofday () in
+      let t1 = Core_unix.gettimeofday () in
       let numpaths = Passes.num_paths caesar in
       print_endline (Format.sprintf "%d\t%f\t%s\t%d" len ((t1 -. t0) *. 1000.0)
                        (LogProbability.to_string 10.0 numpaths) sz);
@@ -219,12 +219,12 @@ let bench_ladder inline_functions =
  *   List.iter lst ~f:(fun len ->
  *       let caesar = gen_ladder (len + 1) in
  *       let inlined = if inline_functions then Passes.inline_functions caesar else caesar in
- *       let t0 = Unix.gettimeofday () in
+ *       let t0 = Core_unix.gettimeofday () in
  *       let res = Passes.from_external_prog inlined
  *                 |> snd
  *                 |> Compiler.compile_program in
  *       let sz = VarState.state_size [res.body.state] in
- *       let t1 = Unix.gettimeofday () in
+ *       let t1 = Core_unix.gettimeofday () in
  *       let numpaths = Passes.num_paths caesar in
  *       print_endline (Format.sprintf "%d\t%f\t%s\t%d" len ((t1 -. t0) *. 1000.0)
  *                        (LogProbability.to_string 10.0 numpaths) sz);
@@ -270,5 +270,4 @@ let command =
          bench_ladder false))
 
 let () =
-  Command.run ~version:"1.0" command
-
+  Command_unix.run ~version:"1.0" command

@@ -2,7 +2,7 @@ FROM ocaml/opam
 
 WORKDIR dice
 
-RUN opam switch create 4.09.0
+RUN opam switch create 4.14.1
 
 RUN eval $(opam env)
 
