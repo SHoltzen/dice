@@ -312,9 +312,9 @@ let get_lexing_position lexbuf =
 
 
 let get_parse_error env =
-    match I.stack env with
-    | lazy Nil -> "Invalid syntax"
-    | lazy (Cons (I.Element (state, _, _, _), _)) ->
+    match I.top env with
+    | None -> "Invalid syntax"
+    | Some (I.Element (state, _, _, _)) ->
         try (Parser_messages.message (I.number state)) with
         | _ -> "invalid syntax (no specific message for this eror)"
 

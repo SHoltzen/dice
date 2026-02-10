@@ -1,6 +1,5 @@
 %{
   open ExternalGrammar
-  open Bignum
 %}
 
 /* Tokens */
